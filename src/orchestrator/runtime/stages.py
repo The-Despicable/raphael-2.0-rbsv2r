@@ -184,6 +184,10 @@ def stage_pep(ctx: dict) -> StageResult:
             error="Capability or decision not available",
             duration_ms=(time.time() - t0) * 1000.0,
         )
+    # CONV-3 gating: record broker authorization before invoking the
+    # capability. The capability checks that record_authorization was
+    # called for this target; if not, it raises CapabilityNotGatedError.
+    capability.record_authorization(request.target)
     result = capability.inspect(request.target)
     event = ExecutionEvent(
         action_id=request.action_id,

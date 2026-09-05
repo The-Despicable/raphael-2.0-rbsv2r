@@ -1,5 +1,5 @@
 """
-loop.py — RaphaelRuntime thin sequencer (P3.0 CONV-1: real Broker)
+loop.py — RaphaelRuntime thin sequencer (P3.0 CONV-1 + CONV-2 + CONV-3)
 
 Per v4 §13.1: RaphaelRuntime must:
 - own sequence and termination
@@ -10,15 +10,23 @@ Per v4 §13.1: RaphaelRuntime must:
 - enter Broker/PEP for EXECUTE
 - expose a stable trace interface
 
-CONV-1 (P3.0): the Runtime accepts a brain CapabilityBroker as its
-single canonical PDP. The policy parameter is now a CapabilityBroker
-(not a BootstrapPolicy). Exactly one PDP on the canonical path.
+CONV-1: the Runtime accepts a brain CapabilityBroker as its
+single canonical PDP. Exactly one PDP on the canonical path.
+
+CONV-2: PEP execution ownership is in orchestrator.exec/.
+The Runtime injects the capability from exec/.
+
+CONV-3: the capability is gated by the broker. The Runtime
+constructs a SafeProvingCapability bound to the broker. The
+stage_pep calls capability.record_authorization(target) after the
+broker stage succeeds, before invoking capability.inspect(target).
 """
 from __future__ import annotations
 import time
 from typing import Any, Optional
 
 from orchestrator.brain.capability_broker import CapabilityBroker
+from orchestrator.exec.safe_capability import SafeProvingCapability
 
 from orchestrator.runtime.types import (
     DecisionTrace,
@@ -30,7 +38,6 @@ from orchestrator.runtime.types import (
 )
 from orchestrator.runtime.stages import STAGE_ORDER, STAGE_HANDLERS
 from orchestrator.runtime.policy import make_broker_from_bootstrap
-from orchestrator.runtime.safe_proving_capability import SafeProvingCapability
 
 
 class RaphaelRuntime:
@@ -40,9 +47,9 @@ class RaphaelRuntime:
     execution path. No Runtime-wide OFF mode (v4 L8).
 
     CONV-1: the single canonical PDP is the real brain
-    CapabilityBroker (injected via __init__). The previous
-    BootstrapPolicy placeholder has been retired from the decision
-    role.
+    CapabilityBroker (injected via __init__).
+    CONV-2: PEP capability lives in orchestrator.exec/.
+    CONV-3: the capability is broker-gated.
     """
 
     def __init__(self, broker: Optional[CapabilityBroker] = None,
@@ -50,7 +57,11 @@ class RaphaelRuntime:
         self._broker = broker if broker is not None else make_broker_from_bootstrap(
             capability_name="fixture.inspect"
         )
-        self._capability = capability if capability is not None else SafeProvingCapability()
+        # CONV-2/3: capability lives in exec/ and is broker-gated.
+        if capability is not None:
+            self._capability = capability
+        else:
+            self._capability = SafeProvingCapability(broker=self._broker)
         self._world_model = {"entities": {}, "facts": {}}
 
     def step(self, ctx: RuntimeContext) -> tuple:
@@ -87,7 +98,7 @@ class RaphaelRuntime:
 
         return trace, LoopTermination(
             terminated=True,
-            reason="P3.0 CONV-1 walking skeleton: one iteration complete",
+            reason="P3.0 CONV-1+2+3 walking skeleton: one iteration complete",
             iterations=1,
             final_stage=STAGE_ORDER[-1],
         )
