@@ -14,11 +14,48 @@ FORCE_LOCAL = os.getenv("RAPHAEL_FORCE_LOCAL", "0") == "1"
 from orchestrator.hardening.timeout_guard import get_timeout_guard, TimeoutError as GuardTimeout
 from orchestrator.hardening.rate_limiter import get_limiter
 
-logger = logging.getLogger("kali_tools_client")
+
+# ── P1 SEAM (per C6, AM-4) — quarantine on _run_local ──────────────────
+# Path ID: SUB-10 (canonical P0 inventory: evidence/phases/P0/02_execution_inventory/subprocess_sites.md)
+# Weld ticket: Weld-SUB10 (P3)
+# Without explicit authorize_local_bypass(reason), _run_local raises
+# KaliBypassNotAuthorized. The seam is OFF by default per C6.
+# Runtime (when it exists, post-P2) is the consumer of authorize_local_bypass;
+# this module is the seam, not Runtime.
+class KaliBypassNotAuthorized(Exception):
+    """Raised when KaliToolsClient._run_local is invoked without explicit
+    authorize_local_bypass(reason) opt-in. See evidence/phases/P0/03_historical_reverification/bypass_reverification.md."""
+    pass
+
+_BYPASS_AUTHORIZED: bool = False
+
+def authorize_local_bypass(reason: str = "") -> None:
+    """Explicitly opt-in to the local subprocess fallback. Tests/legacy code
+    that genuinely need it must call this with a reason. Production code
+    must invoke _run_local only through a broker-gated capability (P3)."""
+    global _BYPASS_AUTHORIZED
+    _BYPASS_AUTHORIZED = True
+    logger.warning(
+        "kali_tools_client._BYPASS_AUTHORIZED=True (reason=%r). "
+        "Local subprocess fallback is now reachable. P1 seam is ON for this site.",
+        reason,
+    )
+
 
 
 async def _run_local(tool: str, args: str = "", timeout: int = 300) -> dict:
-    """Run a command directly on the host using subprocess."""
+    """Run a command directly on the host using subprocess.
+
+    P1 SEAM (per C6, AM-4): gated by _BYPASS_AUTHORIZED. Production code
+    must invoke this only through a broker-gated capability, not directly.
+    Path ID: SUB-10; Weld ticket: Weld-SUB10 (P3).
+    """
+    if not _BYPASS_AUTHORIZED:
+        raise KaliBypassNotAuthorized(
+            "kali_tools_client._run_local is quarantined in P1. "
+            "Production must invoke through a broker-gated capability. "
+            "Tests/legacy code must call authorize_local_bypass(reason=...) first."
+        )
     cmd_str = f"{tool} {args}"
     try:
         cmd_list = shlex.split(cmd_str)
@@ -68,6 +105,10 @@ class KaliToolsClient:
         self._use_local = FORCE_LOCAL
         self._remote_available = None
 
+    def authorize_local_bypass(self, reason: str = "") -> None:
+        """Instance-method spelling of authorize_local_bypass(). Equivalent.
+        See module-level function. Path ID: SUB-10; Weld ticket: Weld-SUB10."""
+        authorize_local_bypass(reason=reason)
     async def _check_remote(self) -> bool:
         if self._remote_available is not None:
             return self._remote_available

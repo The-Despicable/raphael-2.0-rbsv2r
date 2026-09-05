@@ -2,8 +2,7 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING, Optional
 if TYPE_CHECKING:
-    from ..runtime.session_manager import SandboxSession
-
+    from ..sandbox.session_manager import SandboxSession
 from .pupy_c2 import PupyC2
 from .winrm_exploit import WinRMExploit
 from .netexec_wrapper import NetExecWrapper

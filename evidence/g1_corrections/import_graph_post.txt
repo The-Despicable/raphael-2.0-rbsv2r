@@ -1,0 +1,880 @@
+src/agent/__init__.py
+  []
+src/agent/agent.py
+  ['agent.crypto', 'agent.modules.audit', 'agent.modules.credtheft', 'agent.modules.exfil', 'agent.modules.inject', 'agent.modules.lateral', 'agent.modules.persistence', 'agent.modules.stealth', 'asyncio', 'base64', 'hashlib', 'httpx', 'json', 'modules.stealth', 'modules.syscall', 'orchestrator.egress.router', 'os', 'platform', 're', 'shutil', 'subprocess', 'sys', 'time', 'uuid']
+src/agent/audit.py
+  ['atexit', 'collections.abc', 'dataclasses', 'datetime', 'enum', 'glob', 'hashlib', 'json', 'logging', 'os', 'pathlib', 'platform', 'psutil', 'shutil', 'signal', 'sys', 'tempfile', 'threading', 'time', 'typing']
+src/agent/crypto.py
+  ['base64', 'cryptography.hazmat.primitives.asymmetric.ed25519', 'cryptography.hazmat.primitives.ciphers', 'cryptography.hazmat.primitives.ciphers.aead', 'os']
+src/agent/dependency_check.py
+  ['argparse', 'ctypes', 'ctypes.util', 'dataclasses', 'enum', 'importlib', 'json', 'logging', 'os', 'packaging.version', 'pathlib', 'platform', 'shutil', 'subprocess', 'sys', 'typing']
+src/agent/modules/__init__.py
+  []
+src/agent/modules/audit.py
+  ['asyncio', 'dataclasses', 'hashlib', 'json', 'logging', 'os', 'pathlib', 'time', 'typing', 'uuid']
+src/agent/modules/cleanup.py
+  ['logging', 'os', 'pathlib', 'platform', 'shutil', 'stat', 'subprocess', 'sys', 'tempfile', 'time']
+src/agent/modules/credtheft.py
+  ['asyncio', 'base64', 'cryptography.hazmat.primitives', 'cryptography.hazmat.primitives.ciphers.aead', 'cryptography.hazmat.primitives.kdf.pbkdf2', 'fnmatch', 'hashlib', 'io', 'json', 'logging', 'os', 'pathlib', 'platform', 're', 'secretstorage', 'shutil', 'sqlite3', 'struct', 'subprocess', 'sys', 'tempfile', 'typing', 'win32crypt']
+src/agent/modules/executor.py
+  ['asyncio', 'subprocess']
+src/agent/modules/exfil.py
+  ['asyncio', 'azure.storage.blob', 'base64', 'boto3', 'cryptography.hazmat.primitives.ciphers.aead', 'google.cloud', 'hashlib', 'httpx', 'io', 'json', 'logging', 'math', 'os', 'pathlib', 'random', 'struct', 'subprocess', 'tempfile', 'time', 'typing']
+src/agent/modules/inject.py
+  ['base64', 'ctypes', 'ctypes.wintypes', 'modules.syscall', 'os', 'platform', 'struct']
+src/agent/modules/lateral.py
+  ['asyncio', 'base64', 'hashlib', 'httpx', 'io', 'json', 'logging', 'os', 'pathlib', 'random', 're', 'socket', 'struct', 'subprocess', 'sys', 'tempfile', 'time', 'typing']
+src/agent/modules/persistence.py
+  ['base64', 'hashlib', 'os', 'pathlib', 'platform', 'random', 'shutil', 'stat', 'string', 'subprocess', 'sys', 'tempfile']
+src/agent/modules/stealth.py
+  ['ctypes', 'hashlib', 'logging', 'modules.syscall', 'os', 'pathlib', 'platform', 'random', 'requests', 'requests.adapters', 'resource', 'select', 'shutil', 'ssl', 'struct', 'subprocess', 'sys', 'threading', 'time', 'urllib3.poolmanager']
+src/agent/modules/syscall.py
+  ['ctypes', 'ctypes.wintypes', 'hashlib', 'os', 'platform', 'struct', 'sys']
+src/agent/modules/uploader.py
+  ['base64', 'hashlib', 'os']
+src/arena/__init__.py
+  ['arena.runner', 'arena.templates']
+src/arena/ablation.py
+  ['arena.llm_service', 'dataclasses', 'enum', 'time', 'typing']
+src/arena/ablation_runner.py
+  ['arena.ablation', 'arena.conclusion', 'arena.conclusion_adapters', 'arena.conclusion_evaluator', 'arena.d6_manifest', 'arena.defeater', 'arena.environment', 'arena.episode', 'arena.evaluator', 'arena.llm_service', 'arena.metrics', 'arena.runner', 'arena.semantic_inference', 'arena.templates.base', 'collections', 'dataclasses', 'errno', 'ipaddress', 'json', 'orchestrator.brain.action', 'orchestrator.brain.candidate_generators.shell_generator', 'orchestrator.brain.candidate_generators.student_generator', 'orchestrator.brain.capability_broker', 'orchestrator.brain.contradiction', 'orchestrator.brain.evidence', 'orchestrator.brain.hypothesis', 'orchestrator.brain.world', 'os', 'pathlib', 're', 'sys', 'time', 'traceback', 'typing', 'uuid']
+src/arena/conclusion.py
+  ['dataclasses', 'enum', 'time', 'typing', 'uuid']
+src/arena/conclusion_adapters.py
+  ['arena.ablation', 'arena.conclusion', 'arena.runner', 'json', 'orchestrator.brain.contradiction', 'orchestrator.brain.evidence', 'orchestrator.brain.hypothesis', 'orchestrator.brain.world', 're', 'time', 'typing']
+src/arena/conclusion_evaluator.py
+  ['arena.conclusion', 'arena.metrics', 'arena.runner', 're', 'typing']
+src/arena/d10_falsification_defeater_diagnostic.py
+  ['arena.ablation', 'arena.ablation_runner', 'arena.conclusion', 'arena.d6_manifest', 'arena.defeater', 'arena.llm_service', 'arena.runner', 'd6c_holdout_runner', 'json', 'sys', 'time', 'traceback']
+src/arena/d10_regression_test.py
+  ['arena.ablation', 'arena.ablation_runner', 'arena.d6_manifest', 'arena.llm_service', 'arena.runner', 'arena.semantic_inference', 'd6c_holdout_runner', 'json', 'orchestrator.brain.action', 're', 'sys', 'time', 'traceback']
+src/arena/d11_regression_test.py
+  ['arena.ablation', 'arena.ablation_runner', 'arena.d6_manifest', 'arena.llm_service', 'arena.runner', 'arena.semantic_inference', 'd6c_holdout_runner', 'json', 'orchestrator.brain.action', 're', 'sys', 'time', 'traceback']
+src/arena/d13_diagnostic_runner.py
+  ['arena.ablation', 'arena.ablation_runner', 'arena.conclusion', 'arena.d6_manifest', 'arena.environment', 'arena.llm_service', 'd6c_holdout_runner', 'json', 'os', 'pathlib', 'sys', 'time', 'traceback']
+src/arena/d16_holdout_runner.py
+  ['arena.ablation', 'arena.ablation_runner', 'arena.d6_manifest', 'arena.llm_service', 'arena.runner', 'd6c_holdout_runner', 'json', 'orchestrator.brain.action', 'os', 'sys', 'time', 'traceback']
+src/arena/d6_manifest.py
+  ['arena.runner', 'datetime', 'glob', 'hashlib', 'json', 'orchestrator.brain.capability_broker', 'os', 'random', 'time', 'typing', 'uuid']
+src/arena/d7_r1_gemma_retest.py
+  ['arena.ablation', 'arena.ablation_runner', 'arena.d6_manifest', 'arena.llm_service', 'arena.runner', 'd6c_holdout_runner', 'json', 'orchestrator.brain.action', 'pathlib', 'sys', 'time', 'traceback']
+src/arena/d7_r1_mechanism_test.py
+  ['arena.conclusion', 'orchestrator.brain.action', 'orchestrator.brain.capability_broker', 'orchestrator.brain.evidence', 'orchestrator.brain.world', 'sys', 'unittest', 'uuid']
+src/arena/d7_regression_test.py
+  ['arena.ablation', 'arena.ablation_runner', 'arena.d6_manifest', 'arena.runner', 'd6c_holdout_runner', 'json', 'sys', 'time', 'traceback']
+src/arena/d8_cognitive_trace.py
+  ['arena.ablation', 'arena.ablation_runner', 'arena.d6_manifest', 'arena.llm_service', 'arena.semantic_inference', 'd6c_holdout_runner', 'json', 'sys', 'time']
+src/arena/d8_regression_test.py
+  ['arena.ablation', 'arena.ablation_runner', 'arena.d6_manifest', 'arena.llm_service', 'arena.runner', 'd6c_holdout_runner', 'json', 'orchestrator.brain.action', 'sys', 'time', 'traceback']
+src/arena/d9_regression_test.py
+  ['arena.ablation', 'arena.ablation_runner', 'arena.d6_manifest', 'arena.llm_service', 'arena.runner', 'd6c_holdout_runner', 'json', 'orchestrator.brain.action', 'sys', 'time', 'traceback']
+src/arena/defeater.py
+  ['arena.conclusion', 'dataclasses', 'enum', 're', 'time', 'typing', 'uuid']
+src/arena/diagnostic.py
+  ['__future__', 'arena.ablation', 'arena.ablation_runner', 'arena.templates', 'json', 'pathlib', 're', 'sys', 'traceback']
+src/arena/environment.py
+  ['dataclasses', 'hashlib', 'ipaddress', 'orchestrator.brain.evidence', 'orchestrator.brain.trust', 'random', 're', 'time', 'typing', 'uuid']
+src/arena/episode.py
+  ['dataclasses', 'json', 'pathlib', 'time', 'typing', 'uuid']
+src/arena/evaluator.py
+  ['arena.runner', 'dataclasses', 'enum', 're', 'typing']
+src/arena/llm_service.py
+  ['arena.ablation', 'arena.llm_transport', 'arena.semantic_inference', 'json', 'logging', 're', 'requests', 'time', 'typing']
+src/arena/llm_transport.py
+  ['dataclasses', 'json', 'logging', 'os', 'requests', 'time', 'typing']
+src/arena/metrics.py
+  ['dataclasses', 'enum', 'json', 'time', 'typing']
+src/arena/runner.py
+  ['arena.runner', 'dataclasses', 'enum', 'hashlib', 'json', 'logging', 'orchestrator.brain.action', 'orchestrator.brain.capability_broker', 'orchestrator.brain.contradiction', 'orchestrator.brain.evidence', 'orchestrator.brain.hypothesis', 'orchestrator.brain.trust', 'orchestrator.brain.world', 'orchestrator.hardening.action_receipt', 'time', 'typing', 'uuid']
+src/arena/scenarios/__init__.py
+  []
+src/arena/semantic_inference.py
+  ['dataclasses', 'enum', 'hashlib', 'orchestrator.brain.trust', 'time', 'typing', 'uuid']
+src/arena/templates/__init__.py
+  ['arena.templates.base', 'arena.templates.families']
+src/arena/templates/base.py
+  ['abc', 'arena.runner', 'dataclasses', 'enum', 'hashlib', 'typing']
+src/arena/templates/families.py
+  ['arena.runner', 'arena.templates.base', 'dataclasses', 'ipaddress', 'orchestrator.brain.capability_broker', 'typing']
+src/arena/tests/test_baseline_equivalence.py
+  ['arena.ablation', 'arena.ablation_runner', 'arena.environment', 'arena.episode', 'arena.evaluator', 'arena.templates.families', 'inspect', 'orchestrator.brain.trust', 'pathlib', 'sys', 'traceback']
+src/arena/tests/test_evaluator_robustness.py
+  ['arena.evaluator', 'arena.runner', 'orchestrator.brain.capability_broker', 'orchestrator.brain.evidence', 'orchestrator.brain.trust', 'pathlib', 'sys', 'traceback']
+src/arena/tests/test_generator_invariant.py
+  ['arena.templates', 'arena.templates.families', 'ipaddress', 'pathlib', 'sys']
+src/arena/tests/test_runconclusion.py
+  ['arena', 'arena.ablation', 'arena.ablation_runner', 'arena.conclusion', 'arena.conclusion_evaluator', 'arena.runner', 'arena.templates.families', 'collections', 'inspect', 'itertools', 'pathlib', 'sys']
+src/arena/tests/test_safety_regression.py
+  ['arena.ablation', 'arena.ablation_runner', 'pathlib', 'sys', 'traceback']
+src/arena/tests/test_state_isolation.py
+  ['arena.runner', 'arena.templates.families', 'orchestrator.brain.capability_broker', 'orchestrator.brain.contradiction', 'orchestrator.brain.evidence', 'orchestrator.brain.hypothesis', 'orchestrator.brain.trust', 'orchestrator.brain.world', 'pathlib', 'sys', 'traceback', 'uuid']
+src/bridge/raphael_bridge.py
+  ['asyncio', 'dataclasses', 'httpx', 'json', 'logging', 'orchestrator.agents', 'orchestrator.brain.adaptive_brain', 'orchestrator.brain.neural_memory', 'orchestrator.brain.target_profiler', 'orchestrator.c2', 'orchestrator.conductor', 'orchestrator.config.paths', 'orchestrator.config.target', 'orchestrator.exploit', 'orchestrator.exploit.mcp_bridge', 'orchestrator.exploit.payloads_db', 'orchestrator.harvester.harvester_engine', 'orchestrator.kali_tools_client', 'orchestrator.modes', 'orchestrator.modes.deep_research', 'orchestrator.providers', 'os', 'sys', 'typing']
+src/c2-server/__init__.py
+  []
+src/c2-server/main.py
+  ['fastapi', 'fastapi.middleware.cors', 'logging', 'orchestrator.postex.bloodhound_integration', 'orchestrator.postex.netexec_wrapper', 'orchestrator.postex.pupy_c2', 'orchestrator.postex.winrm_exploit', 'os', 'pydantic', 'ssl', 'sys', 'time', 'typing', 'uuid', 'uvicorn']
+src/cai-service/__init__.py
+  []
+src/cai-service/main.py
+  ['fastapi', 'fastapi.middleware.cors', 'logging', 'orchestrator.exploit.payloads_db', 'orchestrator.exploit.pipeline', 'orchestrator.karma_wrapper', 'orchestrator.postex.pipeline', 'orchestrator.providers', 'orchestrator.sast.pipeline', 'orchestrator.scanners.nmap_scanner', 'orchestrator.scanners.nuclei_scanner', 'orchestrator.scanners.whatweb_scanner', 'orchestrator.spiderfoot_wrapper', 'pydantic', 'sys', 'typing']
+src/cloak-service/cloakbrowser.py
+  ['asyncio', 'httpx', 'json', 'logging', 'os', 'pathlib', 'random', 're', 'time', 'typing']
+src/cloak-service/main.py
+  ['asyncio', 'base64', 'cloakbrowser', 'contextlib', 'fastapi', 'fastapi.middleware.cors', 'httpx', 'logging', 'os', 'pydantic', 'random', 'stem', 'stem.control', 'time', 'typing', 'uvicorn']
+src/kali-tools/server.py
+  ['fastapi', 'os', 'shlex', 'shutil', 'subprocess']
+src/mcp-hub/__init__.py
+  []
+src/mcp-hub/auth.py
+  ['dataclasses', 'enum', 'fastapi.responses', 'functools', 'hashlib', 'hmac', 'json', 'logging', 'os', 'time', 'typing']
+src/mcp-hub/core/__init__.py
+  []
+src/mcp-hub/core/auth.py
+  ['fastapi', 'hashlib', 'hmac', 'os', 'time', 'typing', 'yaml']
+src/mcp-hub/core/decision_engine.py
+  ['json', 'logging', 'typing']
+src/mcp-hub/core/registry.py
+  ['importlib', 'inspect', 'json', 'logging', 'os', 'pkgutil', 'sys', 'typing']
+src/mcp-hub/core/security.py
+  ['datetime', 'json', 'os', 're', 'time', 'typing', 'yaml']
+src/mcp-hub/core/server.py
+  ['auth', 'config.paths', 'decision_engine', 'fastapi', 'fastapi.middleware.cors', 'fastapi.responses', 'json', 'logging', 'pathlib', 'registry', 'security', 'time']
+src/mcp-hub/core/transport.py
+  ['asyncio', 'json', 'sys', 'typing']
+src/mcp-hub/main.py
+  ['argparse', 'asyncio', 'mcp_hub.core.server', 'mcp_hub.core.transport', 'uvicorn']
+src/mcp-hub/schemas/__init__.py
+  []
+src/mcp-hub/schemas/mcp.py
+  ['pydantic', 'typing']
+src/mcp-hub/schemas/tools.py
+  ['pydantic', 'typing']
+src/mcp-hub/tests/__init__.py
+  []
+src/mcp-hub/tests/test_server.py
+  ['httpx', 'mcp_hub.core.server', 'pytest']
+src/mcp-hub/tools/__init__.py
+  []
+src/mcp-hub/tools/c2/__init__.py
+  []
+src/mcp-hub/tools/c2/pupy.py
+  ['core.registry', 'subprocess']
+src/mcp-hub/tools/cloud/__init__.py
+  []
+src/mcp-hub/tools/cloud/prowler.py
+  ['core.registry', 'json', 'subprocess']
+src/mcp-hub/tools/exploit/__init__.py
+  []
+src/mcp-hub/tools/exploit/metasploit.py
+  ['core.registry', 'json', 'subprocess', 'typing']
+src/mcp-hub/tools/forensics/__init__.py
+  []
+src/mcp-hub/tools/forensics/volatility.py
+  ['core.registry', 'json', 'subprocess']
+src/mcp-hub/tools/phishing/__init__.py
+  []
+src/mcp-hub/tools/phishing/gophish.py
+  ['core.registry']
+src/mcp-hub/tools/recon/__init__.py
+  []
+src/mcp-hub/tools/recon/nmap.py
+  ['core.registry', 're', 'schemas.tools', 'subprocess']
+src/mcp-hub/tools/recon/subfinder.py
+  ['core.registry', 'schemas.tools', 'subprocess']
+src/mcp-hub/tools/web/__init__.py
+  []
+src/mcp-hub/tools/web/gobuster.py
+  ['core.registry', 'json', 'schemas.tools', 'subprocess']
+src/mcp-hub/tools/web/nuclei.py
+  ['core.registry', 'json', 'schemas.tools', 'subprocess']
+src/mcp-hub/tools/web/sqlmap.py
+  ['core.registry', 'json', 'schemas.tools', 'subprocess']
+src/mhddos-service/main.py
+  ['datetime', 'fastapi', 'fastapi.middleware.cors', 'logging', 'orchestrator.proxy_guard', 'os', 'pathlib', 'pydantic', 'signal', 'socket', 'subprocess', 'sys', 'threading', 'time', 'typing', 'uuid', 'uvicorn']
+src/orchestrator/__init__.py
+  []
+src/orchestrator/ad/__init__.py
+  []
+src/orchestrator/ad/certipy_wrapper.py
+  ['json', 'orchestrator.kali_tools_client', 'os', 're', 'shlex', 'typing']
+src/orchestrator/ad/hashcat_wrapper.py
+  ['orchestrator.kali_tools_client', 'os', 're', 'typing']
+src/orchestrator/ad/keyring.py
+  ['json', 'orchestrator.ad.toolkit', 'os', 'sqlite3', 'time', 'typing']
+src/orchestrator/ad/ntlm_relay.py
+  ['asyncio', 'logging', 'orchestrator.ad.petitpotam', 'orchestrator.ad.pywhisker_wrapper', 'orchestrator.kali_tools_client', 're', 'time']
+src/orchestrator/ad/petitpotam.py
+  ['logging', 'orchestrator.kali_tools_client', 'shlex']
+src/orchestrator/ad/planner.py
+  ['json', 'logging', 'orchestrator.ad.hashcat_wrapper', 'orchestrator.ad.keyring', 'orchestrator.ad.toolkit', 'typing']
+src/orchestrator/ad/pywhisker_wrapper.py
+  ['logging', 'orchestrator.kali_tools_client', 're', 'shlex']
+src/orchestrator/ad/rbcd.py
+  ['logging', 'orchestrator.kali_tools_client', 're', 'shlex']
+src/orchestrator/ad/shadow_creds.py
+  ['logging', 'orchestrator.kali_tools_client', 're', 'shlex']
+src/orchestrator/ad/toolkit.py
+  ['httpx', 'json', 'logging', 'orchestrator.kali_tools_client', 'os', 'shlex', 'typing']
+src/orchestrator/adversary_profiles.py
+  ['logging', 'typing']
+src/orchestrator/agents/__init__.py
+  []
+src/orchestrator/agents/base.py
+  ['asyncio', 'dataclasses', 'enum', 'logging', 'orchestrator.events', 'time', 'typing', 'uuid']
+src/orchestrator/agents/engage.py
+  ['asyncio', 'json', 'logging', 'orchestrator.agents.base', 'orchestrator.agents.exploit', 'orchestrator.agents.goal_tree', 'orchestrator.agents.memory', 'orchestrator.agents.orchestrator', 'orchestrator.agents.postex', 'orchestrator.agents.recon', 'orchestrator.agents.scan', 'orchestrator.agents.stealth', 'orchestrator.agents.supervisor', 'orchestrator.events', 'time', 'typing']
+src/orchestrator/agents/exploit.py
+  ['json', 'logging', 'orchestrator.agents.base', 'orchestrator.brain.phases.models', 'orchestrator.chains.ad_kill_chain', 'orchestrator.events', 'orchestrator.exploit.llm_exploit_engine', 'orchestrator.exploit.nettacker_exploit', 'orchestrator.exploit.relay_chain', 'orchestrator.exploit.sqlmap_wrapper', 'orchestrator.exploit.ssrf_scanner', 'orchestrator.exploit.xss_scanner', 'orchestrator.growth_db', 'orchestrator.kali_tools_client', 'orchestrator.providers', 'orchestrator.sandbox', 'orchestrator.scanners.hydra_wrapper', 'orchestrator.student.chain_synthesizer', 'orchestrator.student.stack_matcher', 'os', 're', 'requests', 'time', 'typing']
+src/orchestrator/agents/goal_tree.py
+  ['dataclasses', 'logging', 'orchestrator.agents.base', 're', 'time', 'typing', 'uuid']
+src/orchestrator/agents/memory.py
+  ['collections', 'json', 'logging', 'orchestrator.agents.base', 'time', 'typing']
+src/orchestrator/agents/orchestrator.py
+  ['asyncio', 'json', 'logging', 'orchestrator.agents.base', 'orchestrator.agents.goal_tree', 'orchestrator.agents.memory', 'orchestrator.agents.stealth', 'orchestrator.agents.supervisor', 'orchestrator.events', 'orchestrator.providers', 'os', 'time', 'typing', 'uuid']
+src/orchestrator/agents/postex.py
+  ['json', 'logging', 'orchestrator.agents.base', 'orchestrator.agents.exploit', 'orchestrator.events', 'orchestrator.postex.bloodhound_integration', 'orchestrator.postex.ladon_scanner', 'orchestrator.postex.netexec_wrapper', 'orchestrator.postex.pupy_c2', 'orchestrator.postex.winrm_exploit', 'orchestrator.providers', 'os', 'typing']
+src/orchestrator/agents/recon.py
+  ['json', 'logging', 'orchestrator.agents.base', 'orchestrator.agents.goal_tree', 'orchestrator.events', 'orchestrator.providers', 'orchestrator.scanners.dns_wrappers', 'orchestrator.scanners.gobuster_wrapper', 'orchestrator.scanners.nmap_scanner', 'orchestrator.scanners.whatweb_scanner', 'time', 'typing']
+src/orchestrator/agents/scan.py
+  ['json', 'logging', 'orchestrator.agents.base', 'orchestrator.events', 'orchestrator.kali_tools_client', 'orchestrator.providers', 'orchestrator.scanners.gobuster_wrapper', 'orchestrator.scanners.nmap_scanner', 'orchestrator.scanners.nuclei_scanner', 'typing']
+src/orchestrator/agents/skill_agent.py
+  ['brain.neural_memory', 'brain.skill_indexer', 'json', 'pathlib', 'skills_bridge', 'subprocess', 'sys', 'time', 'typing']
+src/orchestrator/agents/stealth.py
+  ['asyncio', 'collections', 'logging', 'os', 'time']
+src/orchestrator/agents/supervisor.py
+  ['asyncio', 'collections', 'logging', 'orchestrator.events', 'time']
+src/orchestrator/api/__init__.py
+  ['orchestrator.api.agent', 'orchestrator.api.session', 'orchestrator.api.tools', 'orchestrator.api.types']
+src/orchestrator/api/agent.py
+  ['asyncio', 'fastapi', 'fastapi.responses', 'json', 'logging', 'orchestrator.agents.engage', 'orchestrator.api.types', 'orchestrator.audit_trail', 'orchestrator.auth', 'orchestrator.scope', 'pydantic', 'typing', 'uuid']
+src/orchestrator/api/ci.py
+  ['asyncio', 'datetime', 'fastapi', 'logging', 'orchestrator.agents.engage', 'orchestrator.audit_trail', 'orchestrator.auth', 'orchestrator.engagement_queue', 'orchestrator.modes.autonomous', 'orchestrator.scope', 'orchestrator.webhook', 'os', 'pydantic', 'time', 'typing', 'uuid']
+src/orchestrator/api/main.py
+  ['contextlib', 'fastapi', 'fastapi.middleware.cors', 'fastapi.responses', 'logging', 'orchestrator.api.agent', 'orchestrator.api.session', 'orchestrator.api.session_manager', 'orchestrator.api.tools', 'orchestrator.api.tools_bridge', 'orchestrator.api.types', 'orchestrator.audit_trail', 'orchestrator.auth', 'orchestrator.chains.tool_registry', 'os', 'shutil', 'typing', 'uvicorn']
+src/orchestrator/api/session.py
+  ['fastapi', 'logging', 'orchestrator.api.session_manager', 'orchestrator.api.types', 'orchestrator.auth', 'pydantic', 'typing']
+src/orchestrator/api/session_manager.py
+  ['__future__', 'datetime', 'json', 'logging', 'orchestrator.api.types', 'pathlib', 'sqlite3', 'typing', 'uuid']
+src/orchestrator/api/tools.py
+  ['asyncio', 'fastapi', 'logging', 'orchestrator.api.types', 'orchestrator.audit_trail', 'orchestrator.auth', 'orchestrator.chains.tool_registry', 'orchestrator.scope', 'pathlib', 'pydantic', 'shlex', 'typing', 'uuid']
+src/orchestrator/api/tools_bridge.py
+  ['asyncio', 'base64', 'enum', 'fastapi', 'glob', 'httpx', 'json', 'logging', 'pydantic', 're', 'time', 'typing']
+src/orchestrator/api/types.py
+  ['datetime', 'enum', 'pydantic', 'typing']
+src/orchestrator/audit_trail.py
+  ['hashlib', 'json', 'logging', 'os', 'pathlib', 'time']
+src/orchestrator/auth.py
+  ['fastapi', 'hashlib', 'os', 'secrets', 'time', 'typing']
+src/orchestrator/brain/__init__.py
+  ['orchestrator.brain.adaptive_brain', 'orchestrator.brain.neural_memory', 'orchestrator.brain.phases', 'orchestrator.brain.skill_indexer', 'orchestrator.brain.strategy_learner', 'orchestrator.brain.target_profiler', 'orchestrator.brain.target_state']
+src/orchestrator/brain/action.py
+  ['arena.conclusion', 'copy', 'dataclasses', 'enum', 'orchestrator.brain.contradiction', 'orchestrator.brain.evidence', 'orchestrator.brain.hypothesis', 'orchestrator.brain.trust', 'orchestrator.brain.world', 'orchestrator.hardening.action_receipt', 'time', 'typing', 'uuid']
+src/orchestrator/brain/adaptive_brain.py
+  ['logging', 'time']
+src/orchestrator/brain/candidate_generators/__init__.py
+  []
+src/orchestrator/brain/candidate_generators/shell_generator.py
+  ['logging', 'orchestrator.brain.evidence', 'orchestrator.brain.hypothesis', 'orchestrator.brain.world', 'typing', 'uuid']
+src/orchestrator/brain/candidate_generators/student_generator.py
+  ['logging', 'orchestrator.student.stack_matcher', 'typing', 'uuid']
+src/orchestrator/brain/capability_broker.py
+  ['asyncio', 'dataclasses', 'enum', 'fnmatch', 'hashlib', 'httpx', 'ipaddress', 'json', 'logging', 'orchestrator.brain.evidence', 'orchestrator.brain.rate_limiter', 'orchestrator.brain.scope_parser', 'orchestrator.brain.trust', 'orchestrator.capabilities.interactive_shell.command_filter', 'orchestrator.capabilities.interactive_shell.listener_manager', 'orchestrator.capabilities.interactive_shell.session', 'orchestrator.hardening.action_receipt', 'orchestrator.student.payload_mutator', 'orchestrator.student.student', 'os', 're', 'subprocess', 'time', 'typing', 'uuid']
+src/orchestrator/brain/contradiction.py
+  ['dataclasses', 'enum', 'json', 'orchestrator.brain.contradiction', 'orchestrator.brain.evidence', 'orchestrator.brain.hypothesis', 'orchestrator.brain.trust', 'orchestrator.brain.world', 'time', 'typing', 'uuid']
+src/orchestrator/brain/evidence.py
+  ['dataclasses', 'enum', 'hashlib', 'json', 'orchestrator.brain.trust', 'time', 'typing', 'uuid']
+src/orchestrator/brain/hypothesis.py
+  ['arena.defeater', 'arena.semantic_inference', 'dataclasses', 'enum', 'json', 'orchestrator.brain.evidence', 'orchestrator.brain.hypothesis', 'orchestrator.brain.trust', 'time', 'typing', 'uuid']
+src/orchestrator/brain/neural_memory.py
+  ['logging', 'time', 'typing']
+src/orchestrator/brain/phases/__init__.py
+  ['orchestrator.brain.phases.models']
+src/orchestrator/brain/phases/cicd_executor.py
+  ['__future__', 'asyncio', 'json', 'logging', 'orchestrator.brain.phases.models', 'orchestrator.cicd.pipeline_poisoner', 'orchestrator.cicd.runner_fingerprinter', 'orchestrator.cicd.token_harvester', 'orchestrator.cicd.workflow_parser', 'os', 'pathlib', 're', 'tempfile', 'typing', 'urllib.error', 'urllib.parse', 'urllib.request']
+src/orchestrator/brain/phases/cloud_executor.py
+  ['__future__', 'asyncio', 'json', 'logging', 'orchestrator.brain.phases.models', 'orchestrator.cloud_abuse.api_gateway_exploit', 'orchestrator.cloud_abuse.cloud_enum', 'orchestrator.cloud_abuse.iam_pathfinder', 'orchestrator.cloud_abuse.metadata_abuse', 'os', 're', 'typing']
+src/orchestrator/brain/phases/container_escape_executor.py
+  ['__future__', 'asyncio', 'json', 'logging', 'orchestrator.brain.phases.models', 'orchestrator.container_escape.docker_escape', 'orchestrator.container_escape.k8s_escape', 'orchestrator.container_escape.sandbox_detection', 'os', 'typing']
+src/orchestrator/brain/phases/ml_attack_executor.py
+  ['__future__', 'asyncio', 'json', 'logging', 'orchestrator.brain.phases.models', 'orchestrator.ml_attack.hf_hub_api_client', 'orchestrator.ml_attack.model_format_analyzer', 'orchestrator.ml_attack.pickle_payload_factory', 'orchestrator.ml_attack.supply_chain_injector', 'os', 'pathlib', 're', 'typing']
+src/orchestrator/brain/phases/models.py
+  ['dataclasses', 'enum', 'orchestrator.brain.phases.cicd_executor', 'orchestrator.brain.phases.cloud_executor', 'orchestrator.brain.phases.container_escape_executor', 'orchestrator.brain.phases.ml_attack_executor', 'orchestrator.brain.trust', 'typing']
+src/orchestrator/brain/rate_limiter.py
+  ['asyncio', 'collections', 'dataclasses', 'ipaddress', 'random', 're', 'threading', 'time', 'typing']
+src/orchestrator/brain/reasoning.py
+  ['logging']
+src/orchestrator/brain/reflection.py
+  ['logging', 'typing']
+src/orchestrator/brain/scope_parser.py
+  ['dataclasses', 'ipaddress', 'json', 'pathlib', 're', 'typing']
+src/orchestrator/brain/skill_indexer.py
+  ['logging', 'typing']
+src/orchestrator/brain/strategy.py
+  ['logging', 'typing']
+src/orchestrator/brain/strategy_learner.py
+  ['logging', 'random', 'typing']
+src/orchestrator/brain/target_profiler.py
+  ['json', 'logging', 'os', 're', 'socket', 'subprocess']
+src/orchestrator/brain/target_state.py
+  ['enum']
+src/orchestrator/brain/trust.py
+  ['enum', 'typing']
+src/orchestrator/brain/waf_detector.py
+  ['aiohttp', 'asyncio', 'dataclasses', 'enum', 'logging', 're', 'typing']
+src/orchestrator/brain/world.py
+  ['dataclasses', 'enum', 'hashlib', 'json', 'orchestrator.brain.evidence', 'orchestrator.brain.trust', 'orchestrator.brain.world', 'time', 'typing', 'uuid']
+src/orchestrator/c2/__init__.py
+  ['beacon', 'dga', 'implant_builder', 'manager', 'models', 'native_backend', 'noop_backend', 'sliver_backend']
+src/orchestrator/c2/beacon.py
+  ['aiohttp', 'asyncio', 'base64', 'cryptography.hazmat.primitives.ciphers.aead', 'dataclasses', 'hashlib', 'hmac', 'json', 'logging', 'os', 'secrets', 'threading', 'time', 'typing', 'uuid']
+src/orchestrator/c2/dga.py
+  ['datetime', 'hashlib', 'hmac', 'json', 'logging', 'os', 'random', 'secrets', 'socket', 'time', 'typing']
+src/orchestrator/c2/implant_builder.py
+  ['asyncio', 'base64', 'dataclasses', 'hashlib', 'json', 'logging', 'os', 'pathlib', 'platform', 'shutil', 'string', 'subprocess', 'tempfile', 'textwrap', 'time', 'typing', 'uuid']
+src/orchestrator/c2/manager.py
+  ['collections', 'logging', 'models', 'native_backend', 'noop_backend', 'os', 'sliver_backend', 'time', 'typing']
+src/orchestrator/c2/models.py
+  ['dataclasses', 'enum', 'typing']
+src/orchestrator/c2/native_backend.py
+  ['asyncio', 'beacon', 'dga', 'implant_builder', 'logging', 'models', 'os', 'time', 'typing', 'uuid']
+src/orchestrator/c2/noop_backend.py
+  ['models', 'typing']
+src/orchestrator/c2/sliver_backend.py
+  ['asyncio', 'base64', 'json', 'kali_tools_client', 'models', 'os', 'shlex', 'sliver', 'sliver.config', 'subprocess', 'tempfile', 'time', 'typing', 'uuid']
+src/orchestrator/capabilities/interactive_shell/__init__.py
+  ['capability', 'command_filter', 'listener_manager', 'reverse_shell', 'session', 'ssh_shell', 'tty_normalizer']
+src/orchestrator/capabilities/interactive_shell/capability.py
+  ['abc', 'dataclasses', 'enum', 'logging', 'time', 'typing', 'uuid']
+src/orchestrator/capabilities/interactive_shell/command_filter.py
+  ['asyncio', 'dataclasses', 'enum', 'json', 'logging', 're', 'time', 'typing']
+src/orchestrator/capabilities/interactive_shell/listener_manager.py
+  ['asyncio', 'dataclasses', 'ipaddress', 'logging', 'os', 'socket', 'ssl', 'time', 'typing', 'uuid']
+src/orchestrator/capabilities/interactive_shell/reverse_shell.py
+  ['asyncio', 'capability', 'dataclasses', 'enum', 'ipaddress', 'logging', 'os', 're', 'socket', 'time', 'typing', 'uuid']
+src/orchestrator/capabilities/interactive_shell/session.py
+  ['capability', 'dataclasses', 'datetime', 'enum', 'json', 'logging', 'os', 'sqlite3', 'tempfile', 'time', 'typing', 'uuid']
+src/orchestrator/capabilities/interactive_shell/ssh_shell.py
+  ['asyncio', 'capability', 'logging', 'paramiko', 're', 'time', 'typing']
+src/orchestrator/capabilities/interactive_shell/tty_normalizer.py
+  ['dataclasses', 'hashlib', 'logging', 'orchestrator.brain.evidence', 're', 'time', 'typing']
+src/orchestrator/chains/__init__.py
+  []
+src/orchestrator/chains/ad_kill_chain.py
+  ['ad.certipy_wrapper', 'asyncio', 'logging', 'orchestrator.ad.certipy_wrapper', 'orchestrator.ad.ntlm_relay', 'orchestrator.ad.petitpotam', 'orchestrator.ad.pywhisker_wrapper', 'orchestrator.ad.rbcd', 'orchestrator.ad.shadow_creds', 'orchestrator.ad.toolkit', 'orchestrator.brain.phases.models', 'orchestrator.c2.manager', 'orchestrator.chains.credential_spray', 'orchestrator.kali_tools_client', 'orchestrator.scanners.cracking_wrappers', 'orchestrator.scanners.dns_wrappers', 'orchestrator.scanners.web_wrappers', 're', 'typing']
+src/orchestrator/chains/credential_spray.py
+  ['asyncio', 'logging', 'orchestrator.brain.phases.models', 'orchestrator.c2.manager', 'orchestrator.kali_tools_client', 're', 'typing', 'uuid']
+src/orchestrator/chains/tool_registry.py
+  ['asyncio', 'json', 'logging', 'os', 'pathlib', 'shlex', 'time', 'typing', 'uuid']
+src/orchestrator/checkpoint.py
+  ['json', 'logging', 'pathlib', 'time', 'typing']
+src/orchestrator/cicd/__init__.py
+  ['pipeline_poisoner', 'runner_fingerprinter', 'token_harvester', 'workflow_parser']
+src/orchestrator/cicd/pipeline_poisoner.py
+  ['__future__', 'base64', 'dataclasses', 'datetime', 'enum', 'hashlib', 'json', 'logging', 'os', 'pathlib', 're', 'sys', 'tempfile', 'typing', 'yaml']
+src/orchestrator/cicd/runner_fingerprinter.py
+  ['__future__', 'dataclasses', 'enum', 'json', 'logging', 'os', 'pathlib', 're', 'socket', 'subprocess', 'sys', 'typing']
+src/orchestrator/cicd/token_harvester.py
+  ['__future__', 'base64', 'dataclasses', 'datetime', 'enum', 'json', 'logging', 'os', 're', 'sys', 'typing', 'urllib.error', 'urllib.request']
+src/orchestrator/cicd/workflow_parser.py
+  ['__future__', 'dataclasses', 'enum', 'json', 'logging', 'os', 'pathlib', 're', 'sys', 'typing', 'yaml']
+src/orchestrator/cloud_abuse/__init__.py
+  ['api_gateway_exploit', 'cloud_enum', 'iam_pathfinder', 'metadata_abuse']
+src/orchestrator/cloud_abuse/api_gateway_exploit.py
+  ['__future__', 'dataclasses', 'datetime', 'enum', 'hashlib', 'json', 'logging', 'os', 're', 'socket', 'sys', 'typing', 'urllib.error', 'urllib.request']
+src/orchestrator/cloud_abuse/cloud_enum.py
+  ['__future__', 'azure.storage.blob', 'boto3', 'dataclasses', 'datetime', 'enum', 'google.cloud', 'json', 'logging', 'os', 'pathlib', 're', 'socket', 'sys', 'typing', 'urllib.error', 'urllib.request']
+src/orchestrator/cloud_abuse/iam_pathfinder.py
+  ['__future__', 'boto3', 'dataclasses', 'datetime', 'enum', 'json', 'logging', 'os', 're', 'sys', 'typing']
+src/orchestrator/cloud_abuse/metadata_abuse.py
+  ['__future__', 'dataclasses', 'datetime', 'enum', 'json', 'logging', 'os', 're', 'socket', 'sys', 'typing', 'urllib.error', 'urllib.request']
+src/orchestrator/conductor.py
+  ['logging', 'typing']
+src/orchestrator/config/__init__.py
+  []
+src/orchestrator/config/paths.py
+  ['config.paths', 'sys']
+src/orchestrator/config/target.py
+  ['config.target', 'sys']
+src/orchestrator/container_escape/__init__.py
+  []
+src/orchestrator/container_escape/docker_escape.py
+  ['__future__', 'dataclasses', 'datetime', 'enum', 'http.client', 'json', 'logging', 'os', 're', 'shutil', 'socket', 'stat', 'struct', 'subprocess', 'sys', 'time', 'typing', 'urllib.error', 'urllib.request']
+src/orchestrator/container_escape/k8s_escape.py
+  ['__future__', 'dataclasses', 'enum', 'json', 'logging', 'os', 're', 'socket', 'ssl', 'sys', 'time', 'typing', 'urllib.error', 'urllib.request']
+src/orchestrator/container_escape/sandbox_detection.py
+  ['__future__', 'dataclasses', 'enum', 'json', 'logging', 'os', 're', 'shutil', 'stat', 'subprocess', 'sys', 'typing']
+src/orchestrator/critic.py
+  ['logging']
+src/orchestrator/egress/__init__.py
+  []
+src/orchestrator/egress/front_domains.py
+  []
+src/orchestrator/egress/router.py
+  ['httpx', 'logging', 'orchestrator.egress.strategies', 'os', 'random', 'requests', 'socket', 'ssl', 'sys', 'threading', 'time', 'typing', 'urllib.parse']
+src/orchestrator/egress/strategies.py
+  ['abc', 'logging', 'os', 'random', 'ssl', 'typing']
+src/orchestrator/egress/tls_manager.py
+  ['cryptography', 'cryptography.hazmat.primitives', 'cryptography.hazmat.primitives.asymmetric', 'cryptography.x509.oid', 'datetime', 'logging', 'os', 'pathlib', 'ssl', 'tempfile']
+src/orchestrator/engagement_queue.py
+  ['asyncio', 'logging', 'time', 'typing', 'uuid']
+src/orchestrator/evasion/__init__.py
+  []
+src/orchestrator/evasion/amsi.py
+  ['base64']
+src/orchestrator/evasion/etw.py
+  ['base64']
+src/orchestrator/evasion/log_wiping.py
+  ['datetime', 'random']
+src/orchestrator/evasion/polymorphic_engine.py
+  ['base64', 'random', 're', 'string']
+src/orchestrator/events.py
+  ['asyncio', 'logging', 'typing']
+src/orchestrator/exfil/__init__.py
+  []
+src/orchestrator/exfil/bounceback.py
+  ['json', 'os', 'subprocess']
+src/orchestrator/exfil/bulk_exfil.py
+  ['aiohttp', 'asyncio', 'random', 'time', 'urllib.request']
+src/orchestrator/exfil/dns_tunnel.py
+  ['base64', 'dns.resolver', 'random', 'socket', 'struct', 'time']
+src/orchestrator/exfil/pipeline.py
+  ['__future__', 'asyncio', 'bounceback', 'bulk_exfil', 'dns_tunnel', 'functools', 'os', 'redcloud', 'sandbox.session_manager', 'skills_bridge', 'smtp_tunnel', 'typing']
+src/orchestrator/exfil/redcloud.py
+  ['json', 'os', 'subprocess']
+src/orchestrator/exfil/smtp_tunnel.py
+  ['base64', 'hashlib', 'json', 'random', 'smtplib', 'time']
+src/orchestrator/exploit/__init__.py
+  []
+src/orchestrator/exploit/llm_exploit_engine.py
+  ['asyncio', 'json', 'logging', 'orchestrator.brain.phases.models', 'orchestrator.checkpoint.checkpoint_manager', 'orchestrator.kali_tools_client', 'orchestrator.providers', 'os', 'pathlib', 're', 'time', 'typing', 'uuid']
+src/orchestrator/exploit/mcp_bridge.py
+  ['asyncio', 'http.server', 'json', 'logging', 'payloads_db', 'pipeline', 'proxy_guard', 'scanners.pipeline', 'threading', 'typing', 'urllib.parse']
+src/orchestrator/exploit/nettacker_exploit.py
+  ['concurrent.futures', 'proxy_guard', 're', 'requests', 'socket', 'typing', 'urllib.parse']
+src/orchestrator/exploit/payloads_db.py
+  ['base64', 'evasion.polymorphic_engine', 'hashlib', 'json', 'orchestrator.evasion.polymorphic_engine', 'os', 'sqlite3', 'typing', 'urllib.parse']
+src/orchestrator/exploit/pipeline.py
+  ['__future__', 'asyncio', 'nettacker_exploit', 'payloads_db', 'proxy_guard', 'sandbox.session_manager', 'skills_bridge', 'sqlmap_wrapper', 'ssrf_scanner', 'typing']
+src/orchestrator/exploit/relay_chain.py
+  ['asyncio', 'base64', 'json', 'logging', 'orchestrator.brain.phases.models', 'os', 're', 'socket', 'time', 'typing']
+src/orchestrator/exploit/sqlmap_wrapper.py
+  ['httpx', 'json', 'os', 'proxy_guard', 're', 'typing']
+src/orchestrator/exploit/ssrf_scanner.py
+  ['concurrent.futures', 'ipaddress', 'proxy_guard', 'requests', 'socket', 'typing', 'urllib.parse']
+src/orchestrator/exploit/xss_scanner.py
+  ['concurrent.futures', 'proxy_guard', 're', 'requests', 'typing', 'urllib.parse']
+src/orchestrator/growth_db.py
+  ['json', 'logging', 'orchestrator.student.integration_pipeline', 'time', 'typing']
+src/orchestrator/hardening/__init__.py
+  []
+src/orchestrator/hardening/action_receipt.py
+  ['dataclasses', 'enum', 'hashlib', 'json', 'logging', 'os', 'time', 'typing']
+src/orchestrator/hardening/adaptive_timeout.py
+  ['asyncio', 'functools', 'logging', 'time', 'typing']
+src/orchestrator/hardening/circuit_breaker.py
+  ['collections', 'logging', 'time']
+src/orchestrator/hardening/rate_limiter.py
+  ['asyncio', 'collections', 'logging', 'random', 'time']
+src/orchestrator/hardening/timeout_guard.py
+  ['asyncio', 'functools', 'logging', 'signal']
+src/orchestrator/harvester/__init__.py
+  ['confidence_scorer', 'cve_feeds', 'github_scraper', 'harvester_engine', 'technique_extractor', 'web_feeds']
+src/orchestrator/harvester/confidence_scorer.py
+  ['math', 'time']
+src/orchestrator/harvester/cve_feeds.py
+  ['asyncio', 'datetime', 'hashlib', 'httpx', 'json', 'logging', 'os', 're', 'sqlite3', 'time', 'typing', 'urllib.parse']
+src/orchestrator/harvester/github_scraper.py
+  ['asyncio', 'hashlib', 'httpx', 'json', 'logging', 'os', 're', 'sqlite3', 'time', 'typing']
+src/orchestrator/harvester/harvester_engine.py
+  ['asyncio', 'dataclasses', 'json', 'logging', 'orchestrator.growth_db', 'orchestrator.harvester.confidence_scorer', 'orchestrator.harvester.cve_feeds', 'orchestrator.harvester.github_scraper', 'orchestrator.harvester.technique_extractor', 'orchestrator.harvester.web_feeds', 'os', 'sqlite3', 'time', 'typing', 'uuid']
+src/orchestrator/harvester/phase_harvest.py
+  ['asyncio', 'logging', 'orchestrator.brain.phases.models', 'orchestrator.harvester.harvester_engine', 'time']
+src/orchestrator/harvester/technique_extractor.py
+  ['httpx', 'json', 'logging', 'os', 're', 'sqlite3', 'time', 'typing']
+src/orchestrator/harvester/web_feeds.py
+  ['asyncio', 'hashlib', 'httpx', 'json', 'logging', 'os', 're', 'sqlite3', 'time', 'typing']
+src/orchestrator/kali_tools_client.py
+  ['asyncio', 'httpx', 'json', 'logging', 'orchestrator.hardening.rate_limiter', 'orchestrator.hardening.timeout_guard', 'os', 'shlex', 'shutil', 'subprocess', 'sys', 'typing']
+src/orchestrator/karma_wrapper.py
+  ['logging']
+src/orchestrator/mesh/__init__.py
+  []
+src/orchestrator/mesh/mesh_engine.py
+  ['json', 'logging', 'socket', 'threading', 'typing']
+src/orchestrator/ml_attack/__init__.py
+  ['hf_hub_api_client', 'model_format_analyzer', 'pickle_payload_factory', 'supply_chain_injector']
+src/orchestrator/ml_attack/hf_hub_api_client.py
+  ['__future__', 'dataclasses', 'datetime', 'enum', 'hashlib', 'json', 'logging', 'os', 'pathlib', 're', 'requests', 'sys', 'time', 'typing', 'urllib.error', 'urllib.parse', 'urllib.request', 'uuid']
+src/orchestrator/ml_attack/model_format_analyzer.py
+  ['__future__', 'dataclasses', 'enum', 'hashlib', 'io', 'json', 'logging', 'numpy', 'os', 'pathlib', 'pickle', 're', 'struct', 'sys', 'tempfile', 'typing', 'zipfile']
+src/orchestrator/ml_attack/pickle_payload_factory.py
+  ['__future__', 'base64', 'dataclasses', 'datetime', 'enum', 'hashlib', 'importlib', 'io', 'json', 'logging', 'numpy', 'os', 'pathlib', 'pickle', 're', 'struct', 'subprocess', 'sys', 'tempfile', 'typing', 'uuid']
+src/orchestrator/ml_attack/supply_chain_injector.py
+  ['__future__', 'dataclasses', 'datetime', 'enum', 'hashlib', 'json', 'logging', 'os', 'pathlib', 're', 'sys', 'tempfile', 'typing', 'uuid']
+src/orchestrator/modes/__init__.py
+  []
+src/orchestrator/modes/autonomous.py
+  ['asyncio', 'hashlib', 'json', 'logging', 'orchestrator.audit_trail', 'orchestrator.brain.adaptive_brain', 'orchestrator.brain.neural_memory', 'orchestrator.brain.phases', 'orchestrator.brain.strategy_learner', 'orchestrator.brain.target_profiler', 'orchestrator.brain.target_state', 'orchestrator.chains.ad_kill_chain', 'orchestrator.chains.credential_spray', 'orchestrator.conductor', 'orchestrator.engagement_queue', 'orchestrator.hardening.circuit_breaker', 'orchestrator.hardening.rate_limiter', 'orchestrator.hardening.timeout_guard', 'orchestrator.harvester.harvester_engine', 'orchestrator.providers', 'os', 'sys', 'time']
+src/orchestrator/modes/community.py
+  ['providers']
+src/orchestrator/modes/debate.py
+  ['agents.skill_agent', 'providers']
+src/orchestrator/modes/deep_research.py
+  ['asyncio', 'conductor', 'datetime', 'ddgs', 'httpx', 'json', 'logging', 're', 'time', 'urllib.parse']
+src/orchestrator/modes/postmortem.py
+  ['asyncio', 'critic', 'json', 'logging', 'os', 'providers']
+src/orchestrator/modes/rsi.py
+  ['providers']
+src/orchestrator/modes/scan.py
+  ['asyncio', 'json', 'os', 'proxy_guard', 'scanners.pipeline', 'sys']
+src/orchestrator/modes/student.py
+  ['asyncio', 'json', 'logging', 'orchestrator.brain.action', 'orchestrator.brain.candidate_generators.student_generator', 'orchestrator.brain.capability_broker', 'orchestrator.growth_db', 'orchestrator.harvester.harvester_engine', 'orchestrator.harvester.phase_harvest', 'orchestrator.kali_tools_client', 'orchestrator.student.chain_synthesizer', 'orchestrator.student.coverage_gap_filler', 'orchestrator.student.research_scheduler', 'os', 'time', 'typing']
+src/orchestrator/nvidia_provider.py
+  ['asyncio', 'httpx', 'json', 'logging', 'os', 'time', 'typing']
+src/orchestrator/phishing/__init__.py
+  []
+src/orchestrator/phishing/evilginx.py
+  ['json', 'os', 'subprocess']
+src/orchestrator/phishing/gophish.py
+  ['json', 'os', 'ssl', 'time', 'urllib.error', 'urllib.request']
+src/orchestrator/phishing/pipeline.py
+  ['__future__', 'evilginx', 'gophish', 'sandbox.session_manager', 'set_wrapper', 'skills_bridge', 'typing']
+src/orchestrator/phishing/set_wrapper.py
+  ['json', 'os', 'subprocess']
+src/orchestrator/pivot/__init__.py
+  []
+src/orchestrator/pivot/manager.py
+  ['dataclasses', 'ipaddress', 'logging', 'os', 'typing']
+src/orchestrator/postex/__init__.py
+  []
+src/orchestrator/postex/bloodhound_integration.py
+  ['neo4j', 'typing']
+src/orchestrator/postex/ladon_scanner.py
+  ['concurrent.futures', 'ipaddress', 'shutil', 'socket', 'subprocess', 'typing']
+src/orchestrator/postex/netexec_wrapper.py
+  ['orchestrator.kali_tools_client', 'shlex', 'typing']
+src/orchestrator/postex/pipeline.py
+  ['__future__', 'asyncio', 'bloodhound_integration', 'ladon_scanner', 'netexec_wrapper', 'proxy_guard', 'pupy_c2', 'sandbox.session_manager', 'skills_bridge', 'typing', 'winrm_exploit']
+src/orchestrator/postex/pupy_c2.py
+  ['kali_tools_client', 'os', 'shlex', 'shutil', 'typing', 'winrm_exploit']
+src/orchestrator/postex/winrm_exploit.py
+  ['base64', 'httpx', 'kali_tools_client', 'orchestrator.kali_tools_client', 'shlex', 'typing']
+src/orchestrator/privesc/__init__.py
+  ['privesc_engine']
+src/orchestrator/privesc/privesc_engine.py
+  ['asyncio', 'dataclasses', 'httpx', 'json', 'logging', 'os', 're', 'sqlite3', 'subprocess', 'time', 'typing', 'urllib.parse', 'yaml']
+src/orchestrator/propagation/__init__.py
+  []
+src/orchestrator/propagation/propagation_engine.py
+  ['logging', 'subprocess', 'typing']
+src/orchestrator/providers.py
+  ['aiohttp', 'asyncio', 'json', 'logging', 'os', 'typing']
+src/orchestrator/proxy_guard.py
+  ['logging', 'random', 'requests', 'socket', 'time', 'typing']
+src/orchestrator/reversing/binary_analyzer.py
+  ['dataclasses', 'json', 'logging', 'os', 'pathlib', 'r2pipe', 're', 'requests', 'subprocess', 'tempfile', 'time', 'typing']
+src/orchestrator/runtime/__init__.py
+  []
+src/orchestrator/sandbox.py
+  ['logging', 'pathlib', 'subprocess', 'tempfile']
+src/orchestrator/sandbox/__init__.py
+  []
+src/orchestrator/sandbox/caido_bootstrap.py
+  ['asyncio', 'caido_sdk_client', 'caido_sdk_client.types', 'json', 'logging', 'time', 'typing']
+src/orchestrator/sandbox/docker_client.py
+  ['docker', 'io', 'json', 'logging', 'os', 'tarfile', 'time', 'typing', 'uuid']
+src/orchestrator/sandbox/session_manager.py
+  ['caido_bootstrap', 'docker_client', 'logging', 'os', 'time', 'typing']
+src/orchestrator/scanners/__init__.py
+  []
+src/orchestrator/scanners/cracking_wrappers.py
+  ['orchestrator.kali_tools_client', 're', 'shlex', 'tempfile']
+src/orchestrator/scanners/dns_wrappers.py
+  ['orchestrator.kali_tools_client', 're', 'shlex']
+src/orchestrator/scanners/enum4linux_wrapper.py
+  ['orchestrator.kali_tools_client', 're', 'shlex']
+src/orchestrator/scanners/gobuster_wrapper.py
+  ['orchestrator.kali_tools_client', 're']
+src/orchestrator/scanners/hydra_wrapper.py
+  ['orchestrator.kali_tools_client', 're', 'shlex']
+src/orchestrator/scanners/masscan_wrapper.py
+  ['json', 'orchestrator.kali_tools_client', 're']
+src/orchestrator/scanners/nmap_scanner.py
+  ['concurrent.futures', 'ipaddress', 'proxy_guard', 're', 'shutil', 'socket', 'time', 'typing']
+src/orchestrator/scanners/nuclei_scanner.py
+  ['httpx', 'json', 'os', 're']
+src/orchestrator/scanners/pipeline.py
+  ['__future__', 'nmap_scanner', 'nuclei_scanner', 'proxy_guard', 'sandbox.session_manager', 'skills_bridge', 'typing', 'whatweb_scanner']
+src/orchestrator/scanners/web_wrappers.py
+  ['orchestrator.kali_tools_client', 're', 'shlex', 'tempfile']
+src/orchestrator/scanners/whatweb_scanner.py
+  ['proxy_guard', 're', 'requests', 'shutil', 'typing']
+src/orchestrator/scope.py
+  ['logging', 'typing']
+src/orchestrator/skills_bridge.py
+  ['logging']
+src/orchestrator/social/__init__.py
+  ['social_engine']
+src/orchestrator/social/social_engine.py
+  ['asyncio', 'base64', 'dataclasses', 'hashlib', 'httpx', 'json', 'logging', 'orchestrator.providers', 'os', 're', 'sqlite3', 'time', 'typing', 'uuid']
+src/orchestrator/spiderfoot_wrapper.py
+  ['logging']
+src/orchestrator/student/__init__.py
+  ['chain_synthesizer', 'coverage_gap_filler', 'integration_pipeline', 'knowledge_background_service', 'payload_mutator', 'research_scheduler', 'stack_matcher', 'student']
+src/orchestrator/student/chain_synthesizer.py
+  ['json', 'logging', 'time', 'typing']
+src/orchestrator/student/coverage_gap_filler.py
+  ['asyncio', 'datetime', 'logging', 'typing']
+src/orchestrator/student/integration_pipeline.py
+  ['datetime', 'json', 'logging', 'os', 'sqlite3', 'time', 'typing']
+src/orchestrator/student/knowledge_background_service.py
+  ['asyncio', 'logging', 'typing']
+src/orchestrator/student/payload_mutator.py
+  ['asyncio', 'base64', 'dataclasses', 'functools', 'hashlib', 'logging', 'random', 're', 'time', 'typing', 'urllib.parse']
+src/orchestrator/student/research_scheduler.py
+  ['asyncio', 'dataclasses', 'datetime', 'hashlib', 'httpx', 'json', 'logging', 'orchestrator.growth_db', 'orchestrator.harvester.harvester_engine', 'orchestrator.harvester.web_feeds', 'os', 're', 'sqlite3', 'time', 'typing', 'urllib.parse']
+src/orchestrator/student/scihub.py
+  ['asyncio', 'hashlib', 'httpx', 'json', 'logging', 'os', 're', 'sqlite3', 'subprocess', 'tempfile', 'time', 'typing', 'xml.etree.ElementTree']
+src/orchestrator/student/stack_matcher.py
+  ['logging', 'typing']
+src/orchestrator/student/student.py
+  ['asyncio', 'logging', 'orchestrator.brain.candidate_generators.student_generator', 'orchestrator.brain.waf_detector', 'orchestrator.student.payload_mutator', 'typing', 'uuid']
+src/orchestrator/survivability/__init__.py
+  ['survivability_engine']
+src/orchestrator/survivability/survivability_engine.py
+  ['asyncio', 'base64', 'dataclasses', 'hashlib', 'httpx', 'io', 'json', 'logging', 'os', 'shutil', 'sqlite3', 'subprocess', 'tarfile', 'time', 'typing', 'uuid']
+src/orchestrator/tactics/__init__.py
+  []
+src/orchestrator/tactics/anonymous_ttp.py
+  ['__future__', 'asyncio', 'httpx', 'json', 'logging', 'orchestrator.brain.phases.models', 'orchestrator.exploit.sqlmap_wrapper', 'orchestrator.exploit.xss_scanner', 'os', 'random', 're', 'requests', 'socket', 'time']
+src/orchestrator/ttp_playbook/__init__.py
+  ['ttp_engine']
+src/orchestrator/ttp_playbook/ttp_engine.py
+  ['dataclasses', 'enum', 'json', 'logging', 'os', 'sqlite3', 'time', 'typing', 'uuid']
+src/orchestrator/utils/__init__.py
+  []
+src/orchestrator/utils/retry.py
+  ['asyncio', 'httpx', 'random', 'time', 'typing']
+src/orchestrator/utils/undercover.py
+  ['random', 're', 'typing', 'unicodedata']
+src/orchestrator/validation/__init__.py
+  []
+src/orchestrator/validation/exploit_validator.py
+  ['logging', 'typing']
+src/orchestrator/weaponizer/__init__.py
+  ['weaponizer_engine']
+src/orchestrator/weaponizer/weaponizer_engine.py
+  ['asyncio', 'base64', 'cryptography.hazmat.backends', 'cryptography.hazmat.primitives.ciphers', 'dataclasses', 'hashlib', 'json', 'logging', 'os', 'pathlib', 'platform', 'shutil', 'struct', 'subprocess', 'tempfile', 'time', 'typing', 'uuid']
+src/orchestrator/webhook.py
+  ['httpx', 'json', 'logging', 'typing']
+src/phishing/__init__.py
+  []
+src/phishing/main.py
+  ['datetime', 'fastapi', 'fastapi.middleware.cors', 'json', 'logging', 'orchestrator.phishing.evilginx', 'orchestrator.phishing.gophish', 'orchestrator.phishing.set_wrapper', 'os', 'pathlib', 'pydantic', 'sys', 'uuid']
+src/raphael/__init__.py
+  []
+src/raphael/blackboard/__init__.py
+  ['raphael.blackboard.contracts', 'raphael.blackboard.schemas']
+src/raphael/blackboard/contracts.py
+  ['__future__', 'dataclasses', 'logging', 'pydantic', 'raphael.blackboard.schemas', 'time', 'typing']
+src/raphael/blackboard/schemas.py
+  ['__future__', 'datetime', 'enum', 'pydantic', 'typing']
+src/raphael/cerebellum/__init__.py
+  []
+src/raphael/cerebellum/error_diagnoser.py
+  ['__future__', 'dataclasses', 're']
+src/raphael/cerebellum/technique_validator.py
+  ['__future__', 'raphael.techniques', 're', 'typing']
+src/raphael/circulatory/__init__.py
+  []
+src/raphael/circulatory/blackboard.py
+  ['asyncio', 'json', 'logging', 'pathlib', 'sqlite3', 'time', 'typing']
+src/raphael/circulatory/event_bus.py
+  ['asyncio', 'logging', 'typing']
+src/raphael/circulatory/spinal_reflex.py
+  ['logging', 'raphael.executor.executor', 'typing']
+src/raphael/cognitive/__init__.py
+  ['__future__', 'raphael.cognitive.capability_acquisition', 'raphael.cognitive.episodic_memory', 'raphael.cognitive.hypothesizer', 'raphael.cognitive.model_refiner', 'raphael.cognitive.models', 'raphael.cognitive.negative_cache', 'raphael.cognitive.network_graph', 'raphael.cognitive.planner', 'raphael.cognitive.protocol_inference', 'raphael.cognitive.reflection', 'raphael.cognitive.self_modification', 'raphael.cognitive.thermoregulator']
+src/raphael/cognitive/capability_acquisition.py
+  ['__future__', 'asyncio', 'dataclasses', 'datetime', 'logging', 'raphael.cognitive.models', 'typing']
+src/raphael/cognitive/episodic_memory.py
+  ['__future__', 'collections', 'dataclasses', 'datetime', 'json', 'logging', 'pathlib', 'raphael.cognitive.planner', 'time', 'typing', 'uuid']
+src/raphael/cognitive/hypothesizer.py
+  ['__future__', 'aiohttp', 'asyncio', 'dataclasses', 'datetime', 'json', 'logging', 'os', 'raphael.cognitive.models', 'typing', 'uuid']
+src/raphael/cognitive/model_refiner.py
+  ['__future__', 'dataclasses', 'datetime', 'logging', 'raphael.cognitive.models', 'typing']
+src/raphael/cognitive/models.py
+  ['__future__', 'dataclasses', 'datetime', 'enum', 'typing', 'uuid']
+src/raphael/cognitive/negative_cache.py
+  ['__future__', 'dataclasses', 'raphael.cognitive.models', 'time', 'typing']
+src/raphael/cognitive/network_graph.py
+  ['__future__', 'dataclasses', 'datetime', 'logging', 'raphael.cognitive.models', 'typing', 'uuid']
+src/raphael/cognitive/ontology_expander.py
+  ['__future__', 'json', 'logging', 'raphael.models.target_model', 're', 'typing']
+src/raphael/cognitive/planner.py
+  ['__future__', 'asyncio', 'dataclasses', 'datetime', 'math', 'random', 'raphael.cognitive.models', 'typing', 'uuid']
+src/raphael/cognitive/protocol_inference.py
+  ['__future__', 'dataclasses', 'logging', 'raphael.cognitive.models', 'raphael.models.target_model', 're', 'typing']
+src/raphael/cognitive/reflection.py
+  ['__future__', 'dataclasses', 'datetime', 'json', 'logging', 'raphael.cognitive.episodic_memory', 'raphael.cognitive.models', 'typing', 'uuid']
+src/raphael/cognitive/self_modification.py
+  ['__future__', 'dataclasses', 'datetime', 'logging', 'raphael.cognitive.episodic_memory', 'raphael.cognitive.models', 'raphael.cognitive.planner', 'typing', 'uuid']
+src/raphael/cognitive/thermoregulator.py
+  ['__future__', 'asyncio', 'dataclasses', 'datetime', 'enum', 'logging', 'typing', 'weakref']
+src/raphael/config.py
+  ['__future__', 'dataclasses', 'os', 'pathlib', 're']
+src/raphael/cortex/__init__.py
+  []
+src/raphael/cortex/hypothesizer.py
+  ['__future__', 'httpx', 'json', 'logging', 'os', 'raphael.models.engagement_state', 'raphael.techniques', 're', 'typing']
+src/raphael/cortex/model_refiner.py
+  ['__future__', 'logging', 'raphael.models.engagement_state', 'raphael.models.target_model', 're', 'typing']
+src/raphael/cortex/planner.py
+  ['__future__', 'asyncio', 'dataclasses', 'logging', 'raphael.cortex.hypothesizer', 'raphael.cortex.model_refiner', 'raphael.memory.statistical_prior', 'raphael.models.capability_model', 'raphael.models.engagement_state', 'raphael.models.target_model', 'raphael.techniques', 'typing']
+src/raphael/eventbus/__init__.py
+  ['raphael.eventbus.core']
+src/raphael/eventbus/core.py
+  ['__future__', 'asyncio', 'collections', 'contextlib', 'contextvars', 'dataclasses', 'datetime', 'enum', 'json', 'logging', 'pydantic', 'redis.asyncio', 'redis.asyncio.client', 'time', 'typing', 'uuid']
+src/raphael/executor/__init__.py
+  []
+src/raphael/executor/executor.py
+  ['__future__', 'asyncio', 'json', 'logging', 'raphael.cerebellum.error_diagnoser', 'raphael.circulatory.blackboard', 'raphael.circulatory.event_bus', 'raphael.cognitive.ontology_expander', 'raphael.cognitive.protocol_inference', 'raphael.executor.kali_bridge', 'raphael.models.capability_model', 'raphael.models.engagement_state', 'raphael.models.target_model', 'raphael.techniques', 're', 'shlex', 'time', 'typing']
+src/raphael/executor/kali_bridge.py
+  ['asyncio', 'httpx', 'json', 'logging', 'os', 'shlex', 'typing', 'urllib.parse']
+src/raphael/exploit_factory/__init__.py
+  ['raphael.exploit_factory.core', 'raphael.exploit_factory.cve_database', 'raphael.exploit_factory.delivery', 'raphael.exploit_factory.payload_templates', 'raphael.exploit_factory.types']
+src/raphael/exploit_factory/__main__.py
+  ['__future__', 'argparse', 'asyncio', 'json', 'os', 'raphael.blackboard', 'raphael.config', 'raphael.exploit_factory.core', 'raphael.exploit_factory.types', 'raphael.techniques.vhost_enum.types', 'sys']
+src/raphael/exploit_factory/core.py
+  ['__future__', 'asyncio', 'datetime', 'logging', 'raphael.exploit_factory.cve_database', 'raphael.exploit_factory.delivery', 'raphael.exploit_factory.payload_templates', 'raphael.exploit_factory.types', 'raphael.techniques.vhost_enum.types', 'typing', 'uuid']
+src/raphael/exploit_factory/cve_database.py
+  ['__future__', 'json', 'logging', 'pathlib', 'raphael.exploit_factory.types', 're', 'typing']
+src/raphael/exploit_factory/delivery.py
+  ['__future__', 'aiohttp', 'asyncio', 'logging', 'raphael.exploit_factory.types', 'raphael.techniques.vhost_enum.types', 'socket', 'ssl', 'typing']
+src/raphael/exploit_factory/payload_templates.py
+  ['__future__', 'base64', 'hashlib', 'jinja2', 'logging', 'os', 'pathlib', 'raphael.exploit_factory.types', 'typing', 'urllib.parse', 'uuid']
+src/raphael/exploit_factory/types.py
+  ['__future__', 'dataclasses', 'datetime', 'enum', 'raphael.techniques.vhost_enum.types', 'typing', 'uuid']
+src/raphael/hippocampus/__init__.py
+  []
+src/raphael/hippocampus/episode_store.py
+  ['__future__', 'dataclasses', 'json', 'logging', 'pathlib', 'raphael.models.engagement_state', 'raphael.models.target_model', 'time', 'typing']
+src/raphael/integration/__init__.py
+  ['raphael.integration.harness']
+src/raphael/integration/harness.py
+  ['__future__', 'asyncio', 'contextlib', 'dataclasses', 'datetime', 'fakeredis', 'json', 'logging', 'os', 'raphael.blackboard', 'raphael.cognitive', 'raphael.eventbus', 'raphael.exploit_factory', 'raphael.exploit_factory.cve_database', 'raphael.exploit_factory.types', 'raphael.techniques.vhost_enum', 'raphael.techniques.vhost_enum.types', 'raphael.verifier.core', 'raphael.verifier.types', 'signal', 'sys', 'typing', 'uuid']
+src/raphael/integration/test_pipeline.py
+  ['__future__', 'asyncio', 'logging', 'os', 'raphael.integration.harness', 'unittest.mock']
+src/raphael/limbic/__init__.py
+  []
+src/raphael/limbic/parallel_recon.py
+  ['__future__', 'asyncio', 'logging', 'raphael.executor.executor', 'raphael.models.engagement_state', 'raphael.models.target_model', 'raphael.techniques', 'typing']
+src/raphael/main.py
+  ['__future__', 'asyncio', 'datetime', 'json', 'logging', 'os', 'pathlib', 'raphael.circulatory.blackboard', 'raphael.circulatory.event_bus', 'raphael.circulatory.spinal_reflex', 'raphael.config', 'raphael.cortex.planner', 'raphael.executor.executor', 'raphael.hippocampus.episode_store', 'raphael.limbic.parallel_recon', 'raphael.models.capability_model', 'raphael.models.engagement_state', 'raphael.models.target_model', 'raphael.techniques', 're', 'sys', 'time']
+src/raphael/memory/__init__.py
+  []
+src/raphael/memory/statistical_prior.py
+  ['typing']
+src/raphael/models/__init__.py
+  []
+src/raphael/models/capability_model.py
+  ['__future__', 'dataclasses', 'typing']
+src/raphael/models/engagement_state.py
+  ['__future__', 'dataclasses', 'json', 'raphael.models.capability_model', 'raphael.models.target_model', 'typing']
+src/raphael/models/target_model.py
+  ['__future__', 'dataclasses', 'typing']
+src/raphael/scripts/blind_probe_runner.py
+  ['json', 'raphael.techniques.payloads.chaos_matrix', 'socket', 'sys']
+src/raphael/techniques/__init__.py
+  ['__future__', 'dataclasses', 'typing']
+src/raphael/techniques/ad1_xor_sweep.py
+  ['json', 're', 'sys', 'time']
+src/raphael/techniques/blind_probe.py
+  ['json', 'logging', 'raphael.models.target_model', 'typing']
+src/raphael/techniques/chrome_forensics.py
+  ['raphael.models.target_model', 're']
+src/raphael/techniques/cmdi_check.py
+  ['argparse', 'subprocess', 'sys']
+src/raphael/techniques/directory_brute.py
+  ['argparse', 'os', 'subprocess', 'sys']
+src/raphael/techniques/fast_port_scan.py
+  ['argparse', 'asyncio', 'json', 'logging', 'sys', 'time']
+src/raphael/techniques/http_post.py
+  ['raphael.models.target_model']
+src/raphael/techniques/lfi_check.py
+  ['argparse', 'json', 'os', 'subprocess', 'sys']
+src/raphael/techniques/network/__init__.py
+  []
+src/raphael/techniques/open_redirect.py
+  ['argparse', 'subprocess', 'sys']
+src/raphael/techniques/payloads/__init__.py
+  []
+src/raphael/techniques/payloads/chaos_matrix.py
+  ['struct']
+src/raphael/techniques/payloads/fabric.py
+  ['argparse', 'dataclasses', 'json', 'random', 'sys', 'typing']
+src/raphael/techniques/sqli_check.py
+  ['argparse', 'os', 'subprocess', 'sys']
+src/raphael/techniques/ssrf_check.py
+  ['argparse', 'json', 'subprocess', 'sys']
+src/raphael/techniques/subdomain_enum.py
+  ['argparse', 'os', 'subprocess', 'sys', 'tempfile']
+src/raphael/techniques/tech_detect.py
+  ['argparse', 'subprocess', 'sys']
+src/raphael/techniques/vhost_enum/__init__.py
+  ['raphael.techniques.vhost_enum.core', 'raphael.techniques.vhost_enum.enumerators', 'raphael.techniques.vhost_enum.types']
+src/raphael/techniques/vhost_enum/__main__.py
+  ['__future__', 'asyncio', 'json', 'os', 'raphael.techniques.vhost_enum.enumerators', 'raphael.techniques.vhost_enum.types', 'sys']
+src/raphael/techniques/vhost_enum/core.py
+  ['__future__', 'asyncio', 'dataclasses', 'datetime', 'logging', 'raphael.blackboard', 'raphael.blackboard.schemas', 'raphael.eventbus', 'raphael.techniques.vhost_enum.enumerators', 'raphael.techniques.vhost_enum.types', 'typing', 'uuid']
+src/raphael/techniques/vhost_enum/enumerators.py
+  ['__future__', 'abc', 'aiodns', 'aiohttp', 'asyncio', 'dataclasses', 'hashlib', 'logging', 'raphael.techniques.vhost_enum.types', 'ssl', 'typing', 'urllib.parse']
+src/raphael/techniques/vhost_enum/types.py
+  ['__future__', 'dataclasses', 'datetime', 'enum', 'typing', 'urllib.parse', 'uuid']
+src/raphael/techniques/waf_detect.py
+  ['argparse', 'json', 'subprocess', 'sys', 'urllib.parse']
+src/raphael/verifier/__init__.py
+  ['__future__', 'raphael.verifier.channels', 'raphael.verifier.core', 'raphael.verifier.types']
+src/raphael/verifier/__main__.py
+  ['__future__', 'argparse', 'asyncio', 'json', 'os', 'raphael.blackboard', 'raphael.config', 'raphael.verifier.core', 'raphael.verifier.types', 'sys']
+src/raphael/verifier/channels.py
+  ['__future__', 'abc', 'aiohttp', 'asyncio', 'dataclasses', 'datetime', 'dns.message', 'dns.query', 'dns.rdatatype', 'json', 'raphael.verifier.types', 'secrets', 'socket', 'time', 'typing']
+src/raphael/verifier/core.py
+  ['__future__', 'asyncio', 'datetime', 'logging', 'os', 'raphael.verifier.channels', 'raphael.verifier.types', 'time', 'typing', 'uuid']
+src/raphael/verifier/types.py
+  ['__future__', 'dataclasses', 'datetime', 'enum', 'secrets', 'time', 'typing', 'uuid']
+src/recon-pipeline/__init__.py
+  []
+src/recon-pipeline/case_api.py
+  ['case_store', 'fastapi', 'json', 'logging', 'pathlib', 'pydantic', 'typing']
+src/recon-pipeline/case_store.py
+  ['dataclasses', 'hashlib', 'json', 'logging', 'os', 'pathlib', 're', 'sqlite3', 'time', 'typing', 'urllib.parse']
+src/recon-pipeline/main.py
+  ['asyncio', 'case_api', 'datetime', 'fastapi', 'fastapi.middleware.cors', 'json', 'logging', 'orchestrator.karma_wrapper', 'orchestrator.scanners.nmap_scanner', 'orchestrator.scanners.nuclei_scanner', 'orchestrator.scanners.whatweb_scanner', 'orchestrator.spiderfoot_wrapper', 'os', 'pydantic', 'shutil', 'subprocess', 'sys', 'tempfile', 'typing', 'uuid', 'uvicorn']
+src/recon-pipeline/producers/__init__.py
+  []
+src/recon-pipeline/producers/recon_ingest.py
+  ['case_store', 'json', 'logging', 'pathlib', 'sys', 'typing', 'urllib.parse']
+src/recon-pipeline/stale_recovery.py
+  ['case_store', 'json', 'logging', 'pathlib', 'time', 'typing']
+src/sword/__init__.py
+  ['pipeline', 'report']
+src/sword/api.py
+  ['asyncio', 'fastapi', 'fastapi.middleware.cors', 'json', 'logging', 'os', 'pydantic', 'sword.pipeline', 'sword.report', 'sys', 'typing']
+src/sword/phase_0_recon.py
+  ['asyncio', 'httpx', 'json', 'orchestrator.karma_wrapper', 'orchestrator.scanners.whatweb_scanner', 'orchestrator.spiderfoot_wrapper', 'os', 'pathlib', 're', 'socket', 'subprocess', 'sys']
+src/sword/phase_1_scan.py
+  ['httpx', 'orchestrator.scanners.nmap_scanner', 'orchestrator.scanners.nuclei_scanner', 'orchestrator.scanners.whatweb_scanner', 'sys', 'typing']
+src/sword/phase_2_exploit.py
+  ['orchestrator.exploit.nettacker_exploit', 'orchestrator.exploit.payloads_db', 'orchestrator.exploit.sqlmap_wrapper', 'orchestrator.exploit.ssrf_scanner', 'orchestrator.exploit.xss_scanner', 'orchestrator.scanners.nuclei_scanner', 'orchestrator.validation.exploit_validator', 'sys']
+src/sword/phase_3_postex.py
+  ['asyncio', 'orchestrator.postex.bloodhound_integration', 'orchestrator.postex.ladon_scanner', 'orchestrator.postex.netexec_wrapper', 'orchestrator.postex.pupy_c2', 'orchestrator.postex.winrm_exploit', 'os', 'sys']
+src/sword/phase_4_exfil.py
+  ['asyncio', 'base64', 'cryptography.fernet', 'json', 'orchestrator.exfil.bounceback', 'orchestrator.exfil.bulk_exfil', 'orchestrator.exfil.dns_tunnel', 'orchestrator.exfil.smtp_tunnel', 'os', 'random', 'sys', 'time', 'zlib']
+src/sword/phase_5_phish.py
+  ['datetime', 'logging', 'orchestrator.phishing.evilginx', 'orchestrator.phishing.gophish', 'orchestrator.phishing.set_wrapper', 'os', 'pathlib', 'sys', 'uuid']
+src/sword/pipeline.py
+  ['asyncio', 'datetime', 'json', 'logging', 'os', 'sword.phase_0_recon', 'sword.phase_1_scan', 'sword.phase_2_exploit', 'sword.phase_3_postex', 'sword.phase_4_exfil', 'sword.phase_5_phish', 'sys']
+src/sword/report.py
+  ['datetime', 'json', 'os']

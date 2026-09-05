@@ -100,3 +100,10 @@ dist/
 *.tmp
 *.temp
 tmp/
+
+# Windows Zone.Identifier metadata
+*:Zone.Identifier
+
+# v4/v4.1 master roadmap (external reference, not application source)
+RAPHAEL_MASTER_ROADMAP_v4_DUAL_LANE.md
+Pasted*.md

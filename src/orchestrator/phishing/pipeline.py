@@ -1,8 +1,7 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING, Optional
 if TYPE_CHECKING:
-    from ..runtime.session_manager import SandboxSession
-
+    from ..sandbox.session_manager import SandboxSession
 from ..skills_bridge import SkillsBridge
 from .gophish import GoPhishAPI
 from .evilginx import EvilGinx

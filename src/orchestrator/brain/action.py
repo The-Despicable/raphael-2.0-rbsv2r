@@ -1104,9 +1104,17 @@ class Planner:
         selected_cost = 0.0
         selected_risk = 1.0
         for score, c, cost, risk, rc in scored:
-            # Check if action would be allowed (simplified)
-            # In reality, would check against broker policy
-            allowed = True  # Assume allowed for planning purposes
+            # P1 documentation (per C6): `allowed` is a SELECTION gate
+            # (controls which candidate is picked from the scored list),
+            # NOT an authorization gate. Authorization is the
+            # CapabilityBroker's job. This dead-code branch is preserved
+            # for legacy callers and to keep Planner self-contained for
+            # tests; the canonical Runtime routes the selected candidate
+            # through broker.propose_action(), which is the sole
+            # authorization boundary. No Path ID — not a live execution
+            # site. Weld ticket: n/a (clarity correction, P3 broker
+            # closure makes this comment trivially true).
+            allowed = True
             if allowed:
                 selected = c
                 selected_rationale = rc

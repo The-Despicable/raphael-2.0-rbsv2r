@@ -1,0 +1,55 @@
+## P0 — FLOOR(P0) — Test Floor Baseline
+
+### Command
+
+```
+PYTHONPATH=src python3 -m pytest tests/ --no-header -q
+```
+
+Run from `/home/yaser/external-audits/raphael-2` at canonical commit `7272880f7e4320f5d36ac3b645ff7fc68ea5d0e0`.
+
+### Result (last observed run)
+
+```
+239 passed, 26 warnings in 3.83s
+```
+
+- passed: 239
+- failed: 0
+- skipped: 0
+- xfailed: 0
+- xpassed: 0
+- errors: 0
+- warnings: 26
+- duration: 3.83s
+- exit code: 0
+
+### Result (second observed run)
+
+```
+239 passed, 27 warnings in 5.14s
+```
+
+- passed: 239
+- failed: 0
+- warnings: 27
+
+### FLOOR(P0) — statement
+
+FLOOR(P0) = **239 tests passed at canonical commit `7272880f7e4320f5d36ac3b645ff7fc68ea5d0e0`** against the canonical Python 3.14.4 environment on this host.
+
+The warning count is non-deterministic between runs (varies 26–27); only the passed count is deterministic and reproducible.
+
+### Warning sources (26–27 across all runs)
+
+- 26 warnings all originate in `tests/test_cli_smoke.py` and are the well-documented `PytestReturnNotNoneWarning` (test functions returning a `list` instead of asserting). Documented as a pre-existing test-suite style issue. Not a P0 fix candidate.
+- 1 additional warning (when present) also originates in `tests/test_cli_smoke.py::test_project_structure`, same category.
+- No new warnings introduced in P0 (P0 made no application-source changes).
+
+### Pre-existing failures
+
+None. The canonical baseline is green.
+
+### Floor-monotonicity (P0-R5 / AM-6)
+
+Satisfied. The canonical commit ran green without weakening, skipping, xfail-ing, narrowing, deleting, or otherwise modifying any test. No retained tests were touched in P0.

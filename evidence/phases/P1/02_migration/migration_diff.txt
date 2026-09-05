@@ -1,0 +1,40 @@
+P1 MIGRATION DIFF (vs. canonical HEAD 7272880f7)
+=================================================
+
+This is the substantive (non-test-artifact) diff. The 14 episode.jsonl
+regenerations are excluded (they are test outputs, not source).
+
+$ git diff --stat HEAD -- ':!arena/results/raw' | grep -vE '^\s*$|files? changed'
+
+ src/orchestrator/brain/action.py                   |  14 +-
+ src/orchestrator/exfil/pipeline.py                 |   3 +-
+ src/orchestrator/exploit/pipeline.py               |   3 +-
+ src/orchestrator/kali_tools_client.py              |  45 +-
+ src/orchestrator/phishing/pipeline.py              |   3 +-
+ src/orchestrator/postex/pipeline.py                |   3 +-
+ src/orchestrator/sandbox/__init__.py               |   0
+ .../{runtime => sandbox}/caido_bootstrap.py        |   0
+ .../{runtime => sandbox}/docker_client.py          |   0
+ .../{runtime => sandbox}/session_manager.py        |   0
+ src/orchestrator/scanners/pipeline.py              |   3 +-
+ src/raphael/executor/executor.py                   |  39 +-
+ 12 files changed, 166 insertions(+), 12 deletions(-)
+
+INTERPRETATION
+============
+
+12 files. Net +154 substantive lines (166 added, 12 deleted; the 12
+deletions are 5 single-line import changes that net 0, plus the
+brain/action.py "In reality, would check" comment deletion and the
+executor "Default parser" / "Run a tool" docstring context changes
+that are local to the quarantine additions).
+
+3 file renames (sandbox infra: 0 net content change).
+5 import path edits (1 line each, TYPE_CHECKING block).
+1 new empty __init__.py (sandbox package marker).
+1 new ADR (docs/adr/ADR-011).
+2 quarantine additions (kali, executor).
+1 comment-only edit (Planner non-authoritative).
+0 test edits.
+0 new files in runtime/ (per C1).
+0 new runtime class (per C1).

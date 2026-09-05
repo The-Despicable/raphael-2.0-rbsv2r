@@ -1,0 +1,23 @@
+7272880f7e4320f5d36ac3b645ff7fc68ea5d0e0
+main
+7272880f7e4320f5d36ac3b645ff7fc68ea5d0e0
+## main...origin/main
+ M arena/results/raw/abl_FULL_RAPHAEL_T1_NEGATIVE_CONTROL_s0042_dev/episodes.jsonl
+ M arena/results/raw/abl_FULL_RAPHAEL_T1_NEGATIVE_CONTROL_s0099_dev/episodes.jsonl
+ M arena/results/raw/abl_FULL_RAPHAEL_T1_NEGATIVE_CONTROL_s0123_dev/episodes.jsonl
+ M arena/results/raw/abl_NO_WORLD_MODEL_T1_NEGATIVE_CONTROL_s0003_dev/episodes.jsonl
+ M arena/results/raw/abl_NO_WORLD_MODEL_T1_NEGATIVE_CONTROL_s0007_dev/episodes.jsonl
+ M arena/results/raw/abl_NO_WORLD_MODEL_T1_NEGATIVE_CONTROL_s0042_dev/episodes.jsonl
+ M arena/results/raw/abl_NO_WORLD_MODEL_T1_NEGATIVE_CONTROL_s0099_dev/episodes.jsonl
+ M arena/results/raw/abl_PROMPTED_AGENT_T1_NEGATIVE_CONTROL_s0000_dev/episodes.jsonl
+ M arena/results/raw/abl_PROMPTED_AGENT_T1_NEGATIVE_CONTROL_s0042_dev/episodes.jsonl
+ M arena/results/raw/abl_PROMPTED_AGENT_T1_NEGATIVE_CONTROL_s0099_dev/episodes.jsonl
+ M arena/results/raw/abl_PROMPTED_AGENT_T1_NEGATIVE_CONTROL_s0123_dev/episodes.jsonl
+ M arena/results/raw/abl_SCRIPTED_BASELINE_T1_NEGATIVE_CONTROL_s0042_dev/episodes.jsonl
+ M arena/results/raw/abl_SCRIPTED_BASELINE_T1_NEGATIVE_CONTROL_s0099_dev/episodes.jsonl
+ M arena/results/raw/abl_SCRIPTED_BASELINE_T1_NEGATIVE_CONTROL_s0123_dev/episodes.jsonl
+?? evidence/
+7272880f7 (grafted, HEAD -> main, tag: raphael-p0-baseline-7272880f, origin/main, origin/HEAD) chore: purge offensive payloads from working tree (W0.5 scope)
+72f33ee5623c656071a3a5a687712decd3c80b40
+tag target:
+7272880f7e4320f5d36ac3b645ff7fc68ea5d0e0

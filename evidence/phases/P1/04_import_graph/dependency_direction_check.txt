@@ -1,0 +1,73 @@
+P1 DEPENDENCY DIRECTION CHECK (per ADR-011)
+============================================
+
+Expected:  runtime/  →  brain/  →  capabilities/  →  sandbox/
+           no reverse deps; sandbox/ must NOT import from upstream
+
+CHECK 1: does sandbox/ import from upstream layers?
+==================================================
+$ grep -rEn "from orchestrator\.(runtime|brain|capabilities)" src/orchestrator/sandbox/ \
+    2>/dev/null | grep -v __pycache__
+(empty)
+
+PASS: sandbox/ has no imports from upstream layers.
+
+CHECK 2: does runtime/ import from brain/, capabilities/, sandbox/?
+==================================================
+$ grep -rEn "from orchestrator\.(brain|capabilities|sandbox)" src/orchestrator/runtime/ \
+    2>/dev/null | grep -v __pycache__
+(empty)
+
+PASS: runtime/ has no imports from any other orchestrator.* layer.
+(runtime/ is empty in P1 per C1, so this is vacuously true; the
+constraint is the architectural intent for P2.)
+
+CHECK 3: does brain/ import from sandbox/?
+==================================================
+$ grep -rEn "from orchestrator\.sandbox|from \.sandbox|from \.\.sandbox" \
+    src/orchestrator/brain/ 2>/dev/null | grep -v __pycache__
+(empty)
+
+PASS: brain/ does not import from sandbox/.
+
+CHECK 4: does capabilities/ import from sandbox/?
+==================================================
+$ grep -rEn "from orchestrator\.sandbox|from \.sandbox|from \.\.sandbox" \
+    src/orchestrator/capabilities/ 2>/dev/null | grep -v __pycache__
+(empty)
+
+PASS: capabilities/ does not import from sandbox/. The 5 pipeline importers
+(postex/exploit/scanners/exfil/phishing) are one level deeper, inside
+the orchestrator sub-package, and were updated in P1 to use the new path.
+
+CHECK 5: do any other sub-packages import from sandbox/?
+==================================================
+$ grep -rEn "from orchestrator\.sandbox|from \.sandbox|from \.\.sandbox" src/ \
+    2>/dev/null | grep -v __pycache__ | grep -v "src/orchestrator/sandbox/"
+src/orchestrator/exfil/pipeline.py:5:    from ..sandbox.session_manager import SandboxSession
+src/orchestrator/exploit/pipeline.py:5:    from ..sandbox.session_manager import SandboxSession
+src/orchestrator/phishing/pipeline.py:4:    from ..sandbox.session_manager import SandboxSession
+src/orchestrator/postex/pipeline.py:5:    from ..sandbox.session_manager import SandboxSession
+src/orchestrator/scanners/pipeline.py:4:    from ..sandbox.session_manager import SandboxSession
+
+(5 lines, all the updated pipeline imports. None violate the direction
+constraint — pipelines ARE allowed to use sandbox/ mechanisms.)
+
+CHECK 6: do sandbox/ files have any reverse dependencies?
+==================================================
+$ git log --oneline --all -- src/orchestrator/runtime/caido_bootstrap.py \
+                              src/orchestrator/runtime/docker_client.py \
+                              src/orchestrator/runtime/session_manager.py 2>/dev/null
+7272880f7 chore: purge offensive payloads from working tree (W0.5 scope)
+
+(only the canonical commit touches these files; no prior history to
+trace reverse-deps from.)
+
+RESULT: ALL CHECKS PASS
+========================
+
+The architectural dependency direction is preserved. Per ADR-011, the
+constraint is structural: sandbox/ is mechanisms-only and depends only
+on its own submodules and the standard library. runtime/, brain/, and
+capabilities/ do not reach into sandbox/ except through the 5 pipeline
+files (which are themselves the P3 contraction target).

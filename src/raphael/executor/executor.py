@@ -28,6 +28,18 @@ def register_parser(name: str, fn: Callable[[str, str], ConstraintDelta]):
     PARSER_REGISTRY[name] = fn
 
 
+# ── P1 SEAM (per C6, AM-4) — quarantine on _subprocess_fallback ─────────
+# Path ID: SUB-14 (canonical P0 inventory: evidence/phases/P0/02_execution_inventory/subprocess_sites.md)
+# Weld ticket: Weld-SUB14 (P3)
+# _subprocess_fallback reaches asyncio.create_subprocess_shell directly.
+# Without explicit authorize_bypass(reason) opt-in, this raises.
+# Production code must invoke only through a broker-gated capability.
+class BypassNotAuthorized(Exception):
+    """Raised when Executor._subprocess_fallback is invoked without explicit
+    authorize_bypass(reason) opt-in. Path ID: SUB-14."""
+    pass
+
+
 class Executor:
     """
     Runs techniques via the Kali tools bridge, parses results into
@@ -63,9 +75,34 @@ class Executor:
         self._paused = False
         self._pause_reason = None
         logger.info("Executor resumed")
+    # P1 SEAM (per C6, AM-4): quarantine on _subprocess_fallback.
+    # Weld ticket: Weld-SUB14 (P3). OFF by default per C6.
+    _bypass_authorized: bool = False
+
+    def authorize_bypass(self, reason: str = "") -> None:
+        """Explicitly opt-in to direct subprocess fallback execution. Tests
+        and legacy code that genuinely need it must call this. Production
+        code must go through a broker-gated capability (P3)."""
+        self._bypass_authorized = True
+        logger.warning(
+            "Executor._bypass_authorized=True (reason=%r). Subprocess "
+            "bypass is now reachable. P1 seam is ON for this site.",
+            reason,
+        )
 
     async def _subprocess_fallback(self, tool: str, args: str, timeout: int) -> dict:
-        """Run a tool via subprocess (fallback when no API available)."""
+        """Run a tool via subprocess (fallback when no API available).
+
+        P1 SEAM (per C6, AM-4): gated by _bypass_authorized. Production
+        code must invoke only through a broker-gated capability. Path ID:
+        SUB-14; Weld ticket: Weld-SUB14 (P3).
+        """
+        if not self._bypass_authorized:
+            raise BypassNotAuthorized(
+                "Executor._subprocess_fallback() is quarantined in P1. "
+                "Production execution must go through the CapabilityBroker. "
+                "Tests/legacy code must call Executor.authorize_bypass(reason=...) first."
+            )
         import shlex, asyncio
         cmd = f"{tool} {args}"
         try:

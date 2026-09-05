@@ -1,0 +1,28 @@
+ M arena/results/raw/abl_FULL_RAPHAEL_T1_NEGATIVE_CONTROL_s0042_dev/episodes.jsonl
+ M arena/results/raw/abl_FULL_RAPHAEL_T1_NEGATIVE_CONTROL_s0099_dev/episodes.jsonl
+ M arena/results/raw/abl_FULL_RAPHAEL_T1_NEGATIVE_CONTROL_s0123_dev/episodes.jsonl
+ M arena/results/raw/abl_NO_WORLD_MODEL_T1_NEGATIVE_CONTROL_s0003_dev/episodes.jsonl
+ M arena/results/raw/abl_NO_WORLD_MODEL_T1_NEGATIVE_CONTROL_s0007_dev/episodes.jsonl
+ M arena/results/raw/abl_NO_WORLD_MODEL_T1_NEGATIVE_CONTROL_s0042_dev/episodes.jsonl
+ M arena/results/raw/abl_NO_WORLD_MODEL_T1_NEGATIVE_CONTROL_s0099_dev/episodes.jsonl
+ M arena/results/raw/abl_PROMPTED_AGENT_T1_NEGATIVE_CONTROL_s0000_dev/episodes.jsonl
+ M arena/results/raw/abl_PROMPTED_AGENT_T1_NEGATIVE_CONTROL_s0042_dev/episodes.jsonl
+ M arena/results/raw/abl_PROMPTED_AGENT_T1_NEGATIVE_CONTROL_s0099_dev/episodes.jsonl
+ M arena/results/raw/abl_PROMPTED_AGENT_T1_NEGATIVE_CONTROL_s0123_dev/episodes.jsonl
+ M arena/results/raw/abl_SCRIPTED_BASELINE_T1_NEGATIVE_CONTROL_s0042_dev/episodes.jsonl
+ M arena/results/raw/abl_SCRIPTED_BASELINE_T1_NEGATIVE_CONTROL_s0099_dev/episodes.jsonl
+ M arena/results/raw/abl_SCRIPTED_BASELINE_T1_NEGATIVE_CONTROL_s0123_dev/episodes.jsonl
+ M src/orchestrator/brain/action.py
+ M src/orchestrator/exfil/pipeline.py
+ M src/orchestrator/exploit/pipeline.py
+ M src/orchestrator/kali_tools_client.py
+ M src/orchestrator/phishing/pipeline.py
+ M src/orchestrator/postex/pipeline.py
+A  src/orchestrator/sandbox/__init__.py
+R  src/orchestrator/runtime/caido_bootstrap.py -> src/orchestrator/sandbox/caido_bootstrap.py
+R  src/orchestrator/runtime/docker_client.py -> src/orchestrator/sandbox/docker_client.py
+R  src/orchestrator/runtime/session_manager.py -> src/orchestrator/sandbox/session_manager.py
+ M src/orchestrator/scanners/pipeline.py
+ M src/raphael/executor/executor.py
+?? docs/adr/
+?? evidence/
