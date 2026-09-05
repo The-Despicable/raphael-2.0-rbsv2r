@@ -145,17 +145,8 @@ def test_no_arena_runtime_import_from_orchestrator_brain():
                             str(py_file.relative_to(REPO_ROOT)),
                             f"line {node.lineno}: from {node.module} import ...",
                         ))
-    # RC-B HALT/ESCALATE: apply_belief_transition at hypothesis.py:536
-    # requires P5-scale work. Documented as known violation.
-    known_p5_violations = [v for v in violations if "hypothesis.py" in v[0]]
-    if known_p5_violations:
-        # This is a documented HALT/ESCALATE, not a silent violation
-        pytest.skip(
-            f"RC-B HALT/ESCALATE: {len(known_p5_violations)} brain→arena runtime "
-            f"imports require P5-scale re-homing. See evidence/phases/G2_RC/RC-B."
-        )
     assert not violations, (
-        f"brain/ must not have runtime imports from arena (v4 INV-5, RC-B): {violations}"
+        f"brain/ must not have runtime imports from arena (v4 INV-5, GLM RC-B section 4): {violations}"
     )
 
 

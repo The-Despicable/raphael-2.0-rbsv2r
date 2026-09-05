@@ -1,5 +1,7 @@
 """defeater.py — D-5 Defeater / Counterfactual Reasoning Causal Integration.
 
+
+
 Implements the seven-gate model:
   INVOKED → PRODUCED → REFERENCED → EVALUATED → BELIEF_UPDATED
     → DECISION_RELEVANT → CONCLUSION
@@ -23,15 +25,13 @@ from typing import Any, Optional
 
 from arena.conclusion import ConclusionPredicate
 
+# GLM RC-B disposition section 4: arena re-imports vocabulary types
+# from brain (arena -> brain: canonical driver direction).
+# Byte-identical types moved per RC-B verbatim-move requirement.
+from orchestrator.brain.defeater_types import DefeaterOutcome, BeliefTransition
 
-# ── Defeater Outcome ──────────────────────────────────────────
 
-class DefeaterOutcome(str, Enum):
-    """Outcome of a defeater evaluation against evidence."""
-    NOT_TRIGGERED = "not_triggered"   # Evidence contradicts the defeating condition
-    TRIGGERED = "triggered"           # Defeating condition observed
-    INCONCLUSIVE = "inconclusive"     # Evidence cannot determine the condition
-    NOT_TESTABLE = "not_testable"     # No authorized discriminating action exists
+# (DefeaterOutcome moved to brain/defeater_types.py per GLM RC-B)
 
 
 # ── DefeaterTrigger (input) ───────────────────────────────────
@@ -229,50 +229,7 @@ def apply_belief_transition(
     raise ValueError(f"Unknown DefeaterOutcome: {outcome}")
 
 
-# ── BeliefTransition (typed causal artifact) ──────────────────
-
-@dataclass(frozen=True)
-class BeliefTransition:
-    """A typed artifact proving a defeater-driven belief change.
-
-    Every TRIGGERED or NOT_TRIGGERED outcome that changes hypothesis
-    confidence or state produces exactly one BeliefTransition.
-
-    INCONCLUSIVE outcomes MUST NOT produce a BeliefTransition.
-
-    Causal chain:
-      DefeaterResult → BeliefTransition → Hypothesis state change
-        → Planner consumes post-transition state
-    """
-    transition_id: str = field(default_factory=lambda: f"bt_{uuid.uuid4().hex[:12]}")
-    hypothesis_id: str = ""
-    defeater_result_id: str = ""
-    outcome: DefeaterOutcome = DefeaterOutcome.INCONCLUSIVE
-
-    prior_confidence: float = 0.0
-    posterior_confidence: float = 0.0
-    prior_state: str = ""
-    posterior_state: str = ""
-
-    # Identifies the frozen policy that produced this transition
-    policy_version: str = POLICY_VERSION
-
-    generated_at: float = field(default_factory=time.time)
-
-    def to_dict(self) -> dict:
-        return {
-            "transition_id": self.transition_id,
-            "hypothesis_id": self.hypothesis_id,
-            "defeater_result_id": self.defeater_result_id,
-            "outcome": self.outcome.value,
-            "prior_confidence": self.prior_confidence,
-            "posterior_confidence": self.posterior_confidence,
-            "prior_state": self.prior_state,
-            "posterior_state": self.posterior_state,
-            "policy_version": self.policy_version,
-            "generated_at": self.generated_at,
-        }
-
+# (BeliefTransition moved to brain/defeater_types.py per GLM RC-B)
 
 # ── Candidate Origin Constants ────────────────────────────────
 

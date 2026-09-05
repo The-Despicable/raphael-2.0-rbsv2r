@@ -358,13 +358,19 @@ class HypothesisManager:
     Integrates with EvidenceGraph and WorldModel for evidence queries.
     """
     
-    def __init__(self, evidence_graph: EvidenceGraph, world_model: 'WorldModel'):
+    def __init__(self, evidence_graph: EvidenceGraph, world_model: 'WorldModel',
+                 belief_transition_policy=None):
         self.evidence_graph = evidence_graph
         self.world_model = world_model
         self.hypotheses: dict[str, Hypothesis] = {}
-        
+
         # Index by entity
         self._by_entity: dict[str, set[str]] = {}  # entity_id -> {hypothesis_id}
+
+        # GLM RC-B section 4: belief transition policy port.
+        # P2 walking skeleton: deliberately unbound (None). Raises on use.
+        # P5-BIND-1: canonical brain-side binding is a P5 deliverable.
+        self._belief_transition_policy = belief_transition_policy
 
     def propose(
         self,
@@ -531,9 +537,17 @@ class HypothesisManager:
             BeliefTransition if the hypothesis was found and outcome
             was TRIGGERED or NOT_TRIGGERED, None otherwise.
         """
-        # HALT/ESCALATE: apply_belief_transition re-homing requires P5-scale work.
-        # See evidence/phases/G2_RC/RC-B for analysis.
-        from arena.defeater import apply_belief_transition, DefeaterOutcome, BeliefTransition
+        # GLM RC-B section 4: types are brain-owned (verbatim-move).
+        # The policy call goes through the injected port.
+        from orchestrator.brain.defeater_types import DefeaterOutcome, BeliefTransition
+        from orchestrator.brain.belief_transition_policy import BeliefTransitionPolicyNotBound
+        if self._belief_transition_policy is None:
+            raise BeliefTransitionPolicyNotBound(
+                "HypothesisManager._belief_transition_policy is not bound. "
+                "GLM RC-B section 4: P2 walking skeleton is deliberately unbound. "
+                "P5-BIND-1: canonical brain-side binding is a P5 deliverable."
+            )
+        apply_belief_transition = self._belief_transition_policy.apply_belief_transition
 
         hyp = self.hypotheses.get(hypothesis_id)
         if not hyp:

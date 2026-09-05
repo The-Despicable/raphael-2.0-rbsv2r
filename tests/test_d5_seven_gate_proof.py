@@ -134,9 +134,13 @@ def test_seven_gate_proof():
     from orchestrator.brain.world import WorldModel
     from arena.ablation import AblationConfig
     
+    # GLM RC-B section 4: bind the arena adapter for the D-5 policy.
+    # The test exercises D-5 transitions, which require the port bound.
+    from arena.defeater_policy_adapter import DefeaterPolicyAdapter
     hm = HypothesisManager(
         evidence_graph=EvidenceGraph(),
         world_model=WorldModel(evidence_graph=EvidenceGraph()),
+        belief_transition_policy=DefeaterPolicyAdapter(),
     )
     
     # Register H8 hypothesis

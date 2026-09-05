@@ -1,115 +1,84 @@
 """
-defeater_types.py — Brain-owned Defeater data types (RC-B re-home).
+defeater_types.py — Brain-owned D-5 vocabulary types (RC-B GLM disposition).
 
-Original location: src/arena/defeater.py (RC-B: brain has zero runtime
-imports from arena per v4 INV-5).
+GLM §4 binding: MOVE (verbatim) DefeaterOutcome and BeliefTransition
+from arena/defeater.py to a brain-owned module. Byte-identical class
+bodies. Only module path and imports change.
 
-These are pure data types and a pure function (apply_belief_transition)
-with no Arena-specific logic. They belong in the brain closure because
-they are cognitive contracts (D-5 defeater/counterfactual reasoning),
-not Arena evaluation contracts.
+GLM §4 binding: arena/defeater.py re-imports them from brain
+(arena → brain: the canonical driver direction, consistent with the
+existing ablation_runner → orchestrator.brain edge).
 
-Arena may import from this module (Arena already imports from brain
-extensively). This breaks the brain→arena runtime import edge by moving
-the types to brain, where they are owned by the cognitive layer that
-produces and consumes them.
+The policy function apply_belief_transition, the D-5 V2 policy tables,
+and all transition semantics STAY byte-identical in arena/defeater.py.
+P5-BIND-1: the canonical brain-side binding of the policy port is a
+P5 deliverable.
 
-The original DefeaterResult/DefeaterOutcome/BeliefTransition/apply_belief_transition
-in arena/defeater.py remain in place for backward compatibility but are
-no longer the canonical import path.
+These types are vocabulary, not policy. Their shape is frozen by the
+same D-5 tests. A verbatim move makes zero semantic decisions.
 """
-from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional, List
+from dataclasses import dataclass, field
+import time
 import uuid
 
 
+# GLM RC-B §4: POLICY_VERSION is a vocabulary constant, moved here
+# alongside the types it annotates. Its semantics remain P5-owned;
+# P5-BIND-1 will move it deliberately when P5 begins.
+POLICY_VERSION = "D5_V2_2026-07-26"
+
+
+# ── Defeater Outcome ──────────────────────────────────────────
+
 class DefeaterOutcome(str, Enum):
-    """Seven-gate defeater outcome states."""
-    TRIGGERED = "TRIGGERED"
-    NOT_TRIGGERED = "NOT_TRIGGERED"
-    INCONCLUSIVE = "INCONCLUSIVE"
-    NOT_TESTABLE = "NOT_TESTABLE"
+    """Outcome of a defeater evaluation against evidence."""
+    NOT_TRIGGERED = "not_triggered"   # Evidence contradicts the defeating condition
+    TRIGGERED = "triggered"           # Defeating condition observed
+    INCONCLUSIVE = "inconclusive"     # Evidence cannot determine the condition
+    NOT_TESTABLE = "not_testable"     # No authorized discriminating action exists
 
 
-@dataclass
-class DefeaterResult:
-    """D-5 Defeater result artifact."""
-    result_id: str
-    hypothesis_id: str
-    outcome: DefeaterOutcome
-    reliability_condition_id: Optional[str] = None
-    evidence_ids: List[str] = field(default_factory=list)
-    timestamp: float = 0.0
-    producer: str = "brain"
+# ── BeliefTransition (typed causal artifact) ──────────────────
 
-    @staticmethod
-    def make(
-        hypothesis_id: str,
-        outcome: DefeaterOutcome,
-        reliability_condition_id: Optional[str] = None,
-        evidence_ids: Optional[List[str]] = None,
-    ) -> "DefeaterResult":
-        return DefeaterResult(
-            result_id=f"DR_{uuid.uuid4().hex[:12]}",
-            hypothesis_id=hypothesis_id,
-            outcome=outcome,
-            reliability_condition_id=reliability_condition_id,
-            evidence_ids=evidence_ids or [],
-            timestamp=0.0,
-        )
-
-
-@dataclass
+@dataclass(frozen=True)
 class BeliefTransition:
-    """D-5 belief transition artifact: defeater → hypothesis change."""
-    transition_id: str
-    hypothesis_id: str
-    defeater_result_id: str
-    prior_confidence: float
-    post_confidence: float
-    prior_state: str
-    post_state: str
-    timestamp: float = 0.0
+    """A typed artifact proving a defeater-driven belief change.
 
-    @staticmethod
-    def make(
-        hypothesis_id: str,
-        defeater_result_id: str,
-        prior_confidence: float,
-        post_confidence: float,
-        prior_state: str,
-        post_state: str,
-    ) -> "BeliefTransition":
-        return BeliefTransition(
-            transition_id=f"BT_{uuid.uuid4().hex[:12]}",
-            hypothesis_id=hypothesis_id,
-            defeater_result_id=defeater_result_id,
-            prior_confidence=prior_confidence,
-            post_confidence=post_confidence,
-            prior_state=prior_state,
-            post_state=post_state,
-            timestamp=0.0,
-        )
+    Every TRIGGERED or NOT_TRIGGERED outcome that changes hypothesis
+    confidence or state produces exactly one BeliefTransition.
 
+    INCONCLUSIVE outcomes MUST NOT produce a BeliefTransition.
 
-def apply_belief_transition(
-    prior_confidence: float,
-    outcome: DefeaterOutcome,
-) -> tuple:
-    """Apply the frozen V2 belief transition policy.
-
-    Returns (post_confidence, post_state_str).
-
-    V2 policy:
-    - TRIGGERED: confidence drops to max(0, prior * 0.3)
-    - NOT_TRIGGERED: confidence rises to min(1.0, prior + 0.1)
-    - INCONCLUSIVE: no change
-    - NOT_TESTABLE: no change
+    Causal chain:
+      DefeaterResult → BeliefTransition → Hypothesis state change
+        → Planner consumes post-transition state
     """
-    if outcome == DefeaterOutcome.TRIGGERED:
-        return (max(0.0, prior_confidence * 0.3), "WEAKENED")
-    elif outcome == DefeaterOutcome.NOT_TRIGGERED:
-        return (min(1.0, prior_confidence + 0.1), "REINFORCED")
-    else:
-        return (prior_confidence, "UNCHANGED")
+    transition_id: str = field(default_factory=lambda: f"bt_{uuid.uuid4().hex[:12]}")
+    hypothesis_id: str = ""
+    defeater_result_id: str = ""
+    outcome: DefeaterOutcome = DefeaterOutcome.INCONCLUSIVE
+
+    prior_confidence: float = 0.0
+    posterior_confidence: float = 0.0
+    prior_state: str = ""
+    posterior_state: str = ""
+
+    # Identifies the frozen policy that produced this transition
+    policy_version: str = POLICY_VERSION
+
+    generated_at: float = field(default_factory=time.time)
+
+    def to_dict(self) -> dict:
+        return {
+            "transition_id": self.transition_id,
+            "hypothesis_id": self.hypothesis_id,
+            "defeater_result_id": self.defeater_result_id,
+            "outcome": self.outcome.value,
+            "prior_confidence": self.prior_confidence,
+            "posterior_confidence": self.posterior_confidence,
+            "prior_state": self.prior_state,
+            "posterior_state": self.posterior_state,
+            "policy_version": self.policy_version,
+            "generated_at": self.generated_at,
+        }
