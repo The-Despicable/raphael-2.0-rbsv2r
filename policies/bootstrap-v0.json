@@ -1,0 +1,96 @@
+{
+  "policy_name": "bootstrap-v0",
+  "version": "0",
+  "schema_version": "1",
+  "created_by": "P2.0 entry sequence per v4.1 AM-13.2",
+  "created_at": "2026-09-05",
+  "status": "PROPOSED",
+  "supersedes": null,
+  "superseded_by": "Scope v0 (P3, v4 §14.3)",
+  "scope": {
+    "description": "Minimal named, versioned policy artifact that the P2 Broker-mediated mock path and P2.4 safe capability authorize against.",
+    "applies_to": [
+      "P2.3 Broker-mediated mock path (v4 §13.3)",
+      "P2.4 Safe proving capability (v4 §13.3)"
+    ],
+    "exclusions": [
+      "Production capabilities (P3+ work)",
+      "Real subprocess execution (P3 weld work, Weld-SUB10, Weld-SUB14)",
+      "Decepticon integration (PD track, post-MVP)"
+    ]
+  },
+  "rules": [
+    {
+      "rule_id": "BOOT-001",
+      "action_class": "mock_capability",
+      "decision": "allow",
+      "constraints": {
+        "read_only": true,
+        "no_network": true,
+        "no_subprocess": true,
+        "deterministic_output": true
+      },
+      "rationale": "P2.3 Broker-mediated mock path requires a minimal policy to demonstrate Broker.authorize -> PEP -> mock capability -> ExecutionEvent -> EvidenceReceipt (v4 §13.3 P2.3)."
+    },
+    {
+      "rule_id": "BOOT-002",
+      "action_class": "safe_proving_capability",
+      "decision": "allow",
+      "constraints": {
+        "read_only_fixture_inspection": true,
+        "no_external_network": true,
+        "receipt_generation_required": true
+      },
+      "rationale": "P2.4 safe proving capability (v4 §13.3 P2.4): one low-risk, deterministic, Raphael-native capability. Read-only fixture inspection preferred."
+    },
+    {
+      "rule_id": "BOOT-003",
+      "action_class": "stage_observation",
+      "decision": "allow",
+      "constraints": {
+        "no_execution": true
+      },
+      "rationale": "Runtime observation stage (v4 §13.2 StageResult). Read-only, no execution."
+    },
+    {
+      "rule_id": "BOOT-004",
+      "action_class": "worldmodel_read",
+      "decision": "allow",
+      "constraints": {
+        "read_only": true
+      },
+      "rationale": "Runtime WorldModel read (v4 §13.2 RuntimeContext). Read-only."
+    },
+    {
+      "rule_id": "BOOT-005",
+      "action_class": "receipt_emission",
+      "decision": "allow",
+      "constraints": {
+        "receipt_required": true,
+        "decision_id_required": true
+      },
+      "rationale": "Runtime PEP receipt emission (v4 §13.2 EvidenceReceipt, v4 INV-2). Every execution event has Broker decision_id."
+    }
+  ],
+  "default_decision": "deny",
+  "invariants_enforced": [
+    "INV-1: process/network/file primitives confined to exec/ (P2)",
+    "INV-2: every execution event has Broker decision_id (P2/P3)",
+    "INV-3: execution-derived claims require receipts (P3)",
+    "INV-5: CLI -> Runtime; Runtime does not import arena (P2)",
+    "INV-6: Runtime cannot import seam (P2)",
+    "INV-7: no absolute hard-coded paths in new Runtime code (P2)"
+  ],
+  "retirement": {
+    "retired_at": "P3 (when Scope v0 lands per v4 §14.3)",
+    "retired_by": "Scope v0",
+    "not_extended_past_P2": true,
+    "rationale": "Per v4.1 AM-13.2: bootstrap-v0 is not extended or reused past P2; it is retired when Scope v0 lands."
+  },
+  "references": {
+    "v4_master_roadmap": "RAPHAEL_MASTER_ROADMAP_v4_DUAL_LANE.md (not in repo; external reference document)",
+    "v4.1_amendment": "Pasted markdown(20260904-172802).md AM-13.2",
+    "p1_evidence": "evidence/phases/P1/EVIDENCE_PACKAGE.md",
+    "g1_confirmation": "evidence/g1_corrections/G1_CONFIRMATION_PACKAGE.md"
+  }
+}
