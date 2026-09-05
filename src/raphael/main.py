@@ -354,9 +354,27 @@ async def main():
         print(f"  KALI_TOOLS_URL          Kali tools API URL (default: http://localhost:3800)")
         return
 
-    organism = RaphaelOrganism(config)
-    await organism.initialize()
-    await organism.run()
+    # v4 L1: one canonical cognitive loop. v4 §13.5: CLI -> Runtime ->
+    # observe -> ... -> receipt -> trace -> termination. The Runtime is the
+    # canonical path. The legacy Head-1 organism loop is preserved behind
+    # RAPHAEL_USE_LEGACY=1 as a separately documented migration path.
+    if os.environ.get('RAPHAEL_USE_LEGACY', '0') == '1':
+        organism = RaphaelOrganism(config)
+        await organism.initialize()
+        await organism.run()
+        return
+
+    # Canonical path: RaphaelRuntime one-iteration walking skeleton.
+    from orchestrator.runtime import RaphaelRuntime, MissionContext
+    rt = RaphaelRuntime()
+    mission = MissionContext(
+        mission_id='cli-walking-skeleton',
+        name='cli-walking-skeleton',
+        objectives=[config.target] if config.target else ['inspect'],
+    )
+    traces, termination = rt.run_episode(mission)
+    print(f'Runtime trace: {len(traces[0].entries)} stages')
+    print(f'Termination: {termination.reason}')
 
 
 if __name__ == "__main__":

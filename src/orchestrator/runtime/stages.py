@@ -103,14 +103,49 @@ def stage_planner_request(ctx: dict) -> StageResult:
 
 
 def stage_broker(ctx: dict) -> StageResult:
-    """Broker call. Authorizes the ActionRequest against bootstrap-v0."""
+    """Broker call. Authorizes the ActionRequest against bootstrap-v0.
+
+    G2-C2 fail-closed hardening (additive, no redesign):
+    - missing policy -> fail with explicit error
+    - policy.authorize() exception -> fail with explicit error
+    - decision is None or decision != 'allow' -> fail with explicit error
+    """
     t0 = time.time()
     policy = ctx.get("policy")
     request: ActionRequest = ctx["planner_request"]["request"]
-    decision = policy.authorize(request) if policy is not None else None
+    if policy is None:
+        return StageResult.make(
+            stage_name=STAGE_BROKER,
+            success=False,
+            output={"decision": None},
+            error="G2-C2 fail-closed: no policy bound",
+            duration_ms=(time.time() - t0) * 1000.0,
+        )
+    try:
+        decision = policy.authorize(request)
+    except Exception as exc:
+        return StageResult.make(
+            stage_name=STAGE_BROKER,
+            success=False,
+            output={"decision": None},
+            error=f"G2-C2 fail-closed: broker raised {type(exc).__name__}: {exc}",
+            duration_ms=(time.time() - t0) * 1000.0,
+        )
+    if decision is None or decision.decision != "allow":
+        return StageResult.make(
+            stage_name=STAGE_BROKER,
+            success=False,
+            output={"decision": decision},
+            error=(
+                f"G2-C2 fail-closed: denied by policy "
+                f"(class='{request.action_type}', "
+                f"reason='{getattr(decision, 'reason', 'unknown')}')"
+            ),
+            duration_ms=(time.time() - t0) * 1000.0,
+        )
     return StageResult.make(
         stage_name=STAGE_BROKER,
-        success=decision is not None and decision.decision == "allow",
+        success=True,
         output={"decision": decision},
         duration_ms=(time.time() - t0) * 1000.0,
     )
