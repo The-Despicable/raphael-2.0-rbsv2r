@@ -1,0 +1,147 @@
+RC-B DEPENDENCY GRAPH — brain ↔ arena
+=========================================
+
+Generated: 2026-09-05
+Scope: brain → arena and arena → brain edges after RC-A, RC-B, RC-D
+
+Commands used:
+  grep -rEn "^from arena|^import arena" src/orchestrator/ --include="*.py" 2>/dev/null | grep -v __pycache__ | grep -v "TYPE_CHECKING"
+  grep -rEn "^from orchestrator\.brain|^import orchestrator\.brain" src/arena/ --include="*.py" 2>/dev/null | grep -v __pycache__
+
+BRAIN → ARENA RUNTIME EDGES (after RC-A, RC-B, RC-D)
+=====================================================
+
+  src/orchestrator/brain/hypothesis.py:536
+    from arena.defeater import apply_belief_transition, DefeaterOutcome, BeliefTransition
+  Status: HALT/ESCALATE (P5-scale, not re-homed)
+
+  Total brain→arena runtime edges: 1
+
+BRAIN → ARENA TYPE_CHECKING EDGES (contract-compliant)
+=======================================================
+
+  src/orchestrator/brain/hypothesis.py:41
+    if TYPE_CHECKING:
+        from orchestrator.brain.semantic_types import SemanticInferenceSuccess
+        from orchestrator.brain.defeater_types import DefeaterResult
+  Status: TYPE_CHECKING (re-homed to brain-owned modules)
+
+  src/orchestrator/brain/action.py:31
+    if TYPE_CHECKING:
+        from orchestrator.brain.plan_decision import PlanDecision
+  Status: TYPE_CHECKING (re-homed to brain-owned modules)
+
+  Total brain→arena TYPE_CHECKING edges: 0 (all re-homed to brain)
+
+ARENA → BRAIN RUNTIME EDGES (pre-existing, not introduced by RC)
+================================================================
+
+  src/arena/ablation_runner.py:67
+    from orchestrator.brain.evidence import Evidence, TrustLevel
+
+  src/arena/ablation_runner.py:68
+    from orchestrator.brain.world import WorldModel, Entity, EntityType, Relationship, RelationshipType
+
+  src/arena/ablation_runner.py:69
+    from orchestrator.brain.hypothesis import HypothesisManager, HypothesisStatus
+
+  src/arena/ablation_runner.py:70
+    from orchestrator.brain.contradiction import ContradictionManager, create_contradiction_manager
+
+  src/arena/ablation_runner.py:71
+    from orchestrator.brain.capability_broker import CapabilityBroker
+
+  src/arena/ablation_runner.py:820
+    from orchestrator.brain.evidence import EvidenceGraph as EG
+
+  src/arena/ablation_runner.py:851
+    from orchestrator.brain.action import Planner as RealPlanner, ActionRegistry
+
+  src/arena/ablation_runner.py:985
+    from orchestrator.brain.candidate_generators.shell_generator import ShellCandidateGenerator
+
+  src/arena/ablation_runner.py:995
+    from orchestrator.brain.candidate_generators.student_generator import StudentCandidateGenerator
+
+  src/arena/ablation_runner.py:2374
+    from orchestrator.brain.evidence import EvidenceRelation, EvidenceRelationType
+
+  src/arena/d7_r1_mechanism_test.py:24
+    from orchestrator.brain.action import (...)
+
+  src/arena/d7_r1_mechanism_test.py:30
+    from orchestrator.brain.world import WorldModel
+
+  src/arena/d7_r1_mechanism_test.py:31
+    from orchestrator.brain.evidence import EvidenceGraph
+
+  src/arena/d7_r1_mechanism_test.py:32
+    from orchestrator.brain.capability_broker import CapabilityBroker, BrokerPolicy
+
+  src/arena/d6_manifest.py:213
+    from orchestrator.brain.capability_broker import BrokerPolicy
+
+  Total arena→brain runtime edges: 14
+
+CYCLE ANALYSIS
+==============
+
+  Brain → Arena: 1 edge (hypothesis.py:536, HALT/ESCALATE)
+  Arena → Brain: 14 edges (pre-existing, not introduced by RC)
+
+  This is NOT a cycle. The graph is acyclic:
+    Arena → Brain (14 edges) is the dominant direction
+    Brain → Arena (1 edge) is a one-way edge from brain to arena
+
+  The remaining brain→arena edge is NOT a cycle. It is a
+  directional dependency that violates v4 INV-5 but does not
+  create an import cycle.
+
+DEPENDENCY CHAIN for apply_belief_transition call
+==================================================
+
+  hypothesis.py:apply_defeater_result()
+    └─ from arena.defeater import (3 symbols)
+         └─ arena.defeater module load
+              ├─ TRIGGERED_TRANSITIONS (dict, 4 lambda entries)
+              ├─ NOT_TRIGGERED_TRANSITIONS (dict, 4 lambda entries)
+              ├─ INCONCLUSIVE_TRANSITION (lambda)
+              ├─ POLICY_VERSION (string: "D5_V2_2026-07-26")
+              ├─ HYPOTHESIS_STATES (list)
+              ├─ DefeaterOutcome (Enum: 4 values)
+              ├─ Defeater (frozen dataclass, 9 fields)
+              ├─ DefeaterResult (frozen dataclass, 12 fields)
+              └─ apply_belief_transition (function, ~60 lines)
+
+  The function call at hypothesis.py:550 depends on:
+  - The 2 transition tables (8 lambda entries total)
+  - The Enum
+  - The dispatcher function itself
+
+BRAIN-OWNED RE-HOME STUB (created in earlier RC-B, INSUFFICIENT)
+================================================================
+
+  src/orchestrator/brain/defeater_types.py:96
+    def apply_belief_transition(prior_confidence, outcome):
+        # Simplified stub: returns wrong state names
+        if TRIGGERED: return (max(0, prior*0.3), "WEAKENED")
+        elif NOT_TRIGGERED: return (min(1.0, prior+0.1), "REINFORCED")
+        else: return (prior, "UNCHANGED")
+
+  This stub has WRONG SEMANTICS:
+  - Returns "WEAKENED" instead of "POSTULATED"/"DOUBTFUL"/"ABANDONED"
+  - Does not consult TRIGGERED_TRANSITIONS / NOT_TRIGGERED_TRANSITIONS
+  - Does not handle the state-dependent rules
+
+  Cannot be used as a drop-in replacement.
+
+SCALE ASSESSMENT
+================
+
+  The apply_belief_transition function + tables + Enum + dataclass =
+  ~100 lines of D-5 V2 falsification policy machinery.
+
+  Per v4 section 16 (P5 contract) and v4.1 AM-2/AM-14, this is P5
+  semantic work that requires the P5 contradiction predicate contract.
+
+  VERDICT: P5-SCALE. Not safely re-homable in P2.
