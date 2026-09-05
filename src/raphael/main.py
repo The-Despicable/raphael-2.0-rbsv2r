@@ -1,3 +1,14 @@
+
+# --- P1 DEPRECATION MARKER (per v4 section 12.2 P1.2) ---
+# DEPRECATED: RaphaelOrganism (Head-1 internal loop).
+# v4 L3: Head 1 old internal loop is superseded.
+# v4 P1.2: legacy Head-1 internal loop is a deprecation target.
+# v4 L1: one canonical cognitive loop (RaphaelRuntime per ADR-002).
+# v4 INV-5: CLI -> Runtime; Runtime does not import arena.
+# v4 INV-6: Runtime cannot import seam.
+# v4 INV-15: NOT_IMPLEMENTED stubs remain unrouted unless explicitly admitted.
+# P9 owns deletion. See evidence/phases/G2_RC/RC-C.
+# -------------------------------------------------------
 #!/usr/bin/env python3
 """
 RAPHAEL — Integration Loop Main Entry Point.

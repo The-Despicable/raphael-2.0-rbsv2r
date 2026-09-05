@@ -1,3 +1,11 @@
+
+# --- P1 DEPRECATION MARKER (per v4 section 12.2 P1.2) ---
+# NOT_IMPLEMENTED executors (v4 INV-15): _exec_harvest, _exec_recon,
+# _exec_scan, _exec_exploit, _exec_postex, _exec_lateral, _exec_credential,
+# _exec_exfil, _exec_phish. These are dormant cognitive stubs per v4 L17.
+# v4 INV-15: NOT_IMPLEMENTED stubs remain unrouted unless explicitly admitted.
+# P9 owns deletion. See evidence/phases/G2_RC/RC-C.
+# -------------------------------------------------------
 from dataclasses import dataclass, field, asdict
 from enum import Enum
 from typing import Any
