@@ -4,7 +4,7 @@
 |---|---|
 | Phase | P2.1 (born-gated RaphaelRuntime walking skeleton) |
 | Gate | G2 (full) — this is the full-G2 evidence package |
-| Repository HEAD | `85ee1f873fe018ad225e00e24c2b2ec5be515d46` |
+| Repository HEAD | `b48e8ef590ea26ec2d8539533df272d05e9f8202` |
 | Branch | `main` (ahead of `origin/main` by 22) |
 | Implementation HEAD (P2.1) | `b8a581ad65c68ff3b8a77a68a0e5657070e2c310` |
 | Evidence HEAD (P2.1, first) | `4c5a55fe02f8eeaf3886c86c32f83483bd4aec79` |
@@ -27,13 +27,20 @@
   HEAD) and `2c81c58bc...` (visible tip in the git-log transcript).
   This was a contradiction. Resolved from actual git state:
 
-  **Authoritative current HEAD: `85ee1f873fe018ad225e00e24c2b2ec5be515d46`**
-  (commit `G2-FR-1..FR-5: records-only corrections`)
+  **Authoritative current HEAD (as of this submission):
+  `b48e8ef590ea26ec2d8539533df272d05e9f8202`**
+  (commit `G2-FR final records correction`)
 
-  Full provenance of all 23 commits since canonical
+  At the time of the G2-FR-1..5 commit, the authoritative HEAD was
+  `85ee1f873fe018ad225e00e24c2b2ec5be515d46`. The G2-FR final
+  records correction commit (`b48e8ef59`) is one commit ahead.
+
+  Full provenance of all 24 commits since canonical
   `7272880f7e4320f5d36ac3b645ff7fc68ea5d0e0`:
-  - `85ee1f873fe018ad225e00e24c2b2ec5be515d46` — G2-FR-1..5
+  - `b48e8ef590ea26ec2d8539533df272d05e9f8202` — G2-FR final
     (records-only corrections; current HEAD)
+  - `85ee1f873fe018ad225e00e24c2b2ec5be515d46` — G2-FR-1..5
+    (records-only corrections; was authoritative HEAD at G2-FR-1..5)
   - `445f21a878d490804930f4287d6d07f672d469bd` — G2-C4+C5
     (corrected evidence package; this is a REAL commit, not a
     reporting artifact; it sits at position 22 in the log)
@@ -972,8 +979,13 @@ The `stage_broker` handler was hardened in G2-C2:
 
 ### Final git state
 
+#### Current git state / authoritative HEAD
+
 ```
 $ git log --oneline 7272880f7..HEAD
+b48e8ef59 G2-FR final records correction: G2-FR-2, G2-FR-3, G2-FR-4, G2-FR-5
+85ee1f873 G2-FR-1..FR-5: records-only corrections (no code/test/architecture changes)
+445f21a878 G2-C4 + G2-C5: corrected evidence package (full-G2 deliverable)
 2c81c58bc G2-C3: convergence tickets for P2 -> P3 (no migration performed)
 c7ab7eada G2-C1 + G2-C2: canonical CLI wiring + fail-closed proof
 4c5a55fe0 P2.1: evidence package per v4 §25 schema (full-G2 deliverable)
@@ -998,7 +1010,58 @@ b3f32f5ae P2.0: transcribe ADR-001..010 from v4 §12.2 + ADR-011 addendum + ADR-
 a68c129a8 P1: canonical runtime packaging + seam work (per v4 §12 + v4.1 AM-4/AM-7/AM-13.3)
 ```
 
-22 commits since canonical `7272880f7`.
+**24 commits since canonical `7272880f7`.**
+
+**Authoritative current HEAD:** `b48e8ef590ea26ec2d8539533df272d05e9f8202`
+(commit `G2-FR final records correction`).
+
+Immediately below the authoritative HEAD:
+
+1. `85ee1f873fe018ad225e00e24c2b2ec5be515d46` — G2-FR-1..5
+   (records-only corrections)
+2. `445f21a878d490804930f4287d6d07f672d469bd` — G2-C4+C5
+   (corrected evidence package)
+3. `2c81c58bc30014bd4debdcf0e8d9f2c5aae71281` — G2-C3
+   (convergence tickets; was the visible tip at the time of the
+   G2-C4 commit)
+
+The remainder of the historical commit chain is preserved unchanged.
+
+#### Historical git-log snapshot at G2-C3 / pre-FR-1..5
+
+The following snapshot is preserved for provenance. It was the
+git-log state as of the G2-C3 commit (before G2-FR-1..5 records
+corrections). It shows 22 commits because the two FR commits
+(`85ee1f87` and `b48e8ef5`) had not yet been created.
+
+```
+$ git log --oneline 7272880f7..2c81c58bc  (snapshot at G2-C3)
+2c81c58bc G2-C3: convergence tickets for P2 -> P3 (no migration performed)
+c7ab7eada G2-C1 + G2-C2: canonical CLI wiring + fail-closed proof
+4c5a55fe0 P2.1: evidence package per v4 §25 schema (full-G2 deliverable)
+b8a581ad6 P2.1: RaphaelRuntime walking skeleton (born-gated, v4 §13.3)
+d2674ace5 G2 RC: final evidence index — RC-A..F complete, GLM RC-B applied
+4b5c17354 RC-B GLM: evidence for GLM section 4 disposition implementation
+03385c311 RC-B GLM disposition: dependency inversion via brain-owned port
+5c90cdbfb RC-B escalation: analysis of apply_belief_transition dependency
+fa25ad715 G2 RC: evidence package index — RC-A..F remediation complete
+deed0383c RC-F: untrack 14 episodes.jsonl test artifacts (keep on disk)
+f1756eb3c RC-F: bookkeeping/provenance cleanup
+b63f0bde5 RC-E: evidence for bootstrap-v0 + ADR-012 (documentation only)
+02c3b9c01 RC-D: correct guardrail scope to P2 jurisdiction (P9 retains full sweep)
+0743d0a7e RC-C: complete deprecation marker coverage + authoritative registry
+920cdf253 RC-B: sever brain→arena runtime imports (partial; 1 HALT/ESCALATE)
+718099475 RC-A: remove canonical adaptive_brain import from brain/__init__.py
+5c66b061e P2.0: evidence package per v4 §25 schema (AM-8 mandatory, global)
+42f0d13fc P2.0: bootstrap-v0 named/versioned policy artifact (v4.1 AM-13.2)
+982079425 P2.0: 5 guardrail tests per v4 §23 test registry + v4.1 AM-13.3
+ecf6745d4 P2.0: deprecation markers for 14 UNREACHABLE_FROM_CANONICAL subprocess sites (v4 P1.2)
+b3f32f5ae P2.0: transcribe ADR-001..010 from v4 §12.2 + ADR-011 addendum + ADR-012 seam ratification
+a68c129a8 P1: canonical runtime packaging + seam work (per v4 §12 + v4.1 AM-4/AM-7/AM-13.3)
+```
+
+22 commits in this snapshot. This snapshot is retained for
+provenance and is explicitly labeled as historical.
 
 ### Final disposition
 
