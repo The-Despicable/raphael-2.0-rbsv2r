@@ -4,7 +4,7 @@
 |---|---|
 | Phase | P2.1 (born-gated RaphaelRuntime walking skeleton) |
 | Gate | G2 (full) — this is the full-G2 evidence package |
-| Repository HEAD | `b48e8ef590ea26ec2d8539533df272d05e9f8202` |
+| Repository HEAD | `f8abe9fa9faeec0e2d57c14c44d60b55a71f5931` |
 | Branch | `main` (ahead of `origin/main` by 22) |
 | Implementation HEAD (P2.1) | `b8a581ad65c68ff3b8a77a68a0e5657070e2c310` |
 | Evidence HEAD (P2.1, first) | `4c5a55fe02f8eeaf3886c86c32f83483bd4aec79` |
@@ -20,7 +20,7 @@
 - **Evidence HEAD:** `4c5a55fe0` (EVIDENCE.md only: 1 file, 344 insertions)
 - **Relationship:** `4c5a55fe0` is the direct child of `b8a581ad6` (evidence commit follows implementation commit in git history)
 - **G2 correction commits:** `c7ab7eada` (C1+C2: 4 files, 446 insertions), `2c81c58bc` (C3: 1 file, 133 insertions)
-- **Total commits since canonical:** 24
+- **Total commits since canonical:** 27
 - **G2-FR-4 authoritative HEAD reconciliation (corrected):**
   The evidence package previously identified two different repository
   HEADs: `445f21a878d490804930f4287d6d07f672d469bd` (reported as
@@ -28,17 +28,17 @@
   This was a contradiction. Resolved from actual git state:
 
   **Authoritative current HEAD (as of this submission):
-  `b48e8ef590ea26ec2d8539533df272d05e9f8202`**
+  `f8abe9fa9faeec0e2d57c14c44d60b55a71f5931`****
   (commit `G2-FR final records correction`)
 
   At the time of the G2-FR-1..5 commit, the authoritative HEAD was
   `85ee1f873fe018ad225e00e24c2b2ec5be515d46`. The G2-FR final
-  records correction commit (`b48e8ef59`) is one commit ahead.
+  records correction commit (`b48e8ef59`) and the G2 provenance cleanup commit (`f8abe9fa`) are two commits ahead.
 
   Full provenance of all 24 commits since canonical
   `7272880f7e4320f5d36ac3b645ff7fc68ea5d0e0`:
   - `b48e8ef590ea26ec2d8539533df272d05e9f8202` — G2-FR final
-    (records-only corrections; current HEAD)
+    (records-only corrections; one commit prior to current HEAD)
   - `85ee1f873fe018ad225e00e24c2b2ec5be515d46` — G2-FR-1..5
     (records-only corrections; was authoritative HEAD at G2-FR-1..5)
   - `445f21a878d490804930f4287d6d07f672d469bd` — G2-C4+C5
@@ -79,9 +79,13 @@
   Chronology of authoritative HEAD:
   - `85ee1f873fe018ad225e00e24c2b2ec5be515d46` was the authoritative
     HEAD at the time of the G2-FR-1..5 submission.
-  - `b48e8ef590ea26ec2d8539533df272d05e9f8202` is one commit ahead
+  - `b48e8ef590ea26ec2d8539533df272d05e9f8202` (G2-FR final records
+    correction) was the authoritative HEAD at the time of the
+    G2 provenance cleanup submission.
+  - `f8abe9fa9faeec0e2d57c14c44d60b55a71f5931` is one commit ahead
     and is the authoritative CURRENT HEAD.
   - `85ee1f87` is therefore NOT the current tip.
+  - `b48e8ef59` is therefore NOT the current tip.
 
 ### Commit relationship (G2-C4 #4)
 
@@ -989,10 +993,12 @@ The `stage_broker` handler was hardened in G2-C2:
 
 ```
 $ git log --oneline 7272880f7..HEAD
+f8abe9fa9 G2 provenance cleanup: correct commit count 23->24 and stale current-tip wording
+ba0f965cb G2 FR-4 final: correct authoritative HEAD to b48e8ef59
 b48e8ef59 G2-FR final records correction: G2-FR-2, G2-FR-3, G2-FR-4, G2-FR-5
 85ee1f873 G2-FR-1..FR-5: records-only corrections (no code/test/architecture changes)
-445f21a878 G2-C4 + G2-C5: corrected evidence package (full-G2 deliverable)
-2c81c58bc G2-C3: convergence tickets for P2 -> P3 (no migration performed)
+445f21a87 G2-C4 + G2-C5: corrected evidence package (full-G2 deliverable)
+2c81c58bc G2-C3: convergence tickets for P2->P3 (no migration performed)
 c7ab7eada G2-C1 + G2-C2: canonical CLI wiring + fail-closed proof
 4c5a55fe0 P2.1: evidence package per v4 §25 schema (full-G2 deliverable)
 b8a581ad6 P2.1: RaphaelRuntime walking skeleton (born-gated, v4 §13.3)
@@ -1000,8 +1006,8 @@ d2674ace5 G2 RC: final evidence index — RC-A..F complete, GLM RC-B applied
 4b5c17354 RC-B GLM: evidence for GLM section 4 disposition implementation
 03385c311 RC-B GLM disposition: dependency inversion via brain-owned port
 5c90cdbfb RC-B escalation: analysis of apply_belief_transition dependency
-fa25ad715 G2 RC: evidence package index — RC-A..F remediation complete
 deed0383c RC-F: untrack 14 episodes.jsonl test artifacts (keep on disk)
+fa25ad715 G2 RC: evidence package index — RC-A..F remediation complete
 f1756eb3c RC-F: bookkeeping/provenance cleanup
 b63f0bde5 RC-E: evidence for bootstrap-v0 + ADR-012 (documentation only)
 02c3b9c01 RC-D: correct guardrail scope to P2 jurisdiction (P9 retains full sweep)
@@ -1016,23 +1022,26 @@ b3f32f5ae P2.0: transcribe ADR-001..010 from v4 §12.2 + ADR-011 addendum + ADR-
 a68c129a8 P1: canonical runtime packaging + seam work (per v4 §12 + v4.1 AM-4/AM-7/AM-13.3)
 ```
 
-**24 commits since canonical `7272880f7`.**
+**27 commits since canonical `7272880f7e4320f5d36ac3b645ff7fc68ea5d0e0`.**
 
-**Authoritative current HEAD:** `b48e8ef590ea26ec2d8539533df272d05e9f8202`
-(commit `G2-FR final records correction`).
+**Authoritative current HEAD:** `f8abe9fa9faeec0e2d57c14c44d60b55a71f5931`
+(commit `G2 provenance cleanup`).
 
 Immediately below the authoritative HEAD:
 
-1. `85ee1f873fe018ad225e00e24c2b2ec5be515d46` — G2-FR-1..5
-   (records-only corrections)
-2. `445f21a878d490804930f4287d6d07f672d469bd` — G2-C4+C5
+1. `ba0f965cb75095f11aacfc94181d283378cfe47c` — G2 FR-4 final
+   (correct authoritative HEAD to b48e8ef59)
+2. `b48e8ef590ea26ec2d8539533df272d05e9f8202` — G2-FR final
+   (records-only corrections; one commit prior to current HEAD)
+3. `85ee1f873fe018ad225e00e24c2b2ec5be515d46` — G2-FR-1..5
+   (records-only corrections; was authoritative HEAD at G2-FR-1..5)
+4. `445f21a878d490804930f4287d6d07f672d469bd` — G2-C4+C5
    (corrected evidence package)
-3. `2c81c58bc30014bd4debdcf0e8d9f2c5aae71281` — G2-C3
+5. `2c81c58bc30014bd4debdcf0e8d9f2c5aae71281` — G2-C3
    (convergence tickets; was the visible tip at the time of the
-   G2-C4 commit)
+   G2-C4 evidence commit)
 
 The remainder of the historical commit chain is preserved unchanged.
-
 #### Historical git-log snapshot at G2-C3 / pre-FR-1..5
 
 The following snapshot is preserved for provenance. It was the
