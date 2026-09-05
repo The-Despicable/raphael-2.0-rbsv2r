@@ -4,9 +4,9 @@
 |---|---|
 | Phase | P3.0 G3-EN-5 (canonical organ wiring) |
 | Gate | G3-EN-5 (organ wiring complete on the canonical path) |
-| Repository HEAD | `7c10c8331cbca06db99e3e99382fb703530138ad` |
-| Branch | `main` (ahead of `origin/main` by 35) |
-| Commit count since canonical | 35 (per fresh `git rev-list --count 7272880f7..HEAD`) |
+| Repository HEAD | `d9a50ffe4b98b668e2bd145ac0a6640d4c9d9775` |
+| Branch | `main` (ahead of `origin/main` by 36) |
+| Commit count since canonical | 36 (per fresh `git rev-list --count 7272880f7..HEAD`) |
 | Implementation commit | `7c10c8331` (4 files, 429 insertions, 62 deletions) |
 | Timestamp | 2026-09-05 |
 | Author | RAPHAEL P3.0 G3-EN-5 Audit |
@@ -250,11 +250,24 @@ CapabilityBroker. Every `EvidenceReceipt` has both `event_id` and
 13. ✅ Zero skips, zero xfails, zero weakening
 14. ✅ All 24 P2 guardrails green
 
-## 11. Next Authorized Work
+## 11. Next Authorized Work (corrected from prior version)
 
-Per GLM authorization: G3-EN-5 is satisfied. The next authorized
-work is the **MVP assembly and section 14.6/14.7 cluster**
-(WorldModel enforcement beyond authorized minimum, minimal
-replan trigger, MVP demonstration per section 14.10-14.12).
+Per the GLM authorization ordering (GLM section 4, step 5):
 
-**STOP.** Awaiting GLM confirmation of G3-EN-5 before MVP/weld work.
+> **"The welds, in the established order: Weld-SUB14 first (with
+> SUB-13 folded in — CLI-reachable exposure closes earliest, per the
+> G1-confirmed priority substitution), then Weld-SUB10, then
+> Weld-SHELL (SD-1). Only after CONV-1."**
+
+The next authorized work is the **weld sequence** (strict order):
+1. **Weld-SUB14** (with SUB-13 folded in)
+2. **Weld-SUB10**
+3. **Weld-SHELL** (SD-1)
+
+The prior version of this section stated "MVP assembly" as the next
+work, which **bypassed the mandated weld ordering**. This is corrected:
+welds come first, then the §14.6/14.7/MVP cluster (WorldModel
+enforcement beyond authorized minimum, minimal replan trigger,
+MVP demonstration per section 14.10-14.12).
+
+**STOP.** Awaiting GLM confirmation of G3-EN-5 before weld work.
