@@ -20,7 +20,7 @@
 - **Evidence HEAD:** `4c5a55fe0` (EVIDENCE.md only: 1 file, 344 insertions)
 - **Relationship:** `4c5a55fe0` is the direct child of `b8a581ad6` (evidence commit follows implementation commit in git history)
 - **G2 correction commits:** `c7ab7eada` (C1+C2: 4 files, 446 insertions), `2c81c58bc` (C3: 1 file, 133 insertions)
-- **Total commits since canonical:** 23
+- **Total commits since canonical:** 24
 - **G2-FR-4 authoritative HEAD reconciliation (corrected):**
   The evidence package previously identified two different repository
   HEADs: `445f21a878d490804930f4287d6d07f672d469bd` (reported as
@@ -74,8 +74,14 @@
   `445f21a878d490804930f4287d6d07f672d469bd` (40-hex). It was
   never a reporting artifact; it was a real commit, just
   incorrectly truncated. The 2c81c58bc prefix in the previous
-  git-log was the visible tip at the time of the G2-C4 commit;
-  the current tip is 85ee1f87 (one commit ahead).
+  git-log was the visible tip at the time of the G2-C4 commit.
+
+  Chronology of authoritative HEAD:
+  - `85ee1f873fe018ad225e00e24c2b2ec5be515d46` was the authoritative
+    HEAD at the time of the G2-FR-1..5 submission.
+  - `b48e8ef590ea26ec2d8539533df272d05e9f8202` is one commit ahead
+    and is the authoritative CURRENT HEAD.
+  - `85ee1f87` is therefore NOT the current tip.
 
 ### Commit relationship (G2-C4 #4)
 
