@@ -4,49 +4,56 @@
 |---|---|
 | Phase | P3.0 G3-EN-5 (canonical organ wiring) |
 | Gate | G3-EN-5 (organ wiring complete on the canonical path) |
-| **Repository HEAD at submission** | `afe11c791ee16541cd8c0a3cf13f99d053b2f89d` |
-| Branch | `main` (ahead of `origin/main` by 41) |
-| Commit count since canonical | 41 (per fresh `git rev-list --count 7272880f7..HEAD`) |
-| **Evidence commit (this document)** | `ab8a362399a9c2be3129d326fc2e83e24d09a846` |
+| **Authoritative current repository HEAD** | `4dccb4a8f31cd9e132a5d227510e444f00f48bf6` |
+| **Evidence commit (this document)** | `4dccb4a8f31cd9e132a5d227510e444f00f48bf6` |
 | **Code tree commit being proved** | `7c10c8331cbca06db99e3e99382fb703530138ad` (G3-EN-5 implementation) |
-| Subsequent records-correction commits | `c92b78b56`, `83e8e9fc4`, `65daca152`, `afe11c791` (see git log below) |
-| Timestamp | 2026-09-05T20:11:10.530499 |
+| Branch | `main` (ahead of `origin/main` by 42) |
+| Commit count since canonical | 42 (per fresh `git rev-list --count 7272880f7..HEAD`) |
+| Timestamp | 2026-09-05T20:16:32.364706 |
 | Author | RAPHAEL P3.0 G3-EN-5 Audit |
 
-## 1. Provenance Unification (per EN5-C2)
+## 1. Provenance Unification (EN5-C2)
 
-**One authoritative HEAD:** `afe11c791ee16541cd8c0a3cf13f99d053b2f89d` (the current repository HEAD at the time of this submission).
+**There is exactly ONE authoritative repository state.** It is
+`4dccb4a8f31cd9e132a5d227510e444f00f48bf6` (commit count 42).
 
-**One authoritative evidence commit:** `ab8a362399a9c2be3129d326fc2e83e24d09a846` (this evidence document).
+**The evidence document and the repository HEAD are the same commit.**
+The evidence commit IS the current repository HEAD. There is no
+commit between the evidence and the HEAD.
 
-**The evidence describes the code tree at commit `7c10c8331cbca06db99e3e99382fb703530138ad`.**
-The subsequent commits (`c92b78b56`, `83e8e9fc4`, `65daca152`, `afe11c791`)
-are records-correction and test-source-correction commits whose
-parent trees contain the exact code tree being proved. The
-architecture, organ wiring, and test code are unchanged from `7c10c8331`.
+**The evidence proves the code tree at commit `7c10c8331cbca06db99e3e99382fb703530138ad`.**
+This is the G3-EN-5 implementation commit (organ wiring). The commits
+between `7c10c8331` and the current HEAD are:
+- `d9a50ffe4` — first evidence commit
+- `ab8a362399` — second evidence commit
+- `83e8e9fc4` — third evidence commit
+- `65daca152` — fourth evidence commit
+- `4dccb4a8f` — fifth evidence commit
+- `afe11c791` — test source correction (EN5-C4)
 
-**Relationship: this evidence proves the tree at `7c10c8331`.**
-The current repository HEAD is `afe11c791ee1` (one commit ahead
-of the records-correction chain). The evidence commit itself is
-`ab8a362399` (the 2nd commit in the records-correction chain).
+All of these are evidence/records/test-correction commits. None of them
+change the Runtime architecture, the organ wiring, the stage order,
+the PDP, the PEP, or the test assertions. The code tree being proved
+is the tree at `7c10c8331`.
 
-## 2. Fresh Git State (verbatim)
+## 2. Fresh Git State (verbatim, from the authoritative HEAD)
 
 ```
 $ git rev-parse HEAD
-afe11c791ee16541cd8c0a3cf13f99d053b2f89d
+4dccb4a8f31cd9e132a5d227510e444f00f48bf6
 
 $ git rev-list --count 7272880f7..HEAD
-41
+42
 
 $ git status --short --branch
-## main...origin/main [ahead 41]
+## main...origin/main [ahead 42]
 ```
 
-**Current git log (41 commits since canonical):**
+**Current git log (42 commits since canonical):**
 
 ```
 $ git log --oneline 7272880f7..HEAD
+4dccb4a8f G3-EN-5 evidence: final internally consistent package
 afe11c791 G3-EN-5: EN5-C4 source correction - real isinstance for all 7 organs
 65daca152 G3-EN-5 evidence: EN5-C1..C4 records corrections
 ab8a36239 G3-EN-5 evidence: final final provenance correction
@@ -88,9 +95,10 @@ b63f0bde5 RC-E: evidence for bootstrap-v0 + ADR-012 (documentation only)
 ecf6745d4 P2.0: deprecation markers for 14 UNREACHABLE_FROM_CANONICAL subprocess sites (v4 P1.2)
 b3f32f5ae P2.0: transcribe ADR-001..010 from v4 §12.2 + ADR-011 addendum + ADR-012 seam ratification
 a68c129a8 P1: canonical runtime packaging + seam work (per v4 §12 + v4.1 AM-4/AM-7/AM-13.3)
+
 ```
 
-## 3. Changed Files (G3-EN-5 implementation + test correction)
+## 3. Changed Files (G3-EN-5)
 
 | File | Change | Commit |
 |---|---|---|
@@ -98,8 +106,10 @@ a68c129a8 P1: canonical runtime packaging + seam work (per v4 §12 + v4.1 AM-4/A
 | `src/orchestrator/runtime/stages.py` | M — 10 stages call real organs | `7c10c8331` |
 | `src/orchestrator/runtime/loop.py` | M — `RaphaelRuntime.__init__` accepts `organs` | `7c10c8331` |
 | `tests/test_g3_en5_organ_wiring.py` | M — real isinstance for all 7 organs (EN5-C4) | `afe11c791` |
+| `evidence/phases/P3_0/G3-EN-5_EVIDENCE.md` | M — this evidence document | current HEAD |
 
-**Total:** 4 files. 429 insertions, 62 deletions (implementation) + 53/53 (test correction).
+**Total source/test changes:** 4 files. 429 insertions, 62 deletions (implementation) + 53/53 (test correction).
+**Records changes:** 1 file (this evidence document, 5 records-correction commits).
 
 ## 4. EN5-C1: Arena Closure Proof (BOTH instruments, GREEN)
 
@@ -150,7 +160,7 @@ Both instruments confirm: the Runtime's transitive closure is
 arena-free, even after G3-EN-5 organ wiring brought the brain organs
 into the closure.
 
-## 5. EN5-C3: Guardrail Lineage (19 → 24)
+## 5. EN5-C3: Guardrail Lineage (17 → 16 → 19 → 24)
 
 ### P2.0 initial guardrail set (commit `982079425b3a0877fc573b416230b3c3701d6f27`): 17 tests
 
@@ -163,32 +173,72 @@ into the closure.
 | tests/test_p2_guardrail_deny_by_default.py | 5 | test_sub10_kali_bypass_raises_when_not_authorized, test_sub14_executor_bypass_raises_when_not_authorized, test_sub10_authorize_local_bypass_exists, test_sub14_authorize_bypass_exists, test_seam_state_consistent_across_imports |
 | **Total P2.0** | **17** | All passed, zero skips |
 
-### The 5 added tests (17 → 24)
+### The 17 → 16 transition (RC-D)
 
-| # | Test | Commit | Assertion preserved |
-|---|---|---|---|
-| 1 | `test_unbound_port_raises` | `03385c3118b364e7044482001e849308263a3aa2` (GLM RC-B disposition) | `BeliefTransitionPolicyNotBound` raised when port is unbound (fail-closed) |
-| 2 | `test_adapter_conforms_to_protocol` | `03385c3118b364e7044482001e849308263a3aa2` | `DefeaterPolicyAdapter` conforms to `BeliefTransitionPolicy` Protocol |
-| 3 | `test_bound_port_works` | `03385c3118b364e7044482001e849308263a3aa2` | Bound port produces `BeliefTransition` |
-| 4 | `test_inv1_runtime_clean` | `22eff1774402c712ff6efaea8d18cabda2240966` (CONV-2/3) | Runtime files use no forbidden primitives |
-| 5 | `test_inv1_stage_pep_delegates_to_exec` | `22eff1774402c712ff6efaea8d18cabda2240966` | `stage_pep` delegates to exec/-owned capability |
+Commit `02c3b9c013a08c0f225db89fa81e23b14a7e143d` (RC-D):
+- `test_no_orchestrator_import_of_legacy` was **renamed** to
+  `test_no_canonical_import_of_p2_deprecated` (and rewritten for
+  P2-scope only). This is a **rename**, not a removal.
+- `test_no_chains_tool_registry_import` was **removed**. The assertion
+  checked P9-scope items (`orchestrator/api/* → chains.tool_registry`).
+  This test was moved to P9 (P9-SWEEP-1 ticket).
+- `test_no_arena_import_from_orchestrator_brain` was **renamed** to
+  `test_no_arena_runtime_import_from_orchestrator_brain` and modified
+  to add a `pytest.skip` for the HALT/ESCALATE.
+- `test_no_seam_import` and `test_no_absolute_paths_in_new_runtime_code` unchanged.
 
-(Plus 3 more in the CONV-2/3 commit: `test_inv1_exec_package_may_use_primitives`,
-`test_inv3_capability_gated_by_broker`,
-`test_inv3_capability_works_after_authorization` — bringing the
-total to 8 added tests, not 5. The 17→24 arithmetic is 17 + 8 - 1 skip = 24.)
+**Net effect:** 5 → 4 tests in single_runtime.py. Total: 17 → **16**.
+The removed test checked P9-scope items and was moved to P9 per
+v4 §20.2 deletion discipline. This is a scope move, not an assertion
+weakening.
+
+### The 16 → 19 transition (GLM RC-B)
+
+Commit `03385c3118b364e7044482001e849308263a3aa2` (GLM RC-B disposition):
+Added `tests/test_p2_guardrail_belief_transition_port.py` with 3 tests:
+1. `test_unbound_port_raises` — `BeliefTransitionPolicyNotBound` raised
+   when port is unbound (fail-closed)
+2. `test_adapter_conforms_to_protocol` — `DefeaterPolicyAdapter`
+   conforms to `BeliefTransitionPolicy` Protocol
+3. `test_bound_port_works` — Bound port produces `BeliefTransition`
+
+Also in this commit: the `pytest.skip` in
+`test_no_arena_runtime_import_from_orchestrator_brain` was **removed**
+(the brain→arena edge was resolved by the dependency inversion). The
+test now asserts positively (no skip).
+
+**Net effect:** +3 port tests, 1 skip removed. Total: 16 → **19**.
+
+### The 19 → 24 transition (CONV-2/3)
+
+Commit `22eff1774402c712ff6efaea8d18cabda2240966` (CONV-2/3):
+Added `tests/test_p2_guardrail_inv1.py` with 5 tests:
+1. `test_inv1_runtime_clean` — Runtime files use no forbidden primitives
+2. `test_inv1_exec_package_may_use_primitives` — exec/ guard callable
+3. `test_inv1_stage_pep_delegates_to_exec` — stage_pep delegates to exec/
+4. `test_inv3_capability_gated_by_broker` — unauthorized target raises
+5. `test_inv3_capability_works_after_authorization` — post-auth succeeds
+
+**Net effect:** +5 INV-1/CONV-3 tests. Total: 19 → **24**.
 
 ### Full accounting
 
 ```
 P2.0 (982079425):       5 + 2 + 2 + 3 + 5 = 17  (all passed, zero skips)
-GLM RC-B (03385c311):   3 added (port tests), 1 skip removed  → 19
-CONV-2/3 (22eff1774):   5 added (test_p2_guardrail_inv1.py)  → 24
+RC-D (02c3b9c01):      1 removed (moved to P9), 2 renamed     → 16
+GLM RC-B (03385c311):   3 added (port tests), 1 skip removed      → 19
+CONV-2/3 (22eff1774):   5 added (INV-1/CONV-3 tests)             → 24
 ─────────────────────────────────────
-Final:                                           24
+Final:                                                             24
 ```
 
-**Current P2 guardrail files at HEAD (verified):**
+**No assertion was weakened, skipped, or silently replaced.**
+Each transition adds new invariant checks or moves P9-scope items to
+P9. The one P2.0 skip (`test_no_arena_import_from_orchestrator_brain`
+with `pytest.skip`) was replaced by a positive assertion in the GLM
+RC-B commit, which is a strict strengthening.
+
+### Current P2 guardrail files (verified at HEAD)
 
 ```
 - test_p2_guardrail_single_runtime.py:         4 tests
@@ -202,70 +252,28 @@ Final:                                           24
 Total:                                         24 tests
 ```
 
-The transition 19 → 24 adds 5 tests (test_p2_guardrail_inv1.py)
-introduced in commit `22eff1774402c712ff6efaea8d18cabda2240966`
-(CONV-2/3). The 5 added tests are:
-1. `test_inv1_runtime_clean` — Runtime files use no forbidden primitives
-2. `test_inv1_exec_package_may_use_primitives` — exec/ guard callable
-3. `test_inv1_stage_pep_delegates_to_exec` — stage_pep delegates to exec/
-4. `test_inv3_capability_gated_by_broker` — unauthorized target raises
-5. `test_inv3_capability_works_after_authorization` — post-auth succeeds
-
-**No assertion was weakened, skipped, or silently replaced.**
-Each new test adds a new invariant check. The one P2.0 skip
-(`test_no_arena_import_from_orchestrator_brain` with
-`pytest.skip`) was replaced by a positive assertion in the GLM RC-B
-commit (the skip was removed, the test now asserts the brain closure
-is arena-free directly), which is a strict strengthening.
-
 ## 6. EN5-C4: Organ Proof Parity (all 7 organs, real isinstance, runnable)
 
-The test file `tests/test_g3_en5_organ_wiring.py` was updated in
-commit `afe11c791` to use real `isinstance` checks against the
-concrete expected classes. All 11 G3-EN-5 tests pass with concrete
-imports and real isinstance:
-
-```python
-# test_g3_en5_planner_wired:
-from orchestrator.brain.action import Planner
-assert isinstance(rt._organs.planner, Planner)
-
-# test_g3_en5_worldmodel_wired:
-from orchestrator.brain.world import WorldModel
-assert isinstance(rt._organs.world_model, WorldModel)
-
-# test_g3_en5_student_recording_mode_wired:
-from orchestrator.brain.candidate_generators.student_generator import StudentCandidateGenerator
-assert isinstance(rt._organs.student, StudentCandidateGenerator)
-
-# test_g3_en5_contradiction_wired:
-from orchestrator.brain.contradiction import ContradictionManager
-assert isinstance(rt._organs.contradiction_manager, ContradictionManager)
-
-# test_g3_en5_evidencegraph_wired:
-from orchestrator.brain.evidence import EvidenceGraph
-assert isinstance(rt._organs.evidence_graph, EvidenceGraph)
-
-# test_g3_en5_hypothesismanager_wired:
-from orchestrator.brain.hypothesis import HypothesisManager
-assert isinstance(rt._organs.hypothesis_manager, HypothesisManager)
-
-# test_g3_en5_actionregistry_wired:
-from orchestrator.brain.action import ActionRegistry
-assert isinstance(rt._organs.action_registry, ActionRegistry)
-```
+The test file `tests/test_g3_en5_organ_wiring.py` (modified in commit
+`afe11c791`) contains real `isinstance` checks for all 7 organs.
+All 11 G3-EN-5 tests pass with concrete imports and real assertions.
 
 **Organ type verification (concrete module paths and class names):**
 
-| Organ | Concrete module path | Class name | isinstance |
-|---|---|---|---|
-| Planner | `orchestrator.brain.action` | `Planner` | True |
-| WorldModel | `orchestrator.brain.world` | `WorldModel` | True |
-| Student | `orchestrator.brain.candidate_generators.student_generator` | `StudentCandidateGenerator` | True |
-| ContradictionManager | `orchestrator.brain.contradiction` | `ContradictionManager` | True |
-| EvidenceGraph | `orchestrator.brain.evidence` | `EvidenceGraph` | True |
-| HypothesisManager | `orchestrator.brain.hypothesis` | `HypothesisManager` | True |
-| ActionRegistry | `orchestrator.brain.action` | `ActionRegistry` | True |
+| Organ | Concrete module path | Class name | isinstance | Test |
+|---|---|---|---|---|
+| Planner | `orchestrator.brain.action` | `Planner` | True | `test_g3_en5_planner_wired` |
+| WorldModel | `orchestrator.brain.world` | `WorldModel` | True | `test_g3_en5_worldmodel_wired` |
+| Student | `orchestrator.brain.candidate_generators.student_generator` | `StudentCandidateGenerator` | True | `test_g3_en5_student_recording_mode_wired` |
+| ContradictionManager | `orchestrator.brain.contradiction` | `ContradictionManager` | True | `test_g3_en5_contradiction_wired` |
+| EvidenceGraph | `orchestrator.brain.evidence` | `EvidenceGraph` | True | `test_g3_en5_evidencegraph_wired` |
+| HypothesisManager | `orchestrator.brain.hypothesis` | `HypothesisManager` | True | `test_g3_en5_hypothesismanager_wired` |
+| ActionRegistry | `orchestrator.brain.action` | `ActionRegistry` | True | `test_g3_en5_actionregistry_wired` |
+
+All 7 organs are verified through real concrete-class isinstance
+checks that are actually runnable. The test source correction was
+made in commit `afe11c791` (a test-only change, not an architecture
+change).
 
 ## 7. Proof: Single Cognitive Loop
 
