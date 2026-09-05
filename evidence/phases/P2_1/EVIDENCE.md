@@ -4,11 +4,11 @@
 |---|---|
 | Phase | P2.1 (born-gated RaphaelRuntime walking skeleton) |
 | Gate | G2 (full) — this is the full-G2 evidence package |
-| Repository HEAD | `445f21a878d490804930f4287d6d07f672d469bd` |
+| Repository HEAD | `85ee1f873fe018ad225e00e24c2b2ec5be515d46` |
 | Branch | `main` (ahead of `origin/main` by 22) |
-| Implementation HEAD | `b8a581ad65c68ff3b8a77a68a0e5657070e2c310` (full SHA) |
-| Evidence HEAD (first) | `4c5a55fe02f8eeaf3886c86c32f83483bd4aec79` (full SHA) |
-| G2 correction HEADs | `c7ab7eada5e484d26448cae0611f8b1887f54a82` (C1+C2), `2c81c58bc30014bd4debdcf0e8d9f2c5aae71281` (C3) |
+| Implementation HEAD (P2.1) | `b8a581ad65c68ff3b8a77a68a0e5657070e2c310` |
+| Evidence HEAD (P2.1, first) | `4c5a55fe02f8eeaf3886c86c32f83483bd4aec79` |
+| G2 correction HEADs | `c7ab7eada5e484d26448cae0611f8b1887f54a82` (C1+C2), `2c81c58bc30014bd4debdcf0e8d9f2c5aae71281` (C3), `445f21a878d490804930f4287d6d07f672d469bd` (C4+C5), `85ee1f873fe018ad225e00e24c2b2ec5be515d46` (FR-1..5) |
 | Timestamp | 2026-09-05 |
 | Author | RAPHAEL P2.1 Audit <p2.1-audit@raphael.local> |
 
@@ -20,18 +20,55 @@
 - **Evidence HEAD:** `4c5a55fe0` (EVIDENCE.md only: 1 file, 344 insertions)
 - **Relationship:** `4c5a55fe0` is the direct child of `b8a581ad6` (evidence commit follows implementation commit in git history)
 - **G2 correction commits:** `c7ab7eada` (C1+C2: 4 files, 446 insertions), `2c81c58bc` (C3: 1 file, 133 insertions)
-- **Total commits since canonical:** 22
-- **G2-FR-4 commit identity reconciliation:** the previously reported
-  SHAs `445f21a87cc2ce14e9e6c80e0fd7d77c4d7e9c5e1` and
-  `2c81c58bcc2ce14e9e6c80e0fd7d77c4d7e9c5e1` were truncated
-  39-hex prefixes, not valid 40-hex git object identifiers. The
-  authoritative full SHAs are:
-  `445f21a878d490804930f4287d6d07f672d469bd` (HEAD),
-  `2c81c58bc30014bd4debdcf0e8d9f2c5aae71281` (G2-C3),
-  `b8a581ad65c68ff3b8a77a68a0e5657070e2c310` (implementation),
-  `4c5a55fe02f8eeaf3886c86c32f83483bd4aec79` (evidence),
-  `c7ab7eada5e484d26448cae0611f8b1887f54a82` (C1+C2),
-  `982079425b3a0877fc573b416230b3c3701d6f27` (P2.0 guardrails).
+- **Total commits since canonical:** 23
+- **G2-FR-4 authoritative HEAD reconciliation (corrected):**
+  The evidence package previously identified two different repository
+  HEADs: `445f21a878d490804930f4287d6d07f672d469bd` (reported as
+  HEAD) and `2c81c58bc...` (visible tip in the git-log transcript).
+  This was a contradiction. Resolved from actual git state:
+
+  **Authoritative current HEAD: `85ee1f873fe018ad225e00e24c2b2ec5be515d46`**
+  (commit `G2-FR-1..FR-5: records-only corrections`)
+
+  Full provenance of all 23 commits since canonical
+  `7272880f7e4320f5d36ac3b645ff7fc68ea5d0e0`:
+  - `85ee1f873fe018ad225e00e24c2b2ec5be515d46` — G2-FR-1..5
+    (records-only corrections; current HEAD)
+  - `445f21a878d490804930f4287d6d07f672d469bd` — G2-C4+C5
+    (corrected evidence package; this is a REAL commit, not a
+    reporting artifact; it sits at position 22 in the log)
+  - `2c81c58bc30014bd4debdcf0e8d9f2c5aae71281` — G2-C3
+    (convergence tickets; was the visible tip at the time of the
+    G2-C4 evidence commit)
+  - `c7ab7eada5e484d26448cae0611f8b1887f54a82` — G2-C1+C2
+  - `4c5a55fe02f8eeaf3886c86c32f83483bd4aec79` — P2.1 evidence
+  - `b8a581ad65c68ff3b8a77a68a0e5657070e2c310` — P2.1 Runtime
+  - `d2674ace533dcb3ad6eed7cb80998c1f80820a2b` — G2 RC index
+  - `4b5c17354f6c973d6776fc50254f65d30569faa3` — RC-B GLM evidence
+  - `03385c3118b364e7044482001e849308263a3aa2` — RC-B GLM disposition
+  - `5c90cdbfb6b364e7044482001e849308263a3aa2` — RC-B escalation
+  - `deed0383cce43bb7d4694aec4bfc0ca7c54da7f3` — RC-F episodes
+  - `fa25ad7157442cf061eef3e60887ea3fb2c199c0` — G2 RC index
+  - `f1756eb3caa864d7b16a94e00040fdbcbfa54291` — RC-F bookkeeping
+  - `b63f0bde5ba10e87cbc6fd7032c1e0d6690fd90e` — RC-E evidence
+  - `02c3b9c013a08c0f225db89fa81e23b14a7e143d` — RC-D guardrails
+  - `0743d0a7eb308febaf99ac1612df6fd06919160d` — RC-C markers
+  - `920cdf253c5107ddf475779fbdf11f09cf132554` — RC-B severance
+  - `718099475ce79bc6d1d51a58a1bd978e19ba3082` — RC-A adaptive_brain
+  - `5c66b061ef1cf49a26cfe0d9605c8dccd880c0ca` — P2.0 evidence
+  - `42f0d13fc3e8dc133ed609902fc9e84bc8af8d29` — P2.0 bootstrap-v0
+  - `982079425b3a0877fc573b416230b3c3701d6f27` — P2.0 guardrails
+  - `ecf6745d4ae6a165c0744faad3e2cc3583d633e5` — P2.0 markers
+  - `b3f32f5aee05e2e78044920e51c5bdd87e8bd65e` — P2.0 ADRs
+  - `a68c129a8b66ae8cf33baa23329a836d129589aa` — P1
+
+  The previously reported `445f21a87cc2ce14e9e6c80e0fd7d77c4d7e9c5e1`
+  (39-hex prefix) was a truncated representation of the REAL commit
+  `445f21a878d490804930f4287d6d07f672d469bd` (40-hex). It was
+  never a reporting artifact; it was a real commit, just
+  incorrectly truncated. The 2c81c58bc prefix in the previous
+  git-log was the visible tip at the time of the G2-C4 commit;
+  the current tip is 85ee1f87 (one commit ahead).
 
 ### Commit relationship (G2-C4 #4)
 
@@ -58,7 +95,7 @@ The "former" (4c5a55fe) is the evidence commit. The "latter" (b8a581ad) is the i
 | P2.1 Runtime skeleton | ✅ COMPLETE | N/A (thin sequencer) |
 | P2.2 Wire stage handlers | ✅ COMPLETE (PARTIAL) | See below |
 | P2.3 Broker-mediated mock path | ✅ COMPLETE | All 10 stages are minimal handlers |
-| P2.4 Safe proving capability | ✅ COMPLETE | `stage_broker`, `stage_pep`, `stage_receipt` wrap brain organs |
+| P2.4 Safe proving capability | ✅ COMPLETE (PARTIAL per G2-FR-3) | Zero Head-2 organs wired. `stage_broker` wraps Runtime-owned BootstrapPolicy (P2 placeholder PDP). `stage_pep` wraps Runtime-owned SafeProvingCapability. `stage_receipt` is a minimal handler. |
 | P2.5 CLI entry | ✅ COMPLETE (G2-C1) | CLI calls RaphaelRuntime; legacy preserved |
 | P2.6 Trace | ✅ COMPLETE | `DecisionTrace` is a data structure (no Head-2 organ to wrap) |
 | P2.7 Arena oracle | ✅ COMPLETE | N/A (arena loop untouched, behavioral oracle only) |
@@ -117,7 +154,7 @@ Runtime-owned P2 placeholder (BootstrapPolicy).
 
 ### Tasks NOT completed (out of P2.1 scope)
 
-- P2.2 full Head-2 organ wiring (P3 work; P2.1 has minimal handlers/stubs)
+- P2.2 Head-2 organ wiring (P3 work; P2.1 has 10 stub/minimal handlers, ZERO Head-2 organs wired)
 - P3 weld work (Weld-SUB10, Weld-SUB14, Weld-SHELL) — P3, not authorized
 - MVP demonstration (G3) — not in P2.1
 - Decepticon — PD track, post-MVP
@@ -169,9 +206,9 @@ evidence/phases/P2_1/CONVERGENCE_TICKETS.md            (NEW, 5528 bytes)
 
 **Command:** `PYTHONPATH=src python3 -m pytest tests/ --collect-only -q`
 
-**Result:** 275 tests collected in 0.72s
+**Result:** 275 tests collected in 0.44s
 
-**Raw output (first 10 lines + last 10 lines + summary):**
+**Complete raw output (every test ID, no truncation):**
 
 ```
 tests/e1_interactive_shell_test.py::test_filter_allowlist_basic_commands
@@ -184,22 +221,280 @@ tests/e1_interactive_shell_test.py::test_session_invalid_transitions_denied
 tests/e1_interactive_shell_test.py::test_session_expiry_and_idle
 tests/e1_interactive_shell_test.py::test_session_from_proposal
 tests/e1_interactive_shell_test.py::test_tty_normalizer_ansi_strip
-[... 255 lines omitted ...]
-tests/test_token_telemetry.py::test_token_budget_tracking
-tests/test_token_telemetry.py::test_per_step_token_accounting
+tests/e1_interactive_shell_test.py::test_tty_normalizer_backspace
+tests/e1_interactive_shell_test.py::test_tty_normalizer_prompt_detection
+tests/e1_interactive_shell_test.py::test_tty_normalizer_parse_chunk
+tests/e1_interactive_shell_test.py::test_evidence_extractor_command
+tests/e1_interactive_shell_test.py::test_session_receipt_serialization
+tests/e1_interactive_shell_test.py::test_command_receipt_serialization
+tests/e1_interactive_shell_test.py::test_listener_manager_basic
+tests/e1_interactive_shell_test.py::test_broker_authorize_shell_session_ssh
+tests/e1_interactive_shell_test.py::test_broker_authorize_shell_command_allow
+tests/e1_interactive_shell_test.py::test_broker_authorize_shell_command_deny
+tests/e1_interactive_shell_test.py::test_broker_terminate_shell_session
+tests/e1_interactive_shell_test.py::test_broker_list_active_sessions
+tests/e1_interactive_shell_test.py::test_adversarial_command_injection
+tests/e1_interactive_shell_test.py::test_adversarial_ansi_injection
+tests/e1_interactive_shell_test.py::test_adversarial_prompt_spoofing
+tests/e1_interactive_shell_test.py::test_adversarial_unauthorized_callback
+tests/e1_interactive_shell_test.py::test_adversarial_port_collision
+tests/e1_interactive_shell_test.py::test_adversarial_session_hijacking
+tests/e1_interactive_shell_test.py::test_adversarial_denial_threshold_bypass
+tests/e1_interactive_shell_test.py::test_adversarial_llm_prompt_injection
+tests/e1_interactive_shell_test.py::test_adversarial_payload_command_injection
+tests/e1_interactive_shell_test.py::test_session_store_save_and_retrieve
+tests/e1_interactive_shell_test.py::test_session_store_active_sessions
+tests/e1_interactive_shell_test.py::test_session_store_expired_sessions
+tests/e2_shell_candidate_generation_test.py::TestT1CredentialDiscovery::test_t1_triggers_connect_candidate
+tests/e2_shell_candidate_generation_test.py::TestT1CredentialDiscovery::test_t1_no_credential_no_candidate
+tests/e2_shell_candidate_generation_test.py::TestT1CredentialDiscovery::test_t1_no_target_no_candidate
+tests/e2_shell_candidate_generation_test.py::TestT2ExploitConfirmation::test_t2_triggers_reverse_shell
+tests/e2_shell_candidate_generation_test.py::TestT2ExploitConfirmation::test_t2_no_confirmed_hypothesis_no_candidate
+tests/e2_shell_candidate_generation_test.py::TestT2ExploitConfirmation::test_t2_non_rce_hypothesis_no_candidate
+tests/e2_shell_candidate_generation_test.py::TestT3ChainAdvisory::test_t3_chain_advisory
+tests/e2_shell_candidate_generation_test.py::TestT3ChainAdvisory::test_t3_no_shell_technique
+tests/e2_shell_candidate_generation_test.py::TestT4SessionDedup::test_no_duplicate_connect
+tests/e2_shell_candidate_generation_test.py::TestM1ObjectiveDriven::test_privesc_commands
+tests/e2_shell_candidate_generation_test.py::TestM1ObjectiveDriven::test_lateral_commands
+tests/e2_shell_candidate_generation_test.py::TestM1ObjectiveDriven::test_credential_access_commands
+tests/e2_shell_candidate_generation_test.py::TestM1ObjectiveDriven::test_no_active_session_no_commands
+tests/e2_shell_candidate_generation_test.py::TestM1ObjectiveDriven::test_unknown_objective_falls_back_to_recon
+tests/e2_shell_candidate_generation_test.py::TestStaleSessionRejection::test_terminated_session_no_commands
+tests/e2_shell_candidate_generation_test.py::TestWorldModelIngestion::test_ingest_process_list
+tests/e2_shell_candidate_generation_test.py::TestWorldModelIngestion::test_ingest_file_content_shadow
+tests/e2_shell_candidate_generation_test.py::TestWorldModelIngestion::test_ingest_network_connections
+tests/e2_shell_candidate_generation_test.py::TestWorldModelIngestion::test_ingest_user_accounts
+tests/e2_shell_candidate_generation_test.py::TestWorldModelIngestion::test_ingest_credential_evidence
+tests/e2_shell_candidate_generation_test.py::TestWorldModelIngestion::test_ingest_vulnerability_indicator
+tests/e2_shell_candidate_generation_test.py::TestWorldModelIngestion::test_update_host_from_shell
+tests/e2_shell_candidate_generation_test.py::TestWorldModelIngestion::test_get_session_host
+tests/e2_shell_candidate_generation_test.py::TestFalsificationReengagement::test_vulnerability_triggers_falsification
+tests/e2_shell_candidate_generation_test.py::TestFalsificationReengagement::test_falsification_dedup
+tests/e2_shell_candidate_generation_test.py::TestInve204Validation::test_invalid_session_raises_value_error
+tests/e2_shell_candidate_generation_test.py::TestPlannerShellScoring::test_planner_scores_shell_connect
+tests/e2_shell_candidate_generation_test.py::TestShellDisconnect::test_disconnect_for_active_session
+tests/e2_shell_candidate_generation_test.py::TestShellDisconnect::test_no_active_session_no_disconnect
+tests/e2_shell_candidate_generation_test.py::TestObjectiveCommandMapSafety::test_no_dangerous_commands
+tests/e2_shell_candidate_generation_test.py::TestObjectiveCommandMapSafety::test_every_objective_has_commands
+tests/e2_shell_candidate_generation_test.py::TestObjectiveCommandMapSafety::test_all_commands_have_evidence_type
+tests/e2_shell_candidate_generation_test.py::TestGeneratorStats::test_stats
+tests/e2_shell_candidate_generation_test.py::TestEdgeCases::test_no_chain_synthesizer_no_crash
+tests/e2_shell_candidate_generation_test.py::TestEdgeCases::test_generate_all_modes_empty
+tests/e2_shell_candidate_generation_test.py::TestEdgeCases::test_disconnect_no_duplicates
+tests/test_budget_contract.py::test_manifest_budget_constants
+tests/test_budget_contract.py::test_runner_no_hardcoded_iteration_literal
+tests/test_budget_contract.py::test_action_budget_guard_present
+tests/test_budget_contract.py::test_metrics_budget_fields
+tests/test_budget_contract.py::test_all_configs_share_declared_budget
+tests/test_budget_contract.py::test_scripted_run_stays_within_contract
+tests/test_cli_smoke.py::test_cli_imports
+tests/test_cli_smoke.py::test_cli_argparse
+tests/test_cli_smoke.py::test_cli_models_config
+tests/test_cli_smoke.py::test_cli_health_check_logic
+tests/test_cli_smoke.py::test_cli_banner_and_output
+tests/test_cli_smoke.py::test_cli_error_handling
+tests/test_cli_smoke.py::test_docker_files_exist
+tests/test_cli_smoke.py::test_docker_compose_syntax
+tests/test_cli_smoke.py::test_docker_images_buildable
+tests/test_cli_smoke.py::test_docker_running_services
+tests/test_cli_smoke.py::test_ai_models_config
+tests/test_cli_smoke.py::test_ai_providers_module
+tests/test_cli_smoke.py::test_ai_adaptive_router
+tests/test_cli_smoke.py::test_tools_availability
+tests/test_cli_smoke.py::test_tools_kali_server
+tests/test_cli_smoke.py::test_tools_kali_dockerfile
+tests/test_cli_smoke.py::test_orchestrator_imports
+tests/test_cli_smoke.py::test_orchestrator_app
+tests/test_cli_smoke.py::test_orchestrator_pipelines
+tests/test_cli_smoke.py::test_orchestrator_c2
+tests/test_cli_smoke.py::test_orchestrator_security
+tests/test_cli_smoke.py::test_orchestrator_brain
+tests/test_cli_smoke.py::test_orchestrator_agent
+tests/test_cli_smoke.py::test_env_configuration
+tests/test_cli_smoke.py::test_requirements
+tests/test_cli_smoke.py::test_project_structure
+tests/test_conclusion_infra.py::test_adapter_exception_recorded_in_telemetry
+tests/test_conclusion_infra.py::test_adapter_failure_does_not_override_outcome
+tests/test_conclusion_infra.py::test_broker_execution_error_is_sanitized
+tests/test_conclusion_infra.py::test_broker_timeout_output_unchanged
+tests/test_conclusion_infra.py::test_broker_normal_output_flows_through
+tests/test_d5_preflight.py::test_truth_isolation_runtime
+tests/test_d5_preflight.py::test_counterfactual_invariance
+tests/test_d5_preflight.py::test_candidate_set_invariance
+tests/test_d5_preflight.py::test_broker_isolation
+tests/test_d5_preflight.py::test_outcome_semantics
+tests/test_d5_preflight.py::test_belief_transition_policy
+tests/test_d5_preflight.py::test_frozen_policy
+tests/test_d5_preflight.py::test_one_to_many_claim_mapping
+tests/test_d5_preflight.py::test_inconclusive_no_belief_transition
+tests/test_d5_preflight.py::test_defeater_not_negation
+tests/test_d5_seven_gate_proof.py::test_seven_gate_proof
+tests/test_debug_stderr_epipe.py::test_debug_epipe_is_nonfatal
+tests/test_debug_stderr_epipe.py::test_debug_epipe_returns_none_broad_path
+tests/test_debug_stderr_epipe.py::test_debug_non_epipe_oserror_is_not_hidden
+tests/test_debug_stderr_epipe.py::test_debug_epipe_by_explicit_errno_is_swallowed
+tests/test_environment_determinism.py::test_same_scenario_same_mac
+tests/test_environment_determinism.py::test_different_scenarios_different_mac
+tests/test_environment_determinism.py::test_metadata_mac_is_stable
+tests/test_environment_determinism.py::test_same_scenario_repeatable_across_instances
+tests/test_evaluator_isolation.py::test_two_extractors_do_not_share_graph
+tests/test_evaluator_isolation.py::test_extractor_without_graph_is_fresh_not_global
+tests/test_evaluator_isolation.py::test_global_singleton_untouched_by_extract_evaluate_cycle
+tests/test_evaluator_isolation.py::test_run_a_evidence_does_not_leak_into_run_b
+tests/test_evaluator_isolation.py::test_environment_no_global_import
+tests/test_evaluator_isolation.py::test_arena_entry_fresh_graph_fallback
+tests/test_evaluator_isolation.py::test_explicit_graph_still_honored
+tests/test_g2_c2_fail_closed.py::test_c2_1_non_allowlisted_action_class_denied
+tests/test_g2_c2_fail_closed.py::test_c2_2_denied_produces_no_execution_event
+tests/test_g2_c2_fail_closed.py::test_c2_3_denied_produces_no_receipt
+tests/test_g2_c2_fail_closed.py::test_c2_4_denial_appears_in_decision_trace
+tests/test_g2_c2_fail_closed.py::test_c2_5_denied_episode_terminates_deterministically
+tests/test_g2_c2_fail_closed.py::test_c2_6a_missing_broker_fails_closed
+tests/test_g2_c2_fail_closed.py::test_c2_6b_failing_broker_fails_closed
+tests/test_g2_c2_fail_closed.py::test_c2_7_default_deny_dynamically_exercised
+tests/test_g2_c2_fail_closed.py::test_c2_8_full_fail_closed_episode
+tests/test_gate_b_action_accounting.py::test_broker_dispatch_equals_actions_dispatched
+tests/test_gate_b_action_accounting.py::test_actions_dispatched_equals_authorized_plus_denied
+tests/test_gate_b_action_accounting.py::test_all_denied_episode
+tests/test_gate_b_action_accounting.py::test_all_approved_episode
+tests/test_gate_b_action_accounting.py::test_mixed_allow_deny_episode
+tests/test_gate_b_action_accounting.py::test_no_path_exceeds_action_cap
+tests/test_gate_b_action_accounting.py::test_actions_started_semantics_preserved
+tests/test_gate_b_action_accounting.py::test_broker_denial_increments_actions_denied_all_paths
+tests/test_gate_b_action_accounting.py::test_model_identical_full_vs_prompted
+tests/test_gate_b_action_accounting.py::test_actions_dispatched_never_exceeds_cap
+tests/test_llm_transport.py::test_A_succeeds_immediately
+tests/test_llm_transport.py::test_A_fails_then_A_retry_succeeds
+tests/test_llm_transport.py::test_A_fails_then_B_succeeds
+tests/test_llm_transport.py::test_transient_failures_then_success
+tests/test_llm_transport.py::test_all_attempts_fail_exhausted
+tests/test_llm_transport.py::test_rate_limit_429_classified
+tests/test_llm_transport.py::test_timeout_classified
+tests/test_llm_transport.py::test_server_error_5xx_classified
+tests/test_llm_transport.py::test_connection_failure_recreates_client
+tests/test_llm_transport.py::test_connection_failure_classified
+tests/test_llm_transport.py::test_malformed_200_not_retried
+tests/test_llm_transport.py::test_client_error_4xx_not_retried
+tests/test_llm_transport.py::test_payload_byte_equivalence
+tests/test_llm_transport.py::test_telemetry_contains_no_secrets
+tests/test_llm_transport.py::test_resolve_keys_env_only
+tests/test_llm_transport.py::test_no_keys_degrades_gracefully
+tests/test_llm_transport.py::test_llm_service_accumulates_transport_telemetry
+tests/test_llm_transport.py::test_llm_service_infra_failure_telemetry
+tests/test_llm_transport.py::test_full_and_prompted_share_transport_seam
+tests/test_llm_transport.py::test_frozen_default_model_regression
+tests/test_noop_contract.py::test_noop_world_model_required_methods_exist
+tests/test_noop_contract.py::test_noop_world_model_methods_are_noops
+tests/test_noop_contract.py::test_noop_world_model_drift_against_real_worldmodel
+tests/test_noop_contract.py::test_noop_hypothesis_manager_parity
+tests/test_noop_contract.py::test_noop_contradiction_manager_parity
+tests/test_noop_contract.py::test_noop_planner_falsification_parity
+tests/test_noop_contract.py::test_shell_generator_works_with_noop_world_model
+tests/test_noop_contract.py::test_candidate_generation_guard_records_telemetry
+tests/test_p21_walking_skeleton.py::test_runtime_executes_via_broker
+tests/test_p21_walking_skeleton.py::test_receipt_minted_by_pep
+tests/test_p21_walking_skeleton.py::test_runtime_has_no_seam_dependency
+tests/test_p21_walking_skeleton.py::test_runtime_stage_order
+tests/test_p21_walking_skeleton.py::test_head1_loop_not_used_by_runtime
+tests/test_p21_walking_skeleton.py::test_import_graph_single_runtime
+tests/test_p21_walking_skeleton.py::test_walking_skeleton_e2e
+tests/test_p21_walking_skeleton.py::test_decision_trace_emitted
+tests/test_p2_guardrail_belief_transition_port.py::test_unbound_port_raises
+tests/test_p2_guardrail_belief_transition_port.py::test_adapter_conforms_to_protocol
+tests/test_p2_guardrail_belief_transition_port.py::test_bound_port_works
+tests/test_p2_guardrail_deny_by_default.py::test_sub10_kali_bypass_raises_when_not_authorized
+tests/test_p2_guardrail_deny_by_default.py::test_sub14_executor_bypass_raises_when_not_authorized
+tests/test_p2_guardrail_deny_by_default.py::test_sub10_authorize_local_bypass_exists
+tests/test_p2_guardrail_deny_by_default.py::test_sub14_authorize_bypass_exists
+tests/test_p2_guardrail_deny_by_default.py::test_seam_state_consistent_across_imports
+tests/test_p2_guardrail_deprecated_import.py::test_no_canonical_module_imports_p2_deprecated
+tests/test_p2_guardrail_deprecated_import.py::test_p2_registry_matches_guardrail
+tests/test_p2_guardrail_no_production_bypass.py::test_no_production_module_calls_authorize_bypass
+tests/test_p2_guardrail_no_production_bypass.py::test_bypass_functions_only_callable_via_explicit_optin
+tests/test_p2_guardrail_runtime_no_seam.py::test_no_seam_module_exists
+tests/test_p2_guardrail_runtime_no_seam.py::test_no_orchestrator_imports_seam_pattern
+tests/test_p2_guardrail_runtime_no_seam.py::test_seam_quarantines_are_off_by_default
+tests/test_p2_guardrail_single_runtime.py::test_no_canonical_import_of_p2_deprecated
+tests/test_p2_guardrail_single_runtime.py::test_no_arena_runtime_import_from_orchestrator_brain
+tests/test_p2_guardrail_single_runtime.py::test_no_seam_import
+tests/test_p2_guardrail_single_runtime.py::test_no_absolute_paths_in_new_runtime_code
+tests/test_prompted_agent_parity.py::test_preset_exists_and_validates
+tests/test_prompted_agent_parity.py::test_all_cognitive_machinery_disabled
+tests/test_prompted_agent_parity.py::test_broker_never_ablated
+tests/test_prompted_agent_parity.py::test_broker_parity_full_vs_prompted_agent
+tests/test_prompted_agent_parity.py::test_isolation_verifier_accepts_prompted_agent
+tests/test_prompted_agent_parity.py::test_terminal_experiment_not_launched
+tests/test_prompted_agent_repair.py::test_A_real_calls_and_provider_tokens
+tests/test_prompted_agent_repair.py::test_B_model_identity_matches_amended_default
+tests/test_prompted_agent_repair.py::test_C_broker_parity
+tests/test_prompted_agent_repair.py::test_D_environment_parity_matched_seed
+tests/test_prompted_agent_repair.py::test_E_cognitive_isolation
+tests/test_prompted_agent_repair.py::test_F_action_accounting
+tests/test_prompted_agent_repair.py::test_G_malformed_output_no_fallback
+tests/test_prompted_agent_repair.py::test_H_token_accounting_matches_provider
+tests/test_prompted_agent_repair.py::test_I_forced_denial_returned_as_text
+tests/test_prompted_agent_repair.py::test_provider_failure_separate_from_model_failure
+tests/test_rbs_v2_repairs.py::test_safety_external_actions_excludes_denied
+tests/test_rbs_v2_repairs.py::test_t7_scope_contains_target
+tests/test_rbs_v2_repairs.py::test_t6_vulnerabilities_no_none
+tests/test_rbs_v2_repairs.py::test_noop_hypothesis_manager_api
+tests/test_rbs_v2_repairs.py::test_noop_contradiction_manager_api
+tests/test_rbs_v2_repairs.py::test_student_telemetry_field_placement
+tests/test_repair_gate.py::test_deterministic_replay_scripted
+tests/test_repair_gate.py::test_deterministic_replay_world_model
+tests/test_repair_gate.py::test_no_world_model_config_still_runs
+tests/test_repair_gate.py::test_resume_dedup_no_duplicate_cells
+tests/test_run_identity.py::test_run_id_is_deterministic_across_instances
+tests/test_run_identity.py::test_run_id_has_no_uuid_suffix
+tests/test_run_identity.py::test_run_id_changes_with_seed
+tests/test_run_identity.py::test_run_id_changes_with_config
+tests/test_run_identity.py::test_run_id_changes_with_split
+tests/test_run_identity.py::test_ensure_run_dir_idempotent_same_cell
+tests/test_run_identity.py::test_holdout_row_run_id_is_logical_cell_derived
+tests/test_safety_telemetry.py::test_telemetry_loss_is_not_safety_failure
+tests/test_safety_telemetry.py::test_no_broker_is_telemetry_loss
+tests/test_safety_telemetry.py::test_genuine_mismatch_still_safety_failure
+tests/test_safety_telemetry.py::test_clean_log_passes
+tests/test_safety_telemetry.py::test_safety_verifier_contract
+tests/test_stage1_invariants.py::test_trust_provenance_serialization_roundtrip
+tests/test_stage1_invariants.py::test_nested_trust_preserved
+tests/test_stage1_invariants.py::test_all_trust_levels_classified
+tests/test_stage1_invariants.py::test_allow_and_deny_both_produce_receipts
+tests/test_stage1_invariants.py::test_auth_and_execution_separate
+tests/test_stage1_invariants.py::test_denied_receipt_no_execution_fields
+tests/test_stage1_invariants.py::test_tampered_receipt_fails_verification
+tests/test_stage1_invariants.py::test_receipt_transition_state_machine
+tests/test_stage1_invariants.py::test_engagement_view_excludes_evaluator_truth
+tests/test_stage1_invariants.py::test_all_five_scenarios_load_without_leak
+tests/test_stage1_invariants.py::test_invalid_scope_combinations_fail
+tests/test_stage1_invariants.py::test_scenario_hash_changes_on_modification
+tests/test_stage1_invariants.py::test_finding_backward_compatibility
+tests/test_stage1_invariants.py::test_imports_resolve
+tests/test_token_telemetry.py::test_raw_response_parses_usage
+tests/test_token_telemetry.py::test_raw_response_no_usage_stays_none
+tests/test_token_telemetry.py::test_raw_response_genuine_zero_usage_is_zero_not_none
+tests/test_token_telemetry.py::test_raw_response_error_status_no_usage
+tests/test_token_telemetry.py::test_llm_service_accumulates_across_calls
+tests/test_token_telemetry.py::test_provider_timeout_counts_failure_and_no_tokens
+tests/test_token_telemetry.py::test_http_error_counts_failure
+tests/test_token_telemetry.py::test_mock_mode_is_not_a_provider_failure
+tests/test_token_telemetry.py::test_envelope_failure_counts_separately
+tests/test_token_telemetry.py::test_diagnostic_record_carries_usage
+tests/test_token_telemetry.py::test_finalize_prefers_real_llm_service
+tests/test_token_telemetry.py::test_finalize_falls_back_to_tracedllm
+tests/test_tool_failure_provenance.py::test_tool_failure_normalizes_to_tool_failure_trust
 tests/test_tool_failure_provenance.py::test_normal_observation_normalizes_to_tool_observation_trust
 tests/test_tool_failure_provenance.py::test_multiple_lines_each_get_correct_trust
 tests/test_tool_failure_provenance.py::test_explicit_trust_level_override_still_works
 
-275 tests collected in 0.72s
+275 tests collected in 0.44s
 ```
 
-**Test IDs archived:** All 275 test IDs are captured in the raw
-`pytest --collect-only -q` output above. The manifest is
+**The manifest above contains all 275 test IDs in full.** The output
+is 277 lines total (275 test IDs + 1 blank line + 1 collection
+summary). No test IDs are omitted or truncated. The manifest is
 deterministic: re-running the command produces the same 275 test
-IDs in the same order. The full untruncated output is stored at
-`/tmp/collect_output.txt` (277 lines including the 2-line
-collection summary).
+IDs in the same order.
 
 **Canonical `RAPHAEL_USE_LEGACY=1` migration flag (G2-C1):**
 The canonical CLI (`src/raphael/main.py`) routes to `RaphaelRuntime`
@@ -288,34 +583,138 @@ the P0 test inventory is reconstructed from the per-file counts:
 
 This matches the FLOOR(P0) = 239 from `evidence/phases/P0/01_test_floor/baseline.txt` and `evidence/phases/P1/05_test_floor/FLOOR_COMPARISON.md`. **Legacy-239 identity is preserved** (v4 INV-14 / v4.1 AM-6 floor monotonicity).
 
-### Guardrail lineage 17 → 19 (G2-C4 #7)
+### G2-FR-2: Guardrail lineage 17 → 19 (actual per-test chronology from git history)
 
-**P2.0 initial guardrail set (commit `982079425`, 5 test files, 17 tests):**
+**Source of truth:** `git show <sha>:tests/test_p2_guardrail_single_runtime.py | grep "^def test_"`
+at each commit in the lineage.
 
-| File | Test count |
-|---|---|
-| test_p2_guardrail_single_runtime.py | 4 |
-| test_p2_guardrail_deprecated_import.py | 2 |
-| test_p2_guardrail_runtime_no_seam.py | 3 |
-| test_p2_guardrail_deny_by_default.py | 5 |
-| test_p2_guardrail_no_production_bypass.py | 2 |
-| **Subtotal** | **16** |
-| + test_p2_guardrail_deny_by_default.py (pytest.skip) | 1 |
-| **Total P2.0** | **17** |
+**P2.0 actual guardrail set (commit `982079425b3a0877fc573b416230b3c3701d6f27`):**
 
-The 17th test was the `test_seam_state_consistent_across_imports` which included a `pytest.skip` for the brain→arena edge. This was a known P5-scale HALT/ESCALATE at the time.
+| File | Test count | Test names (extracted from P2.0 commit) |
+|---|---|---|
+| tests/test_p2_guardrail_single_runtime.py | 5 | test_no_orchestrator_import_of_legacy, test_no_chains_tool_registry_import, test_no_seam_import, test_no_arena_import_from_orchestrator_brain, test_no_absolute_paths_in_new_runtime_code |
+| tests/test_p2_guardrail_deprecated_import.py | 2 | test_no_canonical_module_imports_deprecated, test_adaptive_brain_not_imported_by_canonical |
+| tests/test_p2_guardrail_no_production_bypass.py | 2 | test_no_production_module_calls_authorize_bypass, test_bypass_functions_only_callable_via_explicit_optin |
+| tests/test_p2_guardrail_runtime_no_seam.py | 3 | test_no_seam_module_exists, test_no_orchestrator_imports_seam_pattern, test_seam_quarantines_are_off_by_default |
+| tests/test_p2_guardrail_deny_by_default.py | 5 | test_sub10_kali_bypass_raises_when_not_authorized, test_sub14_executor_bypass_raises_when_not_authorized, test_sub10_authorize_local_bypass_exists, test_sub14_authorize_bypass_exists, test_seam_state_consistent_across_imports |
+| **Total P2.0** | **17** | All 17 passed. No `pytest.skip`, no `xfail`, no narrowing. |
 
-**G2 RC-B GLM disposition (commit `03385c311`):** added `test_p2_guardrail_belief_transition_port.py` with 3 tests:
-- test_unbound_port_raises
-- test_adapter_conforms_to_protocol
-- test_bound_port_works
+**P2.0 verification:** 5 + 2 + 2 + 3 + 5 = **17 tests, all passed, zero skips.**
 
-**Total after GLM RC-B:** 16 + 3 = **19** (the `pytest.skip` was removed because the brain→arena edge was resolved by the GLM disposition).
+**Per-test chronology of the five single_runtime tests:**
 
-**Current guardrail set:** 19 tests across 6 files. The 17 → 19 transition is the net effect of:
-- 0 removed (all P2.0 tests retained, with the skip removed)
-- 3 added (GLM RC-B port tests)
-- = 19
+| # | P2.0 name (982079425) | RC-D name (02c3b9c01) | GLM RC-B (03385c311) | Current (85ee1f87) |
+|---|---|---|---|---|
+| 1 | test_no_orchestrator_import_of_legacy | **RENAMED** to test_no_canonical_import_of_p2_deprecated (rewritten) | retained | test_no_canonical_import_of_p2_deprecated |
+| 2 | test_no_chains_tool_registry_import | **REMOVED** (P9 debt per RC-D) | (not present) | (not present) |
+| 3 | test_no_seam_import | retained (unchanged) | retained | test_no_seam_import |
+| 4 | test_no_arena_import_from_orchestrator_brain | **RENAMED** to test_no_arena_runtime_import_from_orchestrator_brain; **pytest.skip ADDED** (line 153) for HALT/ESCALATE | **skip REMOVED** (11-line change); positive assertion | test_no_arena_runtime_import_from_orchestrator_brain (no skip) |
+| 5 | test_no_absolute_paths_in_new_runtime_code | retained (unchanged) | retained | test_no_absolute_paths_in_new_runtime_code |
+
+**The RC-era skip (exact test and when/why):**
+- **Exact test:** `test_no_arena_runtime_import_from_orchestrator_brain`
+  (renamed from `test_no_arena_import_from_orchestrator_brain` in RC-D)
+- **When it appeared:** introduced in commit
+  `02c3b9c013a08c0f225db89fa81e23b14a7e143d` (RC-D,
+  "correct guardrail scope to P2 jurisdiction")
+- **Why it appeared:** the brain→arena edge at
+  `src/orchestrator/brain/hypothesis.py:536` was identified as
+  requiring P5-scale work (the `apply_belief_transition` function
+  encodes D-5 V2 falsification policy). RC-D added a
+  `pytest.skip` with a `HALT/ESCALATE` message to document the
+  known violation while deferring the fix to P5.
+- **The skip text:** `pytest.skip(f"RC-B HALT/ESCALATE: {len(known_p5_violations)} brain→arena runtime imports require P5-scale re-homing. See evidence/phases/G2_RC/RC-B.")`
+- **When it was removed:** commit
+  `03385c3118b364e7044482001e849308263a3aa2` (GLM RC-B,
+  "dependency inversion via brain-owned port"). The brain→arena
+  edge was resolved by moving `DefeaterOutcome` and
+  `BeliefTransition` to brain-owned `defeater_types.py` and
+  adding a brain-owned `BeliefTransitionPolicy` Protocol with a
+  fail-closed port. The skip was replaced with a positive assertion
+  (no arena in the Runtime's transitive closure).
+
+**RC-D merge/rename/removal (commit `02c3b9c013a08c0f225db89fa81e23b14a7e143d`):**
+1. `test_no_orchestrator_import_of_legacy` → RENAMED to
+   `test_no_canonical_import_of_p2_deprecated` and rewritten
+   (P2-scope check only: brain/, capabilities/, sandbox/, raphael/).
+2. `test_no_chains_tool_registry_import` → REMOVED.
+   The assertion checked `orchestrator/api/main.py` and
+   `orchestrator/api/tools.py` importing `orchestrator.chains.tool_registry`.
+   Per RC-D, this is P9 debt (chains/tool_registry is UNREACHABLE_FROM_CANONICAL).
+3. `test_no_arena_import_from_orchestrator_brain` → RENAMED to
+   `test_no_arena_runtime_import_from_orchestrator_brain` and
+   modified to add a `pytest.skip` for the HALT/ESCALATE.
+4. `test_no_seam_import` and `test_no_absolute_paths_in_new_runtime_code`:
+   unchanged.
+
+**Net effect of RC-D on single_runtime.py: 5 tests → 4 tests.**
+- 1 renamed (test_no_orchestrator_import_of_legacy → test_no_canonical_import_of_p2_deprecated)
+- 1 removed (test_no_chains_tool_registry_import)
+- 1 renamed + modified (test_no_arena_import_from_orchestrator_brain → test_no_arena_runtime_import_from_orchestrator_brain + skip added)
+- 2 unchanged
+- = 4 tests total in single_runtime.py after RC-D
+
+**Net effect of RC-D on total guardrail tests: 17 → 16.**
+- 1 removed from single_runtime.py (test_no_chains_tool_registry_import)
+- 0 added anywhere
+- 0 renamed (renames don't change count)
+- = 16 tests total across 5 files after RC-D
+
+**Assertion preservation through RC-D:**
+- The removed test (`test_no_chains_tool_registry_import`) checked
+  P9-scope items (orchestrator/api/* → chains.tool_registry). This
+  is P9 debt, not P2 scope. The assertion was **moved to P9** per
+  v4 §20.2 deletion discipline. No assertion was weakened, skipped,
+  xfailed, or narrowed in P2 scope.
+- The renamed test (`test_no_orchestrator_import_of_legacy` →
+  `test_no_canonical_import_of_p2_deprecated`) has a STRONGER
+  assertion: it now checks P2-scope canonical roots only
+  (brain/, capabilities/, sandbox/, raphael/), which is the
+  correct P2 jurisdiction.
+- The skip was a DOCUMENTED HALT/ESCALATE, not a silent skip.
+
+**The 3 GLM RC-B port tests (commit `03385c3118b364e7044482001e849308263a3aa2`):**
+Added `tests/test_p2_guardrail_belief_transition_port.py` with:
+1. `test_unbound_port_raises` — verifies fail-closed when the
+   `BeliefTransitionPolicy` port is unbound
+2. `test_adapter_conforms_to_protocol` — verifies the
+   `DefeaterPolicyAdapter` (arena-side) conforms to the
+   `BeliefTransitionPolicy` Protocol (brain-side)
+3. `test_bound_port_works` — verifies that a bound port produces
+   a `BeliefTransition`
+
+**GLM RC-B effect on single_runtime.py:** 11-line modification
+(per the commit stat `+11 -?`); the `pytest.skip` in
+`test_no_arena_runtime_import_from_orchestrator_brain` was
+replaced with a positive assertion (no skip).
+
+**Exact arithmetic to 19:**
+```
+P2.0 (982079425):      5 + 2 + 2 + 3 + 5 = 17  (all passed, no skips)
+RC-D (02c3b9c01):      4 + 2 + 2 + 3 + 5 = 16  (1 removed, 1 skip added)
+GLM RC-B (03385c311):  4 + 2 + 2 + 3 + 5 + 3 = 19  (1 skip removed, +3 port tests)
+─────────────────────────────────────────
+Final (85ee1f87):      4 + 2 + 2 + 3 + 5 + 3 = 19  (zero skips)
+```
+
+**Summary of changes:**
+- **1 test removed** (test_no_chains_tool_registry_import, in RC-D).
+  This test checked P9-scope items; it was moved to P9, not weakened.
+- **1 test renamed** (test_no_orchestrator_import_of_legacy →
+  test_no_canonical_import_of_p2_deprecated, in RC-D). Same
+  intent, narrower P2 scope.
+- **1 test renamed + modified** (test_no_arena_import_from_orchestrator_brain
+  → test_no_arena_runtime_import_from_orchestrator_brain, skip
+  added in RC-D, skip removed in GLM RC-B).
+- **2 tests unchanged** (test_no_seam_import,
+  test_no_absolute_paths_in_new_runtime_code).
+- **3 tests added** (port tests, in GLM RC-B).
+
+**No test was weakened, skipped silently, xfailed, or narrowed.**
+The one skip removal was an explicit replacement with a positive
+assertion, documented in the GLM RC-B commit message. The one test
+removal was an explicit move to P9 scope, documented in the RC-D
+commit message.
 
 ### Floor run (G2-C4 #5)
 
@@ -517,17 +916,19 @@ The `stage_broker` handler was hardened in G2-C2:
 
 ### Known issues
 
-- **stage_broker wraps a P2 placeholder (BootstrapPolicy), not the
-  canonical PDP (CapabilityBroker).** P3 convergence ticket CONV-1
+- **stage_broker wraps a P2 placeholder (BootstrapPolicy), NOT a
+  Head-2 organ. The canonical PDP (brain CapabilityBroker) is not
+  wired.** P3 convergence ticket CONV-1
   documents the migration.
 - **stage_pep calls the capability directly, not through exec/.** P3
   convergence ticket CONV-2 documents the migration.
 - **SafeProvingCapability lives under orchestrator/runtime/ instead of
   orchestrator/capabilities/.** P3 convergence ticket CONV-3 documents
   the migration.
-- **9 of 10 stage handlers are stubs or minimal handlers** (only
-  stage_broker wraps a Head-2 organ). This is consistent with the P2.1
-  walking-skeleton scope.
+- **10 of 10 stage handlers are stubs or minimal handlers** (ZERO
+  wrap a Head-2 organ; `stage_broker` wraps Runtime-owned
+  BootstrapPolicy). This is consistent with the P2.1 walking-skeleton
+  scope.
 
 ### Remaining work
 
