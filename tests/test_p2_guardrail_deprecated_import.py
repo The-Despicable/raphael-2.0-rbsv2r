@@ -1,21 +1,23 @@
 """
-P2 Guardrail Test 2: deprecated-import guard (v4 INV-11)
+P2 Guardrail Test 2: deprecated-import guard (v4 INV-11) — RC-D scope
 
 Per v4 master roadmap:
 - section 24: INV-11 deprecated modules not imported by canonical code
 - v4.1 AM-7: "advisory (warn-only) at P1, enforced (build-breaking) from P2
   onward, since P1 has no Runtime to violate it yet"
 
-Deprecated modules (per v4 P1.2 + P0 inventory):
-- orchestrator.weaponizer (SUB-01,02,03)
-- orchestrator.chains.tool_registry (SUB-04)
-- orchestrator.c2.sliver_backend (SUB-05,06)
-- orchestrator.c2.implant_builder (SUB-07,08,09)
-- recon-pipeline (SUB-11)
-- agent.modules.executor (SUB-12)
-- sword.phase_0_recon (SUB-15,16,17)
-- orchestrator.brain.adaptive_brain (31-line counter stub, v4 P1.2)
-- orchestrator.brain.adaptive_brain.adaptive_brain
+RC-D: P2 checks canonical importers. P9 retains the full legacy sweep.
+
+Single source of truth: evidence/phases/G2_RC/deprecation_marker_registry.md
+Deprecated modules here must match the registry.
+
+P2-deprecated modules (active in P1/P2):
+- orchestrator.brain.adaptive_brain (RC-A: removed from brain/__init__)
+
+P9-deprecated modules (not in P2 scope):
+- orchestrator.weaponizer, chains.tool_registry, c2.*, recon-pipeline,
+  agent.modules.executor, sword.phase_0_recon
+  (checked by P9 atomic-deletion sweep, not P2 guardrails)
 """
 import ast
 from pathlib import Path
@@ -25,24 +27,15 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SRC_ROOT = REPO_ROOT / "src"
 
-DEPRECATED_MODULES = {
-    "orchestrator.weaponizer",
-    "orchestrator.weaponizer.weaponizer_engine",
-    "orchestrator.chains.tool_registry",
-    "orchestrator.c2.sliver_backend",
-    "orchestrator.c2.implant_builder",
-    "recon-pipeline",
-    "recon-pipeline.main",
-    "agent.modules.executor",
-    "sword",
-    "sword.phase_0_recon",
+# P2-scope deprecated modules (RC-D: one source of truth)
+# Must match evidence/phases/G2_RC/deprecation_marker_registry.md
+P2_DEPRECATED_MODULES = {
     "orchestrator.brain.adaptive_brain",
     "orchestrator.brain.adaptive_brain.adaptive_brain",
 }
 
 
 def _parse_imports(py_file: Path) -> set:
-    """Extract all import targets from a Python file using AST."""
     try:
         tree = ast.parse(py_file.read_text(errors="ignore"))
     except SyntaxError:
@@ -58,74 +51,62 @@ def _parse_imports(py_file: Path) -> set:
     return imports
 
 
-def _all_py_files() -> list:
-    """All .py files under src/, excluding __pycache__."""
-    return [p for p in SRC_ROOT.rglob("*.py") if "__pycache__" not in str(p)]
-
-
-def test_no_canonical_module_imports_deprecated():
-    """v4 INV-11: deprecated modules not imported by canonical code.
-
-    Canonical code is defined as: code under src/orchestrator/brain/,
-    src/orchestrator/capabilities/, src/orchestrator/sandbox/, and
-    src/raphael/ (Head 1 organics being absorbed).
-    """
-    canonical_roots = [
+def _canonical_roots():
+    """Canonical code roots (P2 jurisdiction per RC-D)."""
+    return [
         SRC_ROOT / "orchestrator" / "brain",
         SRC_ROOT / "orchestrator" / "capabilities",
         SRC_ROOT / "orchestrator" / "sandbox",
         SRC_ROOT / "raphael",
     ]
+
+
+def test_no_canonical_module_imports_p2_deprecated():
+    """RC-D: P2-scope check. No canonical module may import P2-deprecated modules.
+
+    P9-scope deprecated modules (sword, agent, recon-pipeline, weaponizer,
+    chains.tool_registry, c2.*) are checked by P9 atomic-deletion sweep,
+    not by P2 guardrails.
+    """
     violations = []
-    for root in canonical_roots:
+    for root in _canonical_roots():
         if not root.exists():
             continue
         for py_file in root.rglob("*.py"):
             if "__pycache__" in str(py_file):
                 continue
-            # Skip deprecated files themselves (they may import each other)
             rel = str(py_file.relative_to(REPO_ROOT))
-            if any(dep in rel for dep in ["adaptive_brain", "weaponizer",
-                                           "tool_registry", "sliver_backend",
-                                           "implant_builder", "phase_0_recon"]):
-                continue
+            if "adaptive_brain" in rel:
+                continue  # skip the deprecated module itself
             imports = _parse_imports(py_file)
             for imp in imports:
-                for dep in DEPRECATED_MODULES:
+                for dep in P2_DEPRECATED_MODULES:
                     if imp == dep or imp.startswith(dep + "."):
                         violations.append((rel, imp))
     assert not violations, (
-        f"Canonical modules must not import deprecated modules "
-        f"(v4 INV-11): {violations}"
+        f"Canonical modules must not import P2-deprecated modules "
+        f"(v4 INV-11, RC-D): {violations}"
     )
 
 
-def test_adaptive_brain_not_imported_by_canonical():
-    """v4 P1.2: AdaptiveBrain is a deprecation target.
+def test_p2_registry_matches_guardrail():
+    """RC-D: guardrail test set is the single source of truth for P2 deprecation.
 
-    AdaptiveBrain is a 31-line counter stub. It must not be imported
-    by canonical code.
+    This test verifies that the P2_DEPRECATED_MODULES set in this file
+    matches the authoritative registry. If you add a P2-deprecated module
+    to the registry, you MUST add it here too.
     """
-    violations = []
-    canonical_roots = [
-        SRC_ROOT / "orchestrator" / "brain",
-        SRC_ROOT / "orchestrator" / "capabilities",
-        SRC_ROOT / "orchestrator" / "sandbox",
-        SRC_ROOT / "raphael",
-    ]
-    for root in canonical_roots:
-        if not root.exists():
-            continue
-        for py_file in root.rglob("*.py"):
-            if "__pycache__" in str(py_file):
-                continue
-            if "adaptive_brain" in str(py_file):
-                continue
-            imports = _parse_imports(py_file)
-            for imp in imports:
-                if "adaptive_brain" in imp:
-                    violations.append((str(py_file.relative_to(REPO_ROOT)), imp))
-    assert not violations, (
-        f"AdaptiveBrain must not be imported by canonical code "
-        f"(v4 P1.2 deprecation): {violations}"
+    registry_path = REPO_ROOT / "evidence" / "phases" / "G2_RC" / "deprecation_marker_registry.md"
+    if not registry_path.exists():
+        pytest.skip("Registry not found")
+    registry = registry_path.read_text()
+    # Check that adaptive_brain is mentioned in the registry
+    assert "AdaptiveBrain" in registry or "adaptive_brain" in registry, (
+        "Registry must mention adaptive_brain (RC-A deprecation)"
     )
+    # Check that P2_DEPRECATED_MODULES is a subset of what's in the registry
+    for mod in P2_DEPRECATED_MODULES:
+        short = mod.split(".")[-1]
+        assert short in registry, (
+            f"P2_DEPRECATED_MODULES contains {mod} but registry does not mention {short}"
+        )
