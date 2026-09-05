@@ -4,9 +4,9 @@
 |---|---|
 | Phase | P3.0 G3-EN-5 (canonical organ wiring) |
 | Gate | G3-EN-5 (organ wiring complete on the canonical path) |
-| Repository HEAD | `d9a50ffe4b98b668e2bd145ac0a6640d4c9d9775` |
-| Branch | `main` (ahead of `origin/main` by 36) |
-| Commit count since canonical | 36 (per fresh `git rev-list --count 7272880f7..HEAD`) |
+| Repository HEAD | `c92b78b56e5a6b2bbd5f612882ac81d285258c19` |
+| Branch | `main` (ahead of `origin/main` by 37) |
+| Commit count since canonical | 37 (per fresh `git rev-list --count 7272880f7..HEAD`) |
 | Implementation commit | `7c10c8331` (4 files, 429 insertions, 62 deletions) |
 | Timestamp | 2026-09-05 |
 | Author | RAPHAEL P3.0 G3-EN-5 Audit |
@@ -44,6 +44,8 @@ $ git status --short --branch
 
 ```
 $ git log --oneline 7272880f7..HEAD
+c92b78b56 G3-EN-5 evidence: correct HEAD, commit count, branch, and sequencing
+d9a50ffe4 G3-EN-5 evidence: organ wiring complete, 289 passed, G3-EN-5 satisfied
 7c10c8331 G3-EN-5: wire Planner, WorldModel, Student, Contradiction onto canonical path
 d3bb96ab8 CONV-2/3 evidence: correct provenance and next-work language
 19256f335 CONV-2/3 evidence package: PEP in exec/, capability gated, INV-1 live
