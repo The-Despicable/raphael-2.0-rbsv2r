@@ -1,3 +1,30 @@
+
+# --- P1 DEPRECATION MARKER (per v4 section 12.2 P1.2) ---
+# SUB-09: UNREACHABLE_FROM_CANONICAL (P0 inventory).
+# See evidence/phases/P0/02_execution_inventory/subprocess_sites.md.
+# Disposition: deprecate; verify zero canonical references; delete at P9.1.
+# No canonical Runtime path reaches this site (v4 INV-5/INV-6).
+# Do not import from canonical code (v4 INV-11).
+# -------------------------------------------------------
+
+
+# --- P1 DEPRECATION MARKER (per v4 section 12.2 P1.2) ---
+# SUB-08: UNREACHABLE_FROM_CANONICAL (P0 inventory).
+# See evidence/phases/P0/02_execution_inventory/subprocess_sites.md.
+# Disposition: deprecate; verify zero canonical references; delete at P9.1.
+# No canonical Runtime path reaches this site (v4 INV-5/INV-6).
+# Do not import from canonical code (v4 INV-11).
+# -------------------------------------------------------
+
+
+# --- P1 DEPRECATION MARKER (per v4 section 12.2 P1.2) ---
+# SUB-07: UNREACHABLE_FROM_CANONICAL (P0 inventory).
+# See evidence/phases/P0/02_execution_inventory/subprocess_sites.md.
+# Disposition: deprecate; verify zero canonical references; delete at P9.1.
+# No canonical Runtime path reaches this site (v4 INV-5/INV-6).
+# Do not import from canonical code (v4 INV-11).
+# -------------------------------------------------------
+
 """Cross-platform implant compilation pipeline.
 
 Compiles native beacon implants for Windows, Linux, and macOS

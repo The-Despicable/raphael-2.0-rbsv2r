@@ -1,3 +1,21 @@
+
+# --- P1 DEPRECATION MARKER (per v4 section 12.2 P1.2) ---
+# SUB-06: UNREACHABLE_FROM_CANONICAL (P0 inventory).
+# See evidence/phases/P0/02_execution_inventory/subprocess_sites.md.
+# Disposition: deprecate; verify zero canonical references; delete at P9.1.
+# No canonical Runtime path reaches this site (v4 INV-5/INV-6).
+# Do not import from canonical code (v4 INV-11).
+# -------------------------------------------------------
+
+
+# --- P1 DEPRECATION MARKER (per v4 section 12.2 P1.2) ---
+# SUB-05: UNREACHABLE_FROM_CANONICAL (P0 inventory).
+# See evidence/phases/P0/02_execution_inventory/subprocess_sites.md.
+# Disposition: deprecate; verify zero canonical references; delete at P9.1.
+# No canonical Runtime path reaches this site (v4 INV-5/INV-6).
+# Do not import from canonical code (v4 INV-11).
+# -------------------------------------------------------
+
 import asyncio
 import base64
 import os
