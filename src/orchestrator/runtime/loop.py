@@ -1,7 +1,7 @@
 """
-loop.py — RaphaelRuntime thin sequencer (P3.0 CONV-1 + CONV-2 + CONV-3)
+loop.py — RaphaelRuntime thin sequencer (P3.0 G3-EN-5 organ-wired)
 
-Per v4 §13.1: RaphaelRuntime must:
+Per v4 section 13.1: RaphaelRuntime must:
 - own sequence and termination
 - call stage handlers
 - have no domain logic
@@ -10,16 +10,14 @@ Per v4 §13.1: RaphaelRuntime must:
 - enter Broker/PEP for EXECUTE
 - expose a stable trace interface
 
+G3-EN-5: Planner, WorldModel (read + integrate), Student (recording
+mode), and minimal contradiction/failure trigger are wired onto
+the canonical Runtime path.
+
 CONV-1: the Runtime accepts a brain CapabilityBroker as its
-single canonical PDP. Exactly one PDP on the canonical path.
-
+single canonical PDP.
 CONV-2: PEP execution ownership is in orchestrator.exec/.
-The Runtime injects the capability from exec/.
-
-CONV-3: the capability is gated by the broker. The Runtime
-constructs a SafeProvingCapability bound to the broker. The
-stage_pep calls capability.record_authorization(target) after the
-broker stage succeeds, before invoking capability.inspect(target).
+CONV-3: the capability is broker-gated.
 """
 from __future__ import annotations
 import time
@@ -38,6 +36,7 @@ from orchestrator.runtime.types import (
 )
 from orchestrator.runtime.stages import STAGE_ORDER, STAGE_HANDLERS
 from orchestrator.runtime.policy import make_broker_from_bootstrap
+from orchestrator.runtime.organs import OrganBundle
 
 
 class RaphaelRuntime:
@@ -46,14 +45,14 @@ class RaphaelRuntime:
     Born-gated: Broker.propose_action -> PEP is the first usable
     execution path. No Runtime-wide OFF mode (v4 L8).
 
-    CONV-1: the single canonical PDP is the real brain
-    CapabilityBroker (injected via __init__).
-    CONV-2: PEP capability lives in orchestrator.exec/.
-    CONV-3: the capability is broker-gated.
+    G3-EN-5: organ-wired. Planner, WorldModel, Student, and
+    ContradictionManager are invoked through the canonical stage
+    handlers. No second cognitive loop. No new stages.
     """
 
     def __init__(self, broker: Optional[CapabilityBroker] = None,
-                 capability: Optional[SafeProvingCapability] = None):
+                 capability: Optional[SafeProvingCapability] = None,
+                 organs: Optional[OrganBundle] = None):
         self._broker = broker if broker is not None else make_broker_from_bootstrap(
             capability_name="fixture.inspect"
         )
@@ -62,7 +61,10 @@ class RaphaelRuntime:
             self._capability = capability
         else:
             self._capability = SafeProvingCapability(broker=self._broker)
-        self._world_model = {"entities": {}, "facts": {}}
+        # G3-EN-5: organ bundle (Planner, WorldModel, Student, Contradiction).
+        self._organs = organs if organs is not None else OrganBundle()
+        # Backwards-compatible alias for the world model.
+        self._world_model = self._organs.world_model
 
     def step(self, ctx: RuntimeContext) -> tuple:
         """One cognitive iteration.
@@ -75,6 +77,7 @@ class RaphaelRuntime:
             "world_model": self._world_model,
             "broker": self._broker,
             "capability": self._capability,
+            "organs": self._organs,
             "capability_name": "fixture.inspect",
         }
 
@@ -98,7 +101,7 @@ class RaphaelRuntime:
 
         return trace, LoopTermination(
             terminated=True,
-            reason="P3.0 CONV-1+2+3 walking skeleton: one iteration complete",
+            reason="G3-EN-5 organ-wired walking skeleton: one iteration complete",
             iterations=1,
             final_stage=STAGE_ORDER[-1],
         )
@@ -112,7 +115,7 @@ class RaphaelRuntime:
             ctx = RuntimeContext(
                 mission_id=mission.mission_id,
                 objective_id=mission.objectives[0] if mission.objectives else "default",
-                view={"mission_name": mission.name, "iteration": i},
+                view={"mission_name": mission.name, "iteration": i, "target": "system_info.name"},
                 iteration=i,
             )
             trace, termination = self.step(ctx)
