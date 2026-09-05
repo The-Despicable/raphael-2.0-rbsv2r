@@ -28,8 +28,8 @@ from orchestrator.hardening.action_receipt import (
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from arena.conclusion import PlanDecision
-    # Runtime import avoided via lazy import inside decide() method body
+    from orchestrator.brain.plan_decision import PlanDecision
+    # Runtime import via brain-owned plan_decision (RC-B re-home).
 
 
 class ActionType(str, Enum):
@@ -870,8 +870,8 @@ class Planner:
         Returns:
             PlanDecision with selected_action_id and rationale
         """
-        # Lazy import to avoid circular dependency: arena.conclusion → arena.runner → action
-        from arena.conclusion import PlanDecision
+        # RC-B: brain-owned PlanDecision (re-homed from arena.conclusion)
+        from orchestrator.brain.plan_decision import PlanDecision
 
         if not candidates:
             return PlanDecision(

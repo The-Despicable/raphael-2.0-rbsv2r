@@ -36,8 +36,9 @@ from orchestrator.brain.trust import TrustLevel
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from arena.semantic_inference import SemanticInferenceSuccess
-    from arena.defeater import DefeaterResult
+    from orchestrator.brain.semantic_types import SemanticInferenceSuccess
+    from orchestrator.brain.defeater_types import DefeaterResult
+    # RC-B: brain-owned types (re-homed from arena)
 
 
 class HypothesisStatus(str, Enum):
@@ -530,6 +531,8 @@ class HypothesisManager:
             BeliefTransition if the hypothesis was found and outcome
             was TRIGGERED or NOT_TRIGGERED, None otherwise.
         """
+        # HALT/ESCALATE: apply_belief_transition re-homing requires P5-scale work.
+        # See evidence/phases/G2_RC/RC-B for analysis.
         from arena.defeater import apply_belief_transition, DefeaterOutcome, BeliefTransition
 
         hyp = self.hypotheses.get(hypothesis_id)
