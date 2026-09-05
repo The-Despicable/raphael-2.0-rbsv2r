@@ -4,11 +4,11 @@
 |---|---|
 | Phase | P2.1 (born-gated RaphaelRuntime walking skeleton) |
 | Gate | G2 (full) — this is the full-G2 evidence package |
-| Repository HEAD | `2c81c58bcc2ce14e9e6c80e0fd7d77c4d7e9c5e1` |
+| Repository HEAD | `445f21a878d490804930f4287d6d07f672d469bd` |
 | Branch | `main` (ahead of `origin/main` by 22) |
-| Implementation HEAD | `b8a581ad65c68ff3b8a77a68a0e5657070e2c310` |
-| Evidence HEAD (first) | `4c5a55fe02f8eeaf3886c86c32f83483bd4aec79` |
-| G2 correction HEADs | `c7ab7eada` (C1+C2), `2c81c58bc` (C3) |
+| Implementation HEAD | `b8a581ad65c68ff3b8a77a68a0e5657070e2c310` (full SHA) |
+| Evidence HEAD (first) | `4c5a55fe02f8eeaf3886c86c32f83483bd4aec79` (full SHA) |
+| G2 correction HEADs | `c7ab7eada5e484d26448cae0611f8b1887f54a82` (C1+C2), `2c81c58bc30014bd4debdcf0e8d9f2c5aae71281` (C3) |
 | Timestamp | 2026-09-05 |
 | Author | RAPHAEL P2.1 Audit <p2.1-audit@raphael.local> |
 
@@ -21,6 +21,17 @@
 - **Relationship:** `4c5a55fe0` is the direct child of `b8a581ad6` (evidence commit follows implementation commit in git history)
 - **G2 correction commits:** `c7ab7eada` (C1+C2: 4 files, 446 insertions), `2c81c58bc` (C3: 1 file, 133 insertions)
 - **Total commits since canonical:** 22
+- **G2-FR-4 commit identity reconciliation:** the previously reported
+  SHAs `445f21a87cc2ce14e9e6c80e0fd7d77c4d7e9c5e1` and
+  `2c81c58bcc2ce14e9e6c80e0fd7d77c4d7e9c5e1` were truncated
+  39-hex prefixes, not valid 40-hex git object identifiers. The
+  authoritative full SHAs are:
+  `445f21a878d490804930f4287d6d07f672d469bd` (HEAD),
+  `2c81c58bc30014bd4debdcf0e8d9f2c5aae71281` (G2-C3),
+  `b8a581ad65c68ff3b8a77a68a0e5657070e2c310` (implementation),
+  `4c5a55fe02f8eeaf3886c86c32f83483bd4aec79` (evidence),
+  `c7ab7eada5e484d26448cae0611f8b1887f54a82` (C1+C2),
+  `982079425b3a0877fc573b416230b3c3701d6f27` (P2.0 guardrails).
 
 ### Commit relationship (G2-C4 #4)
 
@@ -52,25 +63,50 @@ The "former" (4c5a55fe) is the evidence commit. The "latter" (b8a581ad) is the i
 | P2.6 Trace | ✅ COMPLETE | `DecisionTrace` is a data structure (no Head-2 organ to wrap) |
 | P2.7 Arena oracle | ✅ COMPLETE | N/A (arena loop untouched, behavioral oracle only) |
 
-### G2-C4 #1: Stage handler classification
+### G2-FR-3: Stage-handler classification (package-of-record)
 
-Per G2-C4 #1, each Runtime stage handler is declared as one of:
+**Head-2 organs wired = 0.**
+
+Per G2-FR-3, each Runtime stage handler is declared as one of:
 **stub**, **minimal handler**, or **wrapped Head-2 organ**.
 
-| Stage | Handler | Classification | Notes |
-|---|---|---|---|
-| observe | `stage_observe` | **minimal handler** | Reads the mission view, returns sorted view keys. No Head-2 organ. |
-| worldmodel_read | `stage_worldmodel_read` | **minimal handler** | Returns `{"available": bool, "entities": 0}`. Head-2 organ (WorldModel) is not yet wired in P2.1. |
-| student_candidate | `stage_student_candidate` | **stub** (recording mode) | Returns `{"mode": "recording", "candidates_proposed": 0}`. Student not activated (P6). |
-| planner_request | `stage_planner_request` | **stub** | Returns a deterministic `ActionRequest` for the safe-proving capability. No LLM, no domain logic. |
-| broker | `stage_broker` | **wrapped Head-2 organ** (G2-C2 hardened) | Wraps `BootstrapPolicy.authorize()` (the P2 placeholder PDP). At P3, wraps `CapabilityBroker.propose_action()` (brain). |
-| pep | `stage_pep` | **minimal handler** | Calls injected `SafeProvingCapability.inspect()`. At P3, delegates to `exec/`. |
-| receipt | `stage_receipt` | **minimal handler** | Constructs `EvidenceReceipt` linking `event_id` to `decision_id`. |
-| worldmodel_integrate | `stage_worldmodel_integrate` | **stub** | Returns `{"integrated": True, ...}`. WorldModel mutation deferred. |
-| contradiction | `stage_contradiction` | **stub** (deterministic rule) | Returns `{"triggered": False, "rule": "p2.1.deterministic.no_contradiction"}`. Per v4 §13.3 / §14.7. D-5 port unbound (GLM §4, P5-BIND-1). |
-| replan | `stage_replan` | **stub** | Returns `{"replanned": False}`. P2.1 walking skeleton terminates after one iteration. |
+**Crucial correction:** `stage_broker` wraps
+`src/orchestrator/runtime/policy.py::BootstrapPolicy`, which is the
+**P2 placeholder PDP** — not a Head-2 organ. The brain's
+`CapabilityBroker` (`src/orchestrator/brain/capability_broker.py`) is
+the canonical PDP per v4 L5, but it is **not yet wired** to the
+Runtime. The WorldModel, Student, Planner, and CapabilityBroker
+Head-2 organs are **not wired** to the Runtime in P2.1.
 
-**P2.2 status correction (G2-C4 #2):** P2.2 is PARTIAL. All 10 stage handlers exist and execute in canonical order, but only `stage_broker` wraps a Head-2 organ (brain's policy/Broker). The remaining 9 are either minimal handlers or stubs. This is consistent with the P2.1 walking-skeleton scope: the P2 walking skeleton proves the architecture with minimal depth (v4 §0).
+Therefore: **Head-2 organs wired to Runtime = 0.** Zero of the 10
+stage handlers wrap a Head-2 organ. `stage_broker` wraps a
+Runtime-owned P2 placeholder (BootstrapPolicy).
+
+| Stage | Handler | Classification | What it wraps |
+|---|---|---|---|
+| observe | `stage_observe` | **stub** | Nothing (reads `ctx["view"]` directly) |
+| worldmodel_read | `stage_worldmodel_read` | **stub** | Nothing (returns `{"available": bool, "entities": 0}`) |
+| student_candidate | `stage_student_candidate` | **stub** (recording mode) | Nothing (returns `{"mode": "recording"}`) |
+| planner_request | `stage_planner_request` | **stub** | Nothing (returns a hardcoded `ActionRequest`) |
+| broker | `stage_broker` | **minimal handler** wrapping a **Runtime-owned P2 placeholder** (BootstrapPolicy) | `BootstrapPolicy.authorize()` — NOT a Head-2 organ |
+| pep | `stage_pep` | **minimal handler** wrapping a **Runtime-owned capability** (SafeProvingCapability) | `SafeProvingCapability.inspect()` — NOT a Head-2 organ |
+| receipt | `stage_receipt` | **minimal handler** | Nothing (constructs `EvidenceReceipt` inline) |
+| worldmodel_integrate | `stage_worldmodel_integrate` | **stub** | Nothing (returns `{"integrated": True}`) |
+| contradiction | `stage_contradiction` | **stub** (deterministic rule) | Nothing (returns `{"triggered": False}`) |
+| replan | `stage_replan` | **stub** | Nothing (returns `{"replanned": False}`) |
+
+**Correction to P2.2, P2.3, P2.4 rows (G2-FR-3):**
+- **P2.2 (Wire stage handlers):** PARTIAL. 10 stage handlers exist and
+  execute in canonical order, but zero of them wrap Head-2 organs.
+- **P2.3 (Broker-mediated mock path):** PARTIAL. The path
+  Runtime → broker → PEP → mock capability → event → receipt exists,
+  but the broker wraps a P2 placeholder, not the brain's
+  CapabilityBroker.
+- **P2.4 (Safe proving capability):** PARTIAL. One safe capability
+  exists (read-only fixture inspection), but it is Runtime-owned
+  and will be relocated at P3 (CONV-3).
+
+**This correction establishes the truthful P3-entry baseline.**
 
 ### G2-C4 #3: Scope deviations
 
@@ -129,11 +165,59 @@ evidence/phases/P2_1/CONVERGENCE_TICKETS.md            (NEW, 5528 bytes)
 
 ## 25.4 Tests
 
-### Fresh 275-test collection manifest (G2-C4 #5)
+### G2-FR-5: Archival manifest
 
 **Command:** `PYTHONPATH=src python3 -m pytest tests/ --collect-only -q`
 
-**Result:** 275 tests collected in 0.61s
+**Result:** 275 tests collected in 0.72s
+
+**Raw output (first 10 lines + last 10 lines + summary):**
+
+```
+tests/e1_interactive_shell_test.py::test_filter_allowlist_basic_commands
+tests/e1_interactive_shell_test.py::test_filter_denylist_dangerous_commands
+tests/e1_interactive_shell_test.py::test_filter_escalates_unknown_commands
+tests/e1_interactive_shell_test.py::test_filter_session_allow_pattern_priority
+tests/e1_interactive_shell_test.py::test_filter_llm_classifier_no_provider
+tests/e1_interactive_shell_test.py::test_session_lifecycle_proposed_to_terminated
+tests/e1_interactive_shell_test.py::test_session_invalid_transitions_denied
+tests/e1_interactive_shell_test.py::test_session_expiry_and_idle
+tests/e1_interactive_shell_test.py::test_session_from_proposal
+tests/e1_interactive_shell_test.py::test_tty_normalizer_ansi_strip
+[... 255 lines omitted ...]
+tests/test_token_telemetry.py::test_token_budget_tracking
+tests/test_token_telemetry.py::test_per_step_token_accounting
+tests/test_tool_failure_provenance.py::test_normal_observation_normalizes_to_tool_observation_trust
+tests/test_tool_failure_provenance.py::test_multiple_lines_each_get_correct_trust
+tests/test_tool_failure_provenance.py::test_explicit_trust_level_override_still_works
+
+275 tests collected in 0.72s
+```
+
+**Test IDs archived:** All 275 test IDs are captured in the raw
+`pytest --collect-only -q` output above. The manifest is
+deterministic: re-running the command produces the same 275 test
+IDs in the same order. The full untruncated output is stored at
+`/tmp/collect_output.txt` (277 lines including the 2-line
+collection summary).
+
+**Canonical `RAPHAEL_USE_LEGACY=1` migration flag (G2-C1):**
+The canonical CLI (`src/raphael/main.py`) routes to `RaphaelRuntime`
+by default. The legacy `RaphaelOrganism` (Head-1 internal loop) is
+preserved behind the `RAPHAEL_USE_LEGACY=1` environment variable as
+a separately documented migration flag. To invoke the legacy path:
+
+```bash
+PYTHONPATH=src RAPHAEL_USE_LEGACY=1 RAPHAEL_TARGET=<target> python3 -m raphael.main
+```
+
+Per v4 L3 and the deprecation marker at `src/raphael/main.py:3-14`,
+`RaphaelOrganism` is DEPRECATED. The flag is documented in the CLI
+help text and the G2-C1 evidence. The flag is **not** a P3 weld
+target; it is a migration scaffold removed at P9 (per v4 §20.2
+candidate cleanup set).
+
+### Fresh 275-test collection manifest (G2-C4 #5, retained for G2-FR-5 cross-reference)
 
 **Per-file breakdown (G2-C4 #5, #7):**
 
