@@ -1,3 +1,12 @@
+# --- P1 DEPRECATION MARKER (per v4 section 12.2 P1.2) ---
+# DEPRECATED: AdaptiveBrain (31-line counter stub).
+# v4 P1.2: AdaptiveBrain is a deprecation target.
+# v4 INV-11: deprecated modules not imported by canonical code.
+# Removed from brain/__init__.py re-export closure (RC-A).
+# Direct consumers must import from orchestrator.brain.adaptive_brain explicitly.
+# P9 owns physical deletion (after zero-reference proof).
+# See evidence/phases/G2_RC/RC-A for disposition.
+# -------------------------------------------------------
 import time
 import logging
 
