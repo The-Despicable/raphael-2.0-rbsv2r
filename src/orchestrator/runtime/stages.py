@@ -1,18 +1,17 @@
 """
-stages.py — minimal stage handlers (P2.1 walking skeleton)
+stages.py — minimal stage handlers (P3.0 CONV-1: real CapabilityBroker)
 
 Per v4 §13.3 P2.2: "Wire minimal handlers for: observation, WorldModel
 read, Student candidate generation in recording mode, Planner request
 generation, Broker call, PEP invocation, receipt emission, minimal
 WorldModel integration, minimal contradiction/failure trigger, replan."
 
-These are minimal, deterministic handlers for the P2.1 walking
-skeleton. They compose Head 2 organs without rewriting them.
+CONV-1 (P3.0): stage_broker now calls the real brain CapabilityBroker
+via broker.propose_action(). The G2-C2 fail-closed hardening is
+preserved (missing broker, exception, denial).
 
-The Student is in recording mode only (P2.1 is not P6).
-The contradiction/failure trigger is its own deterministic rule
-(v4 §13.3 / §14.7) and does NOT exercise D-5 transitions.
-The D-5 port remains unbound (GLM §4, P5-BIND-1).
+INV-2: every ExecutionEvent carries the CapabilityBroker's action_id
+as the decision_id. The EvidenceReceipt links event_id to decision_id.
 """
 from __future__ import annotations
 import time
@@ -21,6 +20,7 @@ from typing import Any, Optional
 from orchestrator.runtime.types import (
     ActionRequest,
     ExecutionEvent,
+    PolicyDecision,
     StageResult,
 )
 
@@ -36,6 +36,26 @@ STAGE_RECEIPT = "receipt"
 STAGE_WORLDMODEL_INTEGRATE = "worldmodel_integrate"
 STAGE_CONTRADICTION = "contradiction"
 STAGE_REPLAN = "replan"
+
+
+def _map_receipt_to_decision(receipt: Any, request: ActionRequest) -> PolicyDecision:
+    """Map a CapabilityBroker ActionReceipt to a Runtime PolicyDecision.
+
+    CONV-1: the CapabilityBroker is the single canonical PDP. Its
+    ActionReceipt carries the decision_id (receipt.action_id) that
+    INV-2 requires for event->decision linkage.
+    """
+    from orchestrator.brain.capability_broker import ActionProposalStatus, AuthorizationDecision
+    is_authorized = receipt.status == ActionProposalStatus.AUTHORIZED
+    return PolicyDecision(
+        decision_id=receipt.action_id,  # INV-2: decision_id for linkage
+        action_id=request.action_id,
+        decision="allow" if is_authorized else "deny",
+        reason=receipt.reason or "",
+        constraints={},
+        policy_name="CapabilityBroker",
+        policy_version="brain-v4.1",
+    )
 
 
 def stage_observe(ctx: dict) -> StageResult:
@@ -65,11 +85,7 @@ def stage_worldmodel_read(ctx: dict) -> StageResult:
 
 
 def stage_student_candidate(ctx: dict) -> StageResult:
-    """Student candidate generation in RECORDING MODE ONLY.
-
-    P2.1 does not exercise Student learning. This stage records that
-    Student was consulted but does not mutate strategy state.
-    """
+    """Student candidate generation in RECORDING MODE ONLY."""
     t0 = time.time()
     output = {"mode": "recording", "candidates_proposed": 0}
     return StageResult.make(
@@ -81,18 +97,13 @@ def stage_student_candidate(ctx: dict) -> StageResult:
 
 
 def stage_planner_request(ctx: dict) -> StageResult:
-    """Planner request generation. Produces an ActionRequest.
-
-    For the P2.1 walking skeleton, the Planner is exercised but the
-    request is the deterministic safe-proving inspection request.
-    No domain logic; no LLM.
-    """
+    """Planner request generation. Produces an ActionRequest."""
     t0 = time.time()
     request = ActionRequest(
         action_type="safe_proving_capability",
         target="system_info.name",
         args={"read_only": True},
-        rationale="P2.1 walking skeleton: deterministic safe-proving inspection",
+        rationale="CONV-1 P3.0: deterministic safe-proving inspection via real Broker",
     )
     return StageResult.make(
         stage_name=STAGE_PLANNER_REQUEST,
@@ -103,50 +114,59 @@ def stage_planner_request(ctx: dict) -> StageResult:
 
 
 def stage_broker(ctx: dict) -> StageResult:
-    """Broker call. Authorizes the ActionRequest against bootstrap-v0.
+    """Broker call. Authorizes the ActionRequest against the real brain
+    CapabilityBroker (CONV-1).
 
-    G2-C2 fail-closed hardening (additive, no redesign):
-    - missing policy -> fail with explicit error
-    - policy.authorize() exception -> fail with explicit error
-    - decision is None or decision != 'allow' -> fail with explicit error
+    G2-C2 fail-closed hardening (preserved from P2.1, re-proven against
+    the real Broker):
+    - missing broker -> fail with explicit error
+    - broker.propose_action() exception -> fail with explicit error
+    - decision is None or != 'allow' -> fail with explicit error
     """
     t0 = time.time()
-    policy = ctx.get("policy")
+    broker = ctx.get("broker")
     request: ActionRequest = ctx["planner_request"]["request"]
-    if policy is None:
+    if broker is None:
         return StageResult.make(
             stage_name=STAGE_BROKER,
             success=False,
             output={"decision": None},
-            error="G2-C2 fail-closed: no policy bound",
+            error="CONV-1 G3-EN-4 fail-closed: no broker bound",
             duration_ms=(time.time() - t0) * 1000.0,
         )
     try:
-        decision = policy.authorize(request)
+        receipt = broker.propose_action(
+            target=request.target,
+            action_type=request.action_type,
+            capability=ctx.get("capability_name", "fixture.inspect"),
+            method="inspect",
+            impact_estimate=0.0,
+        )
     except Exception as exc:
         return StageResult.make(
             stage_name=STAGE_BROKER,
             success=False,
             output={"decision": None},
-            error=f"G2-C2 fail-closed: broker raised {type(exc).__name__}: {exc}",
+            error=f"CONV-1 G3-EN-4 fail-closed: broker raised {type(exc).__name__}: {exc}",
             duration_ms=(time.time() - t0) * 1000.0,
         )
-    if decision is None or decision.decision != "allow":
+    decision = _map_receipt_to_decision(receipt, request)
+    if decision.decision != "allow":
         return StageResult.make(
             stage_name=STAGE_BROKER,
             success=False,
             output={"decision": decision},
             error=(
-                f"G2-C2 fail-closed: denied by policy "
+                f"CONV-1 G3-EN-4 fail-closed: denied by real Broker "
                 f"(class='{request.action_type}', "
-                f"reason='{getattr(decision, 'reason', 'unknown')}')"
+                f"reason='{decision.reason}')"
             ),
             duration_ms=(time.time() - t0) * 1000.0,
         )
     return StageResult.make(
         stage_name=STAGE_BROKER,
         success=True,
-        output={"decision": decision},
+        output={"decision": decision, "receipt": receipt},
         duration_ms=(time.time() - t0) * 1000.0,
     )
 
@@ -202,11 +222,7 @@ def stage_receipt(ctx: dict) -> StageResult:
 
 
 def stage_worldmodel_integrate(ctx: dict) -> StageResult:
-    """Minimal WorldModel integration. Appends the receipt to the trace.
-
-    P2.1 does not implement WorldModel mutation; this stage records
-    the integration intent.
-    """
+    """Minimal WorldModel integration."""
     t0 = time.time()
     receipt = ctx["receipt"]["receipt"]
     return StageResult.make(
@@ -218,13 +234,9 @@ def stage_worldmodel_integrate(ctx: dict) -> StageResult:
 
 
 def stage_contradiction(ctx: dict) -> StageResult:
-    """Minimal contradiction/failure trigger (P2.1 deterministic rule).
-
-    Per v4 §13.3 / §14.7: the P2 minimal contradiction/failure trigger
-    is its own deterministic rule and does NOT exercise D-5 transitions.
-    """
+    """Minimal contradiction/failure trigger (P2.1 deterministic rule)."""
     t0 = time.time()
-    output = {"triggered": False, "rule": "p2.1.deterministic.no_contradiction"}
+    output = {"triggered": False, "rule": "p3.0.deterministic.no_contradiction"}
     return StageResult.make(
         stage_name=STAGE_CONTRADICTION,
         success=True,
@@ -234,17 +246,17 @@ def stage_contradiction(ctx: dict) -> StageResult:
 
 
 def stage_replan(ctx: dict) -> StageResult:
-    """Replan stage. P2.1 walking skeleton: no replan needed."""
+    """Replan stage. P3.0 walking skeleton: no replan needed."""
     t0 = time.time()
     return StageResult.make(
         stage_name=STAGE_REPLAN,
         success=True,
-        output={"replanned": False, "reason": "P2.1 walking skeleton terminates after one iteration"},
+        output={"replanned": False, "reason": "P3.0 walking skeleton terminates after one iteration"},
         duration_ms=(time.time() - t0) * 1000.0,
     )
 
 
-# Canonical stage order (P2.1 walking skeleton)
+# Canonical stage order (P3.0 walking skeleton)
 STAGE_ORDER = [
     STAGE_OBSERVE,
     STAGE_WORLDMODEL_READ,
