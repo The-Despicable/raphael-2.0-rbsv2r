@@ -21,6 +21,7 @@ Public surface:
 - Type contracts: RuntimeContext, MissionContext, StageResult,
   ActionRequest, PolicyDecision, ExecutionEvent, EvidenceReceipt,
   LoopTermination, DecisionTrace (types.py)
+- Scope v0 mission-boundary contract: ScopeV0, ScopeError (scope.py)
 """
 from orchestrator.runtime.loop import RaphaelRuntime
 from orchestrator.runtime.types import (
@@ -43,6 +44,7 @@ from orchestrator.runtime.safe_proving_capability import (
     CapabilityResult,
 )
 from orchestrator.runtime.stages import STAGE_ORDER, STAGE_HANDLERS
+from orchestrator.runtime.scope import ScopeV0, ScopeError
 
 __all__ = [
     "RaphaelRuntime",
@@ -55,6 +57,8 @@ __all__ = [
     "EvidenceReceipt",
     "LoopTermination",
     "DecisionTrace",
+    "ScopeV0",
+    "ScopeError",
     "BootstrapPolicy",
     "make_broker_from_bootstrap",
     "SafeProvingCapability",

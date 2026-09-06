@@ -194,6 +194,25 @@ def stage_broker(ctx: dict) -> StageResult:
             ),
             duration_ms=(time.time() - t0) * 1000.0,
         )
+    # §14.6 Scope v0: a Broker-approved action must still be constrained
+    # by the declared mission scope. Scope-valid is NOT authorization;
+    # this is a conjunction, not a second PDP — the Broker has already
+    # decided, and the scope only narrows. No scope bound: legacy path.
+    scope = ctx.get("scope")
+    if scope is not None:
+        in_scope, scope_reason = scope.covers(
+            request.target,
+            request.action_type,
+            ctx.get("capability_name", ""),
+        )
+        if not in_scope:
+            return StageResult.make(
+                stage_name=STAGE_BROKER,
+                success=False,
+                output={"decision": decision},
+                error=f"§14.6 Scope v0 fail-closed: {scope_reason}",
+                duration_ms=(time.time() - t0) * 1000.0,
+            )
     return StageResult.make(
         stage_name=STAGE_BROKER,
         success=True,

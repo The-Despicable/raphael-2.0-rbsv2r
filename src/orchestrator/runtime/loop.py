@@ -34,6 +34,7 @@ from orchestrator.runtime.types import (
     RuntimeContext,
     StageResult,
 )
+from orchestrator.runtime.scope import ScopeV0
 from orchestrator.runtime.stages import STAGE_ORDER, STAGE_HANDLERS
 from orchestrator.runtime.policy import make_broker_from_bootstrap
 from orchestrator.runtime.organs import OrganBundle
@@ -79,6 +80,7 @@ class RaphaelRuntime:
             "capability": self._capability,
             "organs": self._organs,
             "capability_name": "fixture.inspect",
+            "scope": ctx.scope,
         }
 
         for stage_name in STAGE_ORDER:
@@ -108,8 +110,29 @@ class RaphaelRuntime:
 
     def run_episode(self, mission: MissionContext,
                      max_iterations: int = 1,
-                     action_cap: int = 1) -> tuple:
-        """Full episode loop."""
+                     action_cap: int = 1,
+                     require_scope: bool = False) -> tuple:
+        """Full episode loop.
+
+        §14.6 Scope v0: when require_scope is True, a mission without a
+        validated ScopeV0 fails closed before any stage executes. A
+        non-ScopeV0 scope object also fails closed (no duck-typing).
+        """
+        scope = mission.scope
+        if scope is not None and not isinstance(scope, ScopeV0):
+            return [], LoopTermination(
+                terminated=True,
+                reason="§14.6 Scope v0 fail-closed: mission scope is not a ScopeV0",
+                iterations=0,
+                final_stage="scope",
+            )
+        if require_scope and scope is None:
+            return [], LoopTermination(
+                terminated=True,
+                reason="§14.6 Scope v0 fail-closed: mission declares no scope",
+                iterations=0,
+                final_stage="scope",
+            )
         all_traces = []
         for i in range(max_iterations):
             ctx = RuntimeContext(
@@ -117,6 +140,7 @@ class RaphaelRuntime:
                 objective_id=mission.objectives[0] if mission.objectives else "default",
                 view={"mission_name": mission.name, "iteration": i, "target": "system_info.name"},
                 iteration=i,
+                scope=scope,
             )
             trace, termination = self.step(ctx)
             all_traces.append(trace)

@@ -18,9 +18,12 @@ the Runtime emits them in the DecisionTrace.
 No domain logic. No policy logic. No primitives.
 """
 from dataclasses import dataclass, field
-from typing import Any, Optional, List
+from typing import Any, Optional, List, TYPE_CHECKING
 import time
 import uuid
+
+if TYPE_CHECKING:
+    from orchestrator.runtime.scope import ScopeV0
 
 
 def _new_id(prefix: str) -> str:
@@ -35,6 +38,7 @@ class RuntimeContext:
     view: dict = field(default_factory=dict)
     iteration: int = 0
     started_at: float = field(default_factory=time.time)
+    scope: Optional["ScopeV0"] = None
 
     @staticmethod
     def make(mission_id: str, objective_id: str, view: Optional[dict] = None) -> "RuntimeContext":
@@ -52,6 +56,7 @@ class MissionContext:
     name: str
     objectives: List[str] = field(default_factory=list)
     constraints: dict = field(default_factory=dict)
+    scope: Optional["ScopeV0"] = None
 
 
 @dataclass
