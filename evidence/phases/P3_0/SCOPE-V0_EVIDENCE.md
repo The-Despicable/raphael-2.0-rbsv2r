@@ -1,4 +1,11 @@
-# §14.6 Scope v0 — Implementation Evidence (EVIDENCE READY, NOT ACCEPTED)
+# §14.3 Scope v0 — Implementation Evidence (EVIDENCE READY, NOT ACCEPTED)
+
+Canonical numbering note: the Scope v0 section is §14.3. In-tree source
+comments and runtime reason/error strings still carry the working label
+"§14.6" (predates the canonical correction); executable behavior does not
+depend on the label (no code parses it; tests assert only the "scope"
+substring). Renumbering those strings is deferred to a future authorized
+pass. Commit messages `85c3bc90`/`0f060369` are historical.
 
 ## Baseline (immutable accepted SHELL state)
 
@@ -105,12 +112,90 @@ Legacy path (scope=None, require_scope=False) byte-identical behavior.
 - LOADED (post-episode walk): 51 / 0 arena (50 + scope.py)
 - VERDICTS: STATIC_ARENA_FREE=True, EPISODE_ARENA_FREE=True
 
-## Remaining limitations (§14.7+ explicitly not started)
+## Remaining limitations (§14.4+ explicitly not started)
 
 - Scope derivation is manual (caller constructs ScopeV0); no mission-spec parser.
 - Planner still emits the hardcoded walking-skeleton request; scope constrains it
   but does not yet steer candidate generation (Student filtering is legacy D8 path).
 - No target-declaration discovery; `run_episode` view target still hardcoded
-  `system_info.name` (scope covers it when declared).
 - max_impact enforcement consumes the broker call's 0.0 estimate; per-capability
   impact budgets are §14.7 WorldModel work.
+  (SUPERSEDED by the Option-B remediation record below: covers() now enforces
+  the cap against the broker-decided estimate; per-capability/cumulative
+  budgets remain §14.6 WorldModel work per canonical numbering.)
+
+## Option-B remediation record (max_impact enforcement correction)
+
+Baseline for this correction: `0f060369` (floor 313 / 0 / 0 / 0, guardrails 30).
+
+### False-claim correction (not hidden)
+
+- The original evidence (line "impact above max denies") claimed `covers()`
+  enforced the impact cap.
+- Pre-conversion source audit showed the comparison was absent: `covers()`
+  parsed `impact_estimate` to float, rejected only malformed input, then
+  unconditionally returned True. No `impact > max_impact` check existed
+  anywhere on the Scope path.
+- GLM authorized minimal Option-B correction. The comparison now exists.
+
+### Exact covers() comparison (commit `c4ff633`)
+
+```python
+        if impact > self.max_impact:
+            return False, "Scope v0: impact exceeds declared max"
+```
+
+Semantics: strictly greater denies; exactly equal allows; malformed input
+preserves the pre-existing fail-closed "malformed impact estimate" denial.
+No other `covers()` ordering/semantics altered.
+
+### Stage-level estimate handling
+
+Preflight finding: no genuine per-request impact estimate exists anywhere in
+the canonical path (planner `ActionRequest` carries none; the broker call
+hardcoded `impact_estimate=0.0`). Selecting a conservative default from
+existing information was mechanical, not architectural — no escalation needed.
+
+Resolution (no new estimator, no broker modification, no new architecture):
+`stage_broker` threads the exact estimate the Broker decided on —
+`receipt.metadata["impact_estimate"]`, written by `propose_action` itself —
+into `covers()`. Absent estimate fails closed
+(`"Scope v0: no impact estimate available"`) rather than silently passing 0.0.
+Existing behavior preserved: decided 0.0 vs default max 0.0 allows by equality.
+No per-capability or cumulative impact system introduced.
+
+### Tests added (existing tests untouched)
+
+- `test_over_max_impact_denied`: estimate 0.5 vs max 0.0 → `(False, "Scope v0:
+  impact exceeds declared max")`.
+- `test_exact_max_impact_allowed`: 0.0 vs 0.0 and 1.0 vs 1.0 allow; 1.5 vs 1.0
+  denies (locks strict-greater semantics).
+- `test_stage_fails_closed_without_impact_estimate`: stub-broker receipt with
+  empty metadata → stage fails closed with "no impact estimate available"
+  (strictly necessary to verify the stage-level resolution).
+
+### Verification
+
+- `tests/test_scope_v0.py`: 19 passed.
+- Full floor (actual): **316 passed / 0 failed / 0 skipped / 0 xfail**.
+- Guardrails collected: 30 (unchanged).
+- Closure (B-1a): static 32 orchestrator / 0 arena; loaded 51 / 0 arena;
+  STATIC_ARENA_FREE=True, EPISODE_ARENA_FREE=True. SHELL tests green.
+- R-W2: no existing test edited or removed (3 tests appended only).
+
+### Bootstrap-v0 reconciliation (adjudicated wording)
+
+"Roadmap declares bootstrap-v0 superseded-by Scope v0 at P3; as-implemented,
+Scope v0 constrains post-decision but bootstrap-v0 still feeds PDP inputs —
+retirement per CONV-1/G3 criterion (policy.py decision-source removal) remains
+open and is re-dated to P4."
+
+Re-dating does not weaken current enforcement: both bootstrap-v0's allowlist
+(empty-list-deny in `BrokerPolicy.is_*_allowed`) and the Scope conjunction
+deny by default. The open issue is the PDP decision-source artifact, not
+whether anything is enforced.
+
+### §14.10 MVP denial set (records only; §14.10 not started)
+
+Future demonstration denial set: out-of-scope target; unlisted capability;
+prohibited action; over-cap impact.
