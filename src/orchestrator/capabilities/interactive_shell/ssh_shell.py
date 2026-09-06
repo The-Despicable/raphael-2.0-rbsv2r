@@ -35,8 +35,11 @@ class SSHShellCapability(InteractiveShellCapability):
     - Connection health monitoring
     """
 
-    def __init__(self, connection_info: ShellConnectionInfo):
-        super().__init__(connection_info)
+    def __init__(self, connection_info: ShellConnectionInfo, authorization=None):
+        # Weld-SHELL (P3) SD-1: require Broker-issued execution context.
+        from .capability import require_shell_authorization
+        require_shell_authorization(authorization)
+        super().__init__(connection_info, authorization=authorization)
         self._client: Optional[paramiko.SSHClient] = None
         self._channel: Optional[paramiko.Channel] = None
         self._shell: Optional[paramiko.ChannelFile] = None

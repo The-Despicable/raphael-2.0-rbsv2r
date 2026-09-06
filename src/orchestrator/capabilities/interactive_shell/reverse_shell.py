@@ -81,8 +81,14 @@ class ReverseShellCapability(InteractiveShellCapability):
         listener_socket: socket.socket = None,
         client_socket: socket.socket = None,
         client_addr: tuple = None,
+        authorization=None,
     ):
-        super().__init__(connection_info)
+        # Weld-SHELL (P3) SD-1: require Broker-issued execution context.
+        # Validated again in the base class; enforced here for a clear
+        # construction-time failure.
+        from .capability import require_shell_authorization
+        require_shell_authorization(authorization)
+        super().__init__(connection_info, authorization=authorization)
         if session_id:
             self._session_id = session_id
         self._listener_socket = listener_socket
@@ -164,13 +170,17 @@ class ReverseShellCapability(InteractiveShellCapability):
         connection_info: ReverseShellConnectionInfo,
         session_id: str,
         listener_manager,
+        authorization=None,
     ) -> "ReverseShellCapability":
         """
         Factory method: wait for callback on listener, return capability.
 
         This is called by the Broker after authorizing a reverse shell session.
+        Weld-SHELL (P3) SD-1: requires the Broker-issued SessionReceipt.
         """
-        cap = cls(connection_info, session_id)
+        from .capability import require_shell_authorization
+        require_shell_authorization(authorization)
+        cap = cls(connection_info, session_id, authorization=authorization)
         success = await cap._wait_for_callback(listener_manager)
         if not success:
             await cap.disconnect()

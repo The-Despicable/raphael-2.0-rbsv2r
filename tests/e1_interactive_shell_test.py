@@ -805,12 +805,19 @@ def test_adversarial_prompt_spoofing():
 
 
 def test_adversarial_unauthorized_callback():
-    """Unauthorized callback IP is rejected by callback validation."""
+    """Unauthorized construction is denied; authorized callback validation preserved.
+
+    Weld-SHELL (P3) SD-1: direct privileged construction without a
+    Broker-issued SessionReceipt fails closed with ShellNotAuthorized.
+    Callback IP validation behavior is unchanged for authorized construction.
+    """
     from orchestrator.capabilities.interactive_shell.reverse_shell import ReverseShellCapability
     from orchestrator.capabilities.interactive_shell.reverse_shell import ReverseShellConnectionInfo
     from orchestrator.capabilities.interactive_shell.capability import ShellCapabilityType
+    from orchestrator.capabilities.interactive_shell.capability import ShellNotAuthorized
+    from orchestrator.capabilities.interactive_shell.session import ShellSessionProposal
 
-    # Create capability with restrictive CIDRs
+    # Create capability connection info with restrictive CIDRs
     conn_info = ReverseShellConnectionInfo(
         capability_type=ShellCapabilityType.REVERSE_TCP,
         target="10.0.0.100",
@@ -819,9 +826,27 @@ def test_adversarial_unauthorized_callback():
         allowed_callback_cidrs=["10.0.0.0/8"],
     )
 
-    # Validate callback IPs
-    cap = ReverseShellCapability(connection_info=conn_info)
+    # 1. Direct construction without broker authorization must fail closed.
+    try:
+        ReverseShellCapability(connection_info=conn_info)
+        assert False, "Direct construction without authorization must raise ShellNotAuthorized"
+    except ShellNotAuthorized:
+        pass
 
+    # 2. Broker-authorized construction remains possible.
+    broker = _create_test_broker()
+    proposal = ShellSessionProposal(
+        capability_type=ShellCapabilityType.REVERSE_TCP,
+        target="10.0.0.100",
+        lhost="127.0.0.1",
+        lport=4445,
+        metadata={"allowed_callback_cidrs": ["10.0.0.0/8"]},
+    )
+    receipt = broker.authorize_shell_session(proposal)
+    assert receipt.authorized, f"Expected authorized test receipt, got: {receipt.reason}"
+    cap = ReverseShellCapability(connection_info=conn_info, authorization=receipt)
+
+    # 3. Callback IP validation behavior is unchanged (original security property).
     # IP in allowed range
     assert cap._validate_callback_ip("10.0.0.50"), "10.0.0.50 should be allowed"
 
@@ -830,7 +855,7 @@ def test_adversarial_unauthorized_callback():
     assert not cap._validate_callback_ip("172.16.0.50"), "172.16.0.50 should be denied"
     assert not cap._validate_callback_ip("8.8.8.8"), "8.8.8.8 should be denied"
 
-    print("✅ 3D: Unauthorized callback IPs correctly rejected")
+    print("✅ 3D: Unauthorized construction denied; authorized callback validation preserved")
 
 
 def test_adversarial_port_collision():

@@ -16,6 +16,58 @@ from typing import Any, Optional
 logger = logging.getLogger("interactive_shell.capability")
 
 
+class ShellNotAuthorized(Exception):
+    """Raised when an interactive shell capability is constructed without a
+    valid Broker-issued execution context.
+
+    Path ID: SHELL; Weld ticket: Weld-SHELL (P3).
+    Privileged shell constructors (reverse shell, SSH shell) require a
+    Broker-issued SessionReceipt (authorized=True,
+    authorized_by="capability_broker", unexpired). Direct construction
+    without such a receipt is denied. Obtain authorization via
+    CapabilityBroker.authorize_shell_session().
+    """
+    pass
+
+
+def require_shell_authorization(authorization) -> None:
+    """Validate a Broker-issued shell execution context (fail-closed).
+
+    Accepts the SessionReceipt returned by
+    CapabilityBroker.authorize_shell_session(). Raises ShellNotAuthorized
+    when the receipt is missing, unauthorized, expired, or not
+    Broker-issued. Duck-typed (no import of session.py) to avoid a
+    circular import: session.py imports ShellConnectionInfo from this
+    module.
+    """
+    if authorization is None:
+        raise ShellNotAuthorized(
+            "InteractiveShellCapability construction requires a valid "
+            "Broker-issued SessionReceipt. Pass the receipt returned by "
+            "CapabilityBroker.authorize_shell_session() as authorization=. "
+            "Direct construction without broker authorization is denied. "
+            "Path ID: SHELL."
+        )
+    authorized = getattr(authorization, "authorized", False)
+    authorized_by = getattr(authorization, "authorized_by", "")
+    expires_at = getattr(authorization, "expires_at", 0)
+    session_id = getattr(authorization, "session_id", "")
+    if (
+        authorized is not True
+        or authorized_by != "capability_broker"
+        or not session_id
+        or not isinstance(expires_at, (int, float))
+        or expires_at <= time.time()
+    ):
+        raise ShellNotAuthorized(
+            "Invalid shell execution context: a valid Broker-issued "
+            "SessionReceipt (authorized=True, "
+            "authorized_by='capability_broker', unexpired) is required. "
+            "Direct construction without broker authorization is denied. "
+            "Path ID: SHELL."
+        )
+
+
 class ShellCapabilityType(str, Enum):
     """Supported interactive shell capability types."""
     SSH = "ssh"
@@ -71,7 +123,10 @@ class InteractiveShellCapability(abc.ABC):
     send_command/read_output calls, or document their concurrency model.
     """
 
-    def __init__(self, connection_info: ShellConnectionInfo):
+    def __init__(self, connection_info: ShellConnectionInfo, authorization=None):
+        # Weld-SHELL (P3) SD-1: privileged shell construction requires a
+        # Broker-issued execution context. Fail closed otherwise.
+        require_shell_authorization(authorization)
         self.connection_info = connection_info
         self._session_id: str = f"shell_{uuid.uuid4().hex[:12]}"
         self._status: str = "DISCONNECTED"
@@ -272,12 +327,20 @@ class ShellCapabilityFactory:
         logger.info("Registered shell capability: %s -> %s", capability_type.value, impl_class.__name__)
 
     @classmethod
-    def create(cls, connection_info: ShellConnectionInfo) -> InteractiveShellCapability:
-        """Create a capability instance for the given connection info."""
+    def create(
+        cls,
+        connection_info: ShellConnectionInfo,
+        authorization=None,
+    ) -> InteractiveShellCapability:
+        """Create a capability instance for the given connection info.
+
+        Weld-SHELL (P3) SD-1: requires a Broker-issued SessionReceipt.
+        """
+        require_shell_authorization(authorization)
         impl_class = cls._registry.get(connection_info.capability_type)
         if not impl_class:
             raise ValueError(f"No implementation registered for {connection_info.capability_type.value}")
-        return impl_class(connection_info)
+        return impl_class(connection_info, authorization=authorization)
 
     @classmethod
     def get_supported_types(cls) -> list[ShellCapabilityType]:
