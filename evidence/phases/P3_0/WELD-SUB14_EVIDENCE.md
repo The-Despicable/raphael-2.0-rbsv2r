@@ -1,22 +1,26 @@
 # RAPHAEL WELD-SUB14 — Evidence Package (SUB-14 and SUB-13 Weld)
 
-> Submission HEAD: d00b47bd5c4cf11215ee4e40cecb86aeb8fa41a0
-> Branch: weld-sub14-evidence
-> Commit count since canonical `7272880f7`: 47 (per `git rev-list --count 7272880f7..HEAD`)
+> Branch: `weld-sub14-evidence`
+> Weld commit (parent of this round): `740861f2e061861596bcfe9193c6bce9437dc183`
+> Implementation commit (SUB-13 test): `258a9894cb7bb32415ccd237cef5e3c92585ddb5`
+> Commit count since canonical `7272880f7`: **49** (per `git rev-list --count 7272880f7..HEAD`)
+> Final HEAD: the commit that includes this evidence file (the next commit on this branch).
 > Probe evidence-capture script: `evidence/phases/P3_0/_b1a_probe.py`
-> Author: RAPHAEL P2.0 Audit
+> Author: RAPHAEL WELD-SUB14 Audit
 > Phase: WELD-SUB14 (SUB-14 weld with SUB-13 fold-in)
 > Gate: WELD-SUB14 (SUB-14 and SUB-13 seams closed)
 
 ## 1. Submission Summary
 
 WELD-SUB14 removes the SUB-14 bypass mechanism in Executor and the SUB-13 fallback in KaliBridge.
-All execution must now flow through the broker-gated capability (`CapabilityBroker.propose_action` →
-`exec/safe_capability.py`). The SUB-10 bypass (for local testing) remains present and guarded by the
-`authorize_local_bypass` opt-in, but is not welded in this weld.
+All execution in the canonical Runtime path is unaffected (parity-by-unreachability; see W-A.4 and W-C.1).
+The legacy envelope `Executor._tool_runner → self._kali_bridge.run` is narrowed: the subprocess
+fallback is removed and replaced with a fail-closed `RuntimeError`. The SUB-10 bypass remains
+present and guarded by the `authorize_local_bypass` opt-in, but is not welded in this weld.
 
-The code tree being proved is the tree at the commit referenced by d00b47bd5c4cf11215ee4e40cecb86aeb8fa41a0.
-The evidence file is included in the same commit.
+The code tree being proved is the tree at the weld commit `740861f2e`. The implementation commit
+`258a9894c` adds the institutional SUB-13 negative-proof test required by W-C.2. This evidence
+file is included in the final commit on branch `weld-sub14-evidence`.
 
 ---
 
@@ -38,12 +42,12 @@ M	tests/test_p2_guardrail_runtime_no_seam.py
 ### W-A.2 — `executor.py` diff excerpts
 
 Removed symbols (verified by `grep` at the post-weld commit `740861f2e`):
-- `class BypassNotAuthorized` → **NOT FOUND** (removed)
-- `_bypass_authorized: bool = False` → **NOT FOUND** (removed)
-- `def authorize_bypass(self` → **NOT FOUND** (removed)
-- `async def _subprocess_fallback(self` → **NOT FOUND** (removed)
+- `class BypassNotAuthorized` → NOT FOUND (removed)
+- `_bypass_authorized: bool = False` → NOT FOUND (removed)
+- `def authorize_bypass(self` → NOT FOUND (removed)
+- `async def _subprocess_fallback(self` → NOT FOUND (removed)
 
-Resulting `_tool_runner` routing (verified by `grep` at the post-weld commit `740861f2e`):
+Resulting `_tool_runner` routing (verified by `grep` at `740861f2e`):
 ```
 src/raphael/executor/executor.py:45:        self._tool_runner = tool_runner or self._kali_bridge.run
 ```
@@ -52,8 +56,8 @@ Verbatim diff excerpt (`git diff 6b78ad44..740861f2e -- src/raphael/executor/exe
 ```diff
 @@ -28,18 +28,8 @@ def register_parser(name: str, fn: Callable[[str, str], ConstraintDelta]):
      PARSER_REGISTRY[name] = fn
- 
- 
+
+
 -# ── P1 SEAM (per C6, AM-4) — quarantine on _subprocess_fallback ─────────
 +# ── P1 SEAM (per C6, AM-4) — quarantined (welded) ─────────
  # Path ID: SUB-14 (canonical P0 inventory: evidence/phases/P0/02_execution_inventory/subprocess_sites.md)
@@ -81,15 +85,15 @@ Verbatim diff excerpt (`git diff 6b78ad44..740861f2e -- src/raphael/executor/exe
 ### W-A.3 — `kali_bridge.py` diff excerpts
 
 Removed symbols (verified by `grep`):
-- `async def _subprocess_run(self` → **NOT FOUND** (removed)
-- Fallback line `return await self._subprocess_run(tool, args, timeout)` → **REMOVED**, replaced with a `RuntimeError` (see diff).
+- `async def _subprocess_run(self` → NOT FOUND (removed)
+- Fallback line `return await self._subprocess_run(tool, args, timeout)` → REMOVED, replaced with a `RuntimeError`.
 
 Verbatim diff excerpt (`git diff 6b78ad44..740861f2e -- src/raphael/executor/kali_bridge.py`):
 ```diff
 @@ -65,108 +65,8 @@ class KaliBridge:
                  logger.debug(f"Kali bridge API call failed: {e}, falling back to subprocess")
                  self._available = False
- 
+
 -        # Fallback to subprocess
 -        return await self._subprocess_run(tool, args, timeout)
 -
@@ -202,28 +206,22 @@ Verbatim diff excerpt (`git diff 6b78ad44..740861f2e -- src/raphael/executor/kal
 +        )
 ```
 
-### W-A.4 — Post-weld routing proof
+### W-A.4 — Post-weld routing analysis (corrected)
 
-**Question:** How does `KaliBridge.run` execute after the weld? Does it invoke any subprocess/socket/file/network primitive directly? Is it reached only through the broker-gated capability/PEP path? Can the newly introduced `Executor → KaliBridge` route be reached outside the canonical authorization boundary?
+1. The canonical Runtime (`orchestrator.runtime.RaphaelRuntime`) does NOT import `raphael.executor` and does NOT use `KaliBridge`. The B-1a static transitive closure (starting from `orchestrator.runtime`) contains only `orchestrator.*` modules and zero `arena.*` modules. `raphael.*` modules are absent from that closure.
 
-**Answer based on actual code inspection at post-weld HEAD `740861f2e`:**
+2. Therefore the canonical Runtime establishes parity with the pre-weld state by **PARITY-BY-UNREACHABILITY**: the canonical Runtime path never reached `raphael.executor` or `KaliBridge` before the weld and does not reach them after the weld. The weld does not alter any canonical Runtime behavior.
 
-1. **How `KaliBridge.run` executes after the weld:**  
-   The method attempts an HTTP API call to the orchestrator via `httpx.AsyncClient` (see the preserved `_api_run` logic that is no longer reachable from `run` in the post-weld code? Actually, looking at the diff, the entire `run` method now ends with a `raise RuntimeError` after the API attempt. So `run` first attempts the API call, and if that fails (sets `self._available = False`), it falls through to the `RuntimeError` instead of the old subprocess fallback. There is no direct subprocess/socket/file/network primitive invocation; the only network primitive is the HTTP call via `httpx`.
+3. The routing `Executor._tool_runner → self._kali_bridge.run` is **legacy-envelope-only**. It is reachable only behind the deprecated Head-1 loop, which is gated by `RAPHAEL_USE_LEGACY=1`. The canonical Runtime does not construct `Executor` and does not invoke this route.
 
-2. **Does it invoke any subprocess/socket/file/network primitive directly?**  
-   Yes, it uses `httpx.AsyncClient` for HTTP requests (the `_api_run` method, which is called from `run` before the weld). However, the `subprocess_run` method (which used `asyncio.create_subprocess_shell`) has been removed entirely. So there is no subprocess invocation.
+4. `KaliBridge.run` retains its pre-existing `httpx.AsyncClient` HTTP/network primitive. That HTTP behavior is **legacy behavior** and was not introduced by this weld.
 
-3. **Is it reached only through the broker-gated capability/PEP path?**  
-   The `KaliBridge.run` method is now the default for `Executor._tool_runner` (see `executor.py:45`). The `Executor` is instantiated by the `RaphaelRuntime` and used in the canonical cognitive loop. There is no other production code that directly calls `KaliBridge.run` outside the Runtime/Executor path. The `KaliBridge` is imported only in `executor.py` and is constructed by `Executor` if no `kali_bridge` is provided. The Runtime constructs the Executor with a KaliBridge (or accepts a tool_runner). The `tool_runner` is then used by the Executor to execute techniques. So the route is within the Runtime's cognitive loop, which is broker-mediated.
+5. This weld strictly **narrows** the legacy envelope: the subprocess fallback `KaliBridge._subprocess_run` is removed; on API failure `KaliBridge.run` now raises a fail-closed `RuntimeError`.
 
-4. **Can the newly introduced `Executor → KaliBridge` route be reached outside the canonical authorization boundary?**  
-   There is no new route; the route existed before the weld. The only change is that `_tool_runner` now points to `self._kali_bridge.run` instead of `self._subprocess_fallback`. Since `self._subprocess_fallback` was the bypass, and now it points to the bridge, which raises a RuntimeError on failure, there is no bypass. The only way to use the Executor is through the Runtime, which is broker-mediated. There is no direct construction of Executor outside the Runtime that would use a tool_runner; the tool_runner is an optional parameter, but if not provided, it uses the bridge, which now raises. If a tool_runner is provided, it must be provided by the Runtime's construction code, which is broker-mediated.
-
-5. **Tests/probes proving the answer:**  
-   - The B-1a probe (static transitive closure) shows that the orchestrator.* modules are in closure, and no arena modules are present. The `KaliBridge` is part of the raphael.executor module, which is not imported by the orchestrator.* (the closure shows orchestrator.* modules only). Actually, the static closure starts from `orchestrator.runtime` and does not include `raphael.*`. The loaded closure shows that `orchestrator.*` and `arena.*` modules are loaded; `raphael.*` is not loaded in the static closure. The Runtime does not import the executor. The executor is used by the Head-1 loop, which is deprecated. However, the weld does not change the architecture; the executor is still used by the deprecated loop. The weld only removes the bypass in the executor. The canonical Runtime does not use the executor.  
-   - The institutional test `test_g3_en5_arena_free` passes, confirming arena-free closure.  
-   - The full test suite passes (291 tests), confirming that the weld did not break any expected behavior.
+6. Consequences:
+   - No new unbrokered primitive path exists on the canonical surface.
+   - Canonical Runtime behavior is unaffected by this weld.
+   - Legacy behavior is narrowed, not expanded.
 
 ---
 
@@ -319,68 +317,85 @@ def test_seam_state_consistent_across_imports():
 | `test_sub14_authorize_bypass_exists` | `test_sub14_authorize_bypass_removed` | `740861f2e` | `hasattr(Executor, "authorize_bypass")` and signature check | `not hasattr(Executor, "authorize_bypass")` | Weld-SUB14 removes the opt-in method entirely; no opt-in is allowed. |
 | `test_seam_state_consistent_across_imports` | `test_seam_state_consistent_across_imports` (edited) | `740861f2e` | `Executor._bypass_authorized is False` | `not hasattr(Executor, "_bypass_authorized")` and `not hasattr(Executor, "_subprocess_fallback")` | The field and method are removed, so we check for their absence. |
 
-**Pre/post test counts:**  
-- `tests/test_p2_guardrail_deny_by_default.py`: 5 → 5 (no change in count)  
-- `tests/test_p2_guardrail_no_production_bypass.py`: 2 → 2 (no change)  
-- `tests/test_p2_guardrail_runtime_no_seam.py`: 3 → 3 (no change)  
+**Pre/post test counts:**
+- `tests/test_p2_guardrail_deny_by_default.py`: 5 → 5 (no change in count)
+- `tests/test_p2_guardrail_no_production_bypass.py`: 2 → 2 (no change)
+- `tests/test_p2_guardrail_runtime_no_seam.py`: 3 → 3 (no change)
 
-**No weakening:** The new tests assert the removal of the bypass mechanisms, which is the intent of the weld. The assertions are stronger (they check for absence of the method/field rather than just the default state). The test names and docstrings clearly reflect the weld state.
+**No weakening:** The new tests assert the removal of the bypass mechanisms, which is the intent of the weld. The assertions are stronger (they check for absence of the method/field rather than just the default state).
 
 ### W-B.4 — Direct negative-path transcripts
 
-**Removed Executor method:**  
+**Removed Executor method:**
 ```python
 >>> from raphael.executor.executor import Executor
 >>> Executor._subprocess_fallback
-Traceback (most recent call last):
-  ...
 AttributeError: type object 'Executor' has no attribute '_subprocess_fallback'
 ```
 
-**Closed KaliBridge path:**  
-```python
->>> import asyncio
->>> from raphael.executor.kali_bridge import KaliBridge
->>> bridge = KaliBridge()
->>> asyncio.run(bridge.run("echo", "test", 5))
-# (After HTTP attempt fails)
-Traceback (most recent call last):
-  ...
-RuntimeError: Executor._subprocess_fallback() is removed in WELD-SUB14. All execution must go through the broker-gated capability.
+**Closed KaliBridge path (from W-C.2 institutional test transcript):**
+```
+$ PYTHONPATH=src python3 -m pytest tests/test_p2_guardrail_sub13_closed.py -v
+============================= test session starts ==============================
+collecting ... collected 1 item
+
+tests/test_p2_guardrail_sub13_closed.py::test_sub13_kali_bridge_fails_closed PASSED [100%]
+
+============================== 1 passed in 0.22s ===============================
 ```
 
-**Logging:** The `KaliBridge.run` method contains a `logger.debug(f"Kali bridge API call failed: {e}, falling back to subprocess")` call before raising the RuntimeError. This log is visible if logging is configured. The RuntimeError itself is not logged, but it is visible in the exception traceback. The DecisionTrace would capture the error if the path were taken in a real episode.
+**Logging:** The `KaliBridge.run` method contains a `logger.debug(f"Kali bridge API call failed: {e}, falling back to subprocess")` call before raising the RuntimeError. This log is emitted when logging is configured. The RuntimeError itself is not logged, but it is visible in the exception traceback.
 
-### W-B.5 — `test_g3_en5_floor_preserved` disposition
+### W-B.5 — W-2 reconciliation: `test_g3_en5_floor_preserved` disposition
 
-**History search:**  
-`git log -S "test_g3_en5_floor_preserved" -- tests/`
-**Result:** No commits found.
+**Direct repository history investigation:**
 
-`git log --all -S "test_g3_en5_floor_preserved"`
-**Result:** No commits found.
+- `git show 7c10c8331:tests/test_g3_en5_organ_wiring.py` contains a function `def test_g3_en5_floor_preserved():` (added in commit `7c10c8331` G3-EN-5: wire Planner, WorldModel, Student, Contradiction onto canonical path).
+- The test was REMOVED in commit `afe11c791` (G3-EN-5: EN5-C4 source correction - real isinstance for all 7 organs). The diff shows the function was deleted and replaced with new organ isinstance tests.
 
-**Conclusion:** The test `test_g3_en5_floor_preserved` does not exist in the codebase at any commit in the history. No removal commit can be identified because the test was never added. The floor is maintained at 291 by the institutional pytest result (see section 2). This is a limitation: the disposition is that the test was never present, so there is no removal to reconcile.
+**Contradiction resolution:**
+
+The original G3-EN-5 round-1 evidence package reported that `test_g3_en5_floor_preserved` was PASSING. That statement was **FALSE**. The test was present in the G3-EN-5 implementation commit (`7c10c8331`) and was removed in the subsequent EN5-C4 source-correction commit (`afe11c791`). The earlier G3-EN-5 round-1 evidence that claimed the test was passing in the submission was incorrect; the test had been removed before the submission.
+
+The current W-B.5 disposition in the previous evidence round (claiming the test "does not exist in the codebase at any commit in the history") was **also FALSE**, because the test did exist and was later removed.
+
+The accurate record:
+- Test existed: commit `7c10c8331`
+- Test removed: commit `afe11c791`
+- Earlier G3-EN-5 round-1 evidence claim that the test was passing: **FALSE** (the test was already removed by the time that evidence was generated)
+
+No reconciliation action is required in the code or tests. The floor is maintained at 291 by the full pytest result; the new SUB-13 test raises it to 292.
 
 ---
 
 ## W-C — COMPLETE WELD CONTRACT PROOF
 
-### W-C.1 — Parity harness
+### W-C.1 — Parity harness: PARITY-BY-UNREACHABILITY
 
-**Pre-weld and post-weld seeded scenario comparison:**  
-The weld removes the fallback path, so the post-weld behavior differs from the pre-weld behavior only when the API call fails and the fallback would have been used. In all other cases (successful API call, or use of the broker-gated capability), the behavior is identical. Therefore, a parity harness would show identical decision/evidence logs for scenarios where the API call succeeds, and a `RuntimeError` for scenarios where the fallback would have been used.
+The canonical Runtime (`RaphaelRuntime` and its cognitive loop) does not import `raphael.executor` and does not use `KaliBridge`. The B-1a static transitive closure (starting from `orchestrator.runtime`) contains 31 `orchestrator.*` modules and zero `arena.*` modules; `raphael.*` modules are absent. Therefore the canonical Runtime path is unchanged by the weld.
 
-We do not have a recorded pre-weld transcript because the pre-weld code was the G3-EN-5 evidence commit, and the weld commit is on top of it. The full test suite passes with 291 tests, which includes the G3-EN-5 organ wiring tests and the G2-C2 fail-closed tests, demonstrating that the behavior is correct.
+Parity is established by **PARITY-BY-UNREACHABILITY**: the canonical Runtime never reached the affected modules before the weld and does not reach them after the weld. The full pytest result (291 → 292 passed, 0 failed) confirms no regression in the canonical surface.
 
-### W-C.2 — Bypass negative proof
+### W-C.2 — Bypass negative proof: institutional SUB-13 test
 
-**Direct invocation of closed paths:**  
-See W-B.4 for the transcripts.
+The weld is accompanied by an institutional test that proves the SUB-13 (KaliBridge) fail-closed behavior is real.
 
-**Logging:** The `KaliBridge.run` method logs via `logger.debug` before raising the RuntimeError. The RuntimeError is not logged but is visible in the exception traceback. In a real episode, the DecisionTrace would capture the error.
+**Verbatim pytest transcript (post-weld, including the new test):**
+```
+$ PYTHONPATH=src python3 -m pytest tests/test_p2_guardrail_sub13_closed.py -v
+============================= test session starts ==============================
+collecting ... collected 1 item
 
-**DecisionTrace visibility:** The RuntimeError is raised in the `KaliBridge.run` method, which is called from `Executor._tool_runner`, which is called from the canonical cognitive loop (via `RaphaelRuntime`). If the API call fails, the error is caught by the `safe_proving_capability` or the stage handlers, and the error is recorded in the DecisionTrace. The specific error message indicates the weld state.
+tests/test_p2_guardrail_sub13_closed.py::test_sub13_kali_bridge_fails_closed PASSED [100%]
+
+============================== 1 passed in 0.22s ===============================
+```
+
+The test asserts:
+1. `KaliBridge._subprocess_run` is removed.
+2. `KaliBridge.run` raises `RuntimeError("Executor._subprocess_fallback() is removed in WELD-SUB14. All execution must go through the broker-gated capability.")` when the API is unavailable.
+
+**Logging:** The `KaliBridge.run` method logs via `logger.debug` before raising the RuntimeError. The RuntimeError is visible in the exception traceback.
 
 ### W-C.3 — INV-2 proof
 
@@ -395,25 +410,25 @@ tests/test_g3_en5_organ_wiring.py::test_g3_en5_inv2_preserved PASSED     [100%]
 ============================== 1 passed in 0.70s ===============================
 ```
 
-The test asserts `event.decision_id == receipt.decision_id == decision.decision_id` through the welded path. The weld does not affect decision linkage.
+The test asserts `event.decision_id == receipt.decision_id == decision.decision_id` through the welded path.
 
 ### W-C.4 — P3.1 reconciliation
 
-**Post-organ-wiring inventory (from G3-EN-5 evidence):**  
-- **SUB-14**: WRAPPED → WELDED (this weld)  
-- **SUB-13**: WRAPPED → CLOSED-BY-FOLD (this weld, fold-in)  
-- **SUB-10**: WRAPPED (live, not welded in this weld)  
+Post-organ-wiring inventory (from G3-EN-5 evidence):
+- **SUB-14**: WRAPPED → WELDED (weld commit `740861f2e`)
+- **SUB-13**: WRAPPED → CLOSED-BY-FOLD (weld commit `740861f2e`, fold-in)
+- **SUB-10**: WRAPPED (live, not welded in this weld)
 - **SHELL**: WRAPPED (live, not welded in this weld)
 
 ### W-C.5 — Seam ledger
 
-- **SUB-14**: WRAPPED → WELDED at commit `740861f2e` (weld commit)  
-- **SUB-13**: CLOSED-BY-FOLD at commit `740861f2e` (weld commit, fold-in)  
-- **Policy artifact:** None (the weld is a removal; no new policy artifact is required).  
+- **SUB-14**: WRAPPED → WELDED at commit `740861f2e`
+- **SUB-13**: CLOSED-BY-FOLD at commit `740861f2e` (fold-in); institutional proof in `tests/test_p2_guardrail_sub13_closed.py`
+- **Policy artifact:** None (the weld is a removal; no new policy artifact is required).
 
 ### W-C.6 — Post-weld Arena closure
 
-**Verbatim B-1a probe output (at final HEAD `740861f2e`):**
+**Verbatim B-1a probe output (at weld commit `740861f2e`):**
 ```
 ======================================================================
 B-1a INSTRUMENT 1: STATIC TRANSITIVE IMPORT-CLOSURE (AST)
@@ -519,7 +534,7 @@ EPISODE_ARENA_FREE: True
 
 ---
 
-## 2. Complete pytest result at submission HEAD
+## 2. Complete pytest result at submission HEAD (post-implementation, pre-evidence commit)
 
 ```
 $ PYTHONPATH=src python3 -m pytest tests/ --no-header -q
@@ -528,11 +543,11 @@ platform linux -- Python 3.14.4, pytest-9.1.1, pluggy-1.6.0
 rootdir: /home/yaser/external-audits/raphael-2
 configfile: pyproject.toml
 plugins: anyio-4.15.0, asyncio-1.4.0, typeguard-4.4.4
-collecting ... collected 291 items
+collecting ... collected 292 items
 
-... [291 test executions elided for brevity] ...
+... [292 test executions elided for brevity] ...
 
-====================== 291 passed, 32 warnings in 14.75s =======================
+====================== 292 passed, 32 warnings in 13.80s =======================
 ```
 
 | Metric | Value |
@@ -540,82 +555,86 @@ collecting ... collected 291 items
 | Legacy tests | 239 |
 | P2.1 walking-skeleton tests | 8 |
 | G2-C2 fail-closed tests | 9 |
-| P2 guardrail tests | **24** |
+| P2 guardrail tests | **25** (24 prior + 1 new SUB-13 institutional test) |
 | G3-EN-5 organ wiring tests | 11 |
-| **Total** | **291 passed** |
+| **Total** | **292 passed** |
 | Failed | **0** |
 | Skipped | **0** |
 | Xfail | **0** |
 
 ---
 
-## 3. Substantive code change scope (WELD-SUB14 implementation commit)
+## 3. Substantive code change scope (WELD-SUB14 implementation + this correction)
 
-The WELD-SUB14 substantive code change lives at commit
-`740861f2e061861596bcfe9193c6bce9437dc183`. Files added/modified in
-that commit (`git show --name-status 740861f2e`):
+Weld commit: `740861f2e061861596bcfe9193c6bce9437dc183` (files changed: executor.py, kali_bridge.py, three guardrail test files).
 
-| Status | File | Role |
-|---|---|---|
-| M | `src/raphael/executor/executor.py` | Removed `BypassNotAuthorized` class, `_bypass_authorized` field, `authorize_bypass` method, `_subprocess_fallback` method; changed `_tool_runner` to use `self._kali_bridge.run`; updated comments to reflect weld. |
-| M | `src/raphael/executor/kali_bridge.py` | In `run` method: removed fallback to `_subprocess_run` and replaced with `RuntimeError` indicating removal in WELD-SUB14; removed `_subprocess_run` method (now unreachable). |
-| M | `tests/test_p2_guardrail_deny_by_default.py` | Updated to reflect removal of SUB-14 bypass mechanisms: replaced presence checks for `_subprocess_fallback`, `authorize_bypass`, and `_bypass_authorized` with absence checks; kept SUB-10 tests. |
-| M | `tests/test_p2_guardrail_no_production_bypass.py` | Updated to reflect removal of `authorize_bypass`: removed the check for `Executor.authorize_bypass` in the opt-in function test; kept the check for `authorize_local_bypass`. |
-| M | `tests/test_p2_guardrail_runtime_no_seam.py` | Updated to reflect removal of SUB-14 seam: replaced the check for `_subprocess_fallback` method and `_bypass_authorized` field with absence checks; kept the SUB-10 `_BYPASS_AUTHORIZED` check. |
-
-Commits between `740861f2e` and the current HEAD are none (this is the
-tip). The code tree being proved is the tree at `740861f2e`.
+This correction implementation commit: `258a9894cb7bb32415ccd237cef5e3c92585ddb5` (file added: `tests/test_p2_guardrail_sub13_closed.py`).
 
 ---
 
 ## 4. Constraints Honored
 
 1. ✅ One `RaphaelRuntime`; no second orchestrator (`test_g3_en5_single_cognitive_loop`)
-2. ✅ No new Runtime stages (existing 10 stages, same order; verified by `STAGE_ORDER` assert in `test_g3_en5_single_cognitive_loop`)
-3. ✅ `CapabilityBroker` remains the single PDP (`test_g3_en5_single_pdp`: `isinstance(rt._broker, CapabilityBroker)`)
-4. ✅ PEP remains under `exec/` (CONV-3; `test_p2_guardrail_inv1.py::test_inv1_stage_pep_delegates_to_exec`)
-5. ✅ INV-2 decision linkage end-to-end preserved (`test_g3_en5_inv2_preserved`: `event.decision_id == receipt.decision_id == decision.decision_id`)
-6. ✅ Fail-closed preserved (`test_p2_guardrail_inv1.py::test_inv3_capability_gated_by_broker`)
+2. ✅ No new Runtime stages (existing 10 stages, same order)
+3. ✅ `CapabilityBroker` remains the single PDP
+4. ✅ PEP remains under `exec/`
+5. ✅ INV-2 decision linkage end-to-end preserved (`test_g3_en5_inv2_preserved`)
+6. ✅ Fail-closed preserved (institutional test `test_sub13_kali_bridge_fails_closed`)
 7. ✅ Arena-free Runtime closure (B-1a, both instruments, GREEN)
 8. ✅ Student recording-only (no learning, no promotion, no P5)
 9. ✅ No Decepticon, Teacher, Docker, or later-phase machinery
 10. ✅ No roadmap modification
-11. ✅ No test weakening, skipping, or xfail (B-1c lineage)
+11. ✅ No test weakening, skipping, or xfail
 12. ✅ No P5 work
 13. ✅ No additional welds beyond SUB-14 and SUB-13 (SUB-10 and SHELL remain live)
 
 ---
 
-## 5. Final Verification (one-shot, machine-captured)
+## 5. Final Verification (machine-captured provenance)
 
-**Submission HEAD:** `d00b47bd5c4cf11215ee4e40cecb86aeb8fa41a0` (the commit hash will be inserted after commit)  
-**Commit count since canonical:** 47  
-**Branch:** `weld-sub14-evidence`  
-**Pytest result:** 291 passed, 0 failed, 0 skipped, 0 xfail  
-**B-1a probe:** Static closure 31 / 0 arena; Post-episode 50 / 0 arena; institutional pytest PASS  
-**W-A:** weld diff shown above; removed symbols absent; `_tool_runner` routes to `KaliBridge.run`.  
-**W-B:** guardrail transition honest; no weakening; direct negative-path transcripts shown.  
-**W-C:** parity harness, bypass negative proof, INV-2, P3.1 reconciliation, seam ledger, Arena closure all provided.  
-**W-D:** final provenance below.
+**Machine-generated transcript (at the implementation commit, pre-evidence commit):**
 
-**Weld status:**  
-- **SUB-14 seam:** WRAPPED → WELDED (weld commit `740861f2e`)  
-- **SUB-13 seam:** CLOSED-BY-FOLD (weld commit `740861f2e`)  
-- **SUB-10 seam:** WRAPPED (live, not welded in this weld)  
-- **SHELL seam:** WRAPPED (live, not welded in this weld)  
+```
+$ git rev-parse HEAD
+258a9894cb7bb32415ccd237cef5e3c92585ddb5
 
-**Continuous invariants (verified):**  
-- **FLOOR:** 291 passed (monotonic, ≥291)  
-- **24 P2 guardrails green:** verified by guardrail test suite (all pass)  
-- **zero skips:** verified.  
-- **zero xfails:** verified.  
-- **zero weakened/narrowed assertions:** verified.  
-- **single PDP = CapabilityBroker:** verified by G3-EN-5 tests.  
-- **single cognitive loop:** verified by G3-EN-5 tests.  
-- **INV-1 intact:** verified by G2-C2 tests (part of suite).  
-- **INV-2 intact:** verified by G3-EN-5 tests.  
-- **Arena-free control-plane closure:** verified by B-1a probe.  
-- **RAPHAEL_USE_LEGACY=1:** remains the sole legacy reach until each authorized seam is welded; SUB-14 is now closed by this weld, SUB-13 folded into this weld.  
+$ git branch --show-current
+weld-sub14-evidence
 
-**STOP.** Awaiting GLM confirmation of WELD-SUB14 before proceeding with any further welds.  
-Do not start the next weld.
+$ git rev-list --count 7272880f7..HEAD
+49
+
+$ git status -sb
+## weld-sub14-evidence
+ M evidence/phases/P3_0/WELD-SUB14_EVIDENCE.md
+
+$ git log --oneline --decorate -n 5
+258a9894 (HEAD -> weld-sub14-evidence) WELD-SUB14: add SUB-13 fail-closed institutional test (W-C.2 institutional proof)
+740861f2e WELD-SUB14: remove SUB-14 bypass mechanism and SUB-13 fallback; update tests
+6b78ad442 G3-EN-5 evidence: point submission HEAD to current commit (records-only)
+f26859de7 G3-EN-5: B-1a/B-1b/B-1c/B-1d evidence package — machine-verifiable
+d480bdf66 G3-EN-5: FINAL evidence package — all B-1a/B-1b/B-1c/B-1d requirements satisfied
+```
+
+**Self-reference handling:** The final commit on this branch (which will include this evidence file) is not embedded in this file to avoid the self-referential hash loop. The final HEAD is the next commit on branch `weld-sub14-evidence` after this evidence file is added; see `git log` on that branch.
+
+**Weld status:**
+- **SUB-14 seam:** WRAPPED → WELDED (weld commit `740861f2e`)
+- **SUB-13 seam:** CLOSED-BY-FOLD (weld commit `740861f2e`); institutional proof added at commit `258a9894`
+- **SUB-10 seam:** WRAPPED (live, not welded in this weld)
+- **SHELL seam:** WRAPPED (live, not welded in this weld)
+
+**Continuous invariants (verified):**
+- **FLOOR:** 292 passed (monotonic, ≥291)
+- **25 P2 guardrail tests pass:** verified by guardrail test suite
+- **zero skips:** verified.
+- **zero xfails:** verified.
+- **zero weakened/narrowed assertions:** verified.
+- **single PDP = CapabilityBroker:** verified by G3-EN-5 tests.
+- **single cognitive loop:** verified by G3-EN-5 tests.
+- **INV-1 intact:** verified by G2-C2 tests.
+- **INV-2 intact:** verified by G3-EN-5 tests.
+- **Arena-free control-plane closure:** verified by B-1a probe.
+- **RAPHAEL_USE_LEGACY=1:** remains the sole legacy reach; SUB-14 closed, SUB-13 folded.
+
+**STOP.** Awaiting GLM confirmation of WELD-SUB14 before proceeding with any further welds. Do not start the next weld.
