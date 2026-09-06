@@ -282,3 +282,71 @@ def test_scope_does_not_touch_worldmodel_or_broker():
     assert not hasattr(scope, "world_model")
     assert not hasattr(scope, "broker")
     assert not hasattr(scope, "receipt_store")
+
+
+# ── max_impact enforcement (Option-B remediation) ───────────────────
+
+def test_over_max_impact_denied():
+    """Impact strictly above max_impact is denied with an impact reason."""
+    scope = _walking_skeleton_scope(max_impact=0.0)
+    ok, reason = scope.covers(
+        "system_info.name", "safe_proving_capability", "fixture.inspect",
+        impact_estimate=0.5,
+    )
+    assert ok is False
+    assert reason == "Scope v0: impact exceeds declared max"
+
+
+def test_exact_max_impact_allowed():
+    """Impact exactly equal to max_impact is allowed (strict-greater denial)."""
+    scope = _walking_skeleton_scope(max_impact=0.0)
+    ok, _ = scope.covers(
+        "system_info.name", "safe_proving_capability", "fixture.inspect",
+        impact_estimate=0.0,
+    )
+    assert ok is True
+    bounded = _walking_skeleton_scope(max_impact=1.0)
+    ok, _ = bounded.covers(
+        "system_info.name", "safe_proving_capability", "fixture.inspect",
+        impact_estimate=1.0,
+    )
+    assert ok is True
+    ok, _ = bounded.covers(
+        "system_info.name", "safe_proving_capability", "fixture.inspect",
+        impact_estimate=1.5,
+    )
+    assert ok is False
+
+
+def test_stage_fails_closed_without_impact_estimate():
+    """Stage-level estimate resolution: absent estimate denies, never 0.0-passes."""
+    import types
+    from orchestrator.brain.capability_broker import ActionProposalStatus
+    from orchestrator.runtime.stages import stage_broker
+    from orchestrator.runtime.types import ActionRequest
+
+    receipt = types.SimpleNamespace(
+        status=ActionProposalStatus.AUTHORIZED,
+        action_id="act_stub",
+        reason="stub allow",
+        metadata={},  # no impact_estimate recorded: must fail closed
+    )
+
+    class _StubBroker:
+        def propose_action(self, **kwargs):
+            return receipt
+
+    ctx = {
+        "broker": _StubBroker(),
+        "capability_name": "fixture.inspect",
+        "planner_request": {
+            "request": ActionRequest(
+                action_type="safe_proving_capability",
+                target="system_info.name",
+            )
+        },
+        "scope": _walking_skeleton_scope(),
+    }
+    result = stage_broker(ctx)
+    assert result.success is False
+    assert "no impact estimate available" in (result.error or "")

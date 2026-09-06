@@ -166,6 +166,8 @@ class ScopeV0:
             impact = float(impact_estimate)
         except (TypeError, ValueError):
             return False, "Scope v0: malformed impact estimate"
+        if impact > self.max_impact:
+            return False, "Scope v0: impact exceeds declared max"
         return True, f"Scope v0: operation inside declared scope ({self.mission_id})"
 
     def to_dict(self) -> dict:

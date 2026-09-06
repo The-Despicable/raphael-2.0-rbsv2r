@@ -198,12 +198,26 @@ def stage_broker(ctx: dict) -> StageResult:
     # by the declared mission scope. Scope-valid is NOT authorization;
     # this is a conjunction, not a second PDP — the Broker has already
     # decided, and the scope only narrows. No scope bound: legacy path.
+    # Impact: covers() evaluates the exact estimate the Broker decided on
+    # (receipt.metadata, written by propose_action). Absent estimate fails
+    # closed — a hardcoded 0.0 must never silently pass an over-cap action.
     scope = ctx.get("scope")
     if scope is not None:
+        metadata = getattr(receipt, "metadata", None)
+        estimate = metadata.get("impact_estimate") if isinstance(metadata, dict) else None
+        if estimate is None:
+            return StageResult.make(
+                stage_name=STAGE_BROKER,
+                success=False,
+                output={"decision": decision},
+                error="§14.6 Scope v0 fail-closed: Scope v0: no impact estimate available",
+                duration_ms=(time.time() - t0) * 1000.0,
+            )
         in_scope, scope_reason = scope.covers(
             request.target,
             request.action_type,
             ctx.get("capability_name", ""),
+            impact_estimate=estimate,
         )
         if not in_scope:
             return StageResult.make(
