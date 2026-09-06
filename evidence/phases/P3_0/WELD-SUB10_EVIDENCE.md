@@ -495,3 +495,174 @@ Guardrails: **26** (was 25 at SUB-14 acceptance).
 ## GLM adjudication handoff
 
 SUB-10 evidence prepared for GLM artifact-only adjudication.
+
+---
+
+## BD-S10 COMPLETION APPENDIX (post-weld verification at current HEAD)
+
+This appendix was added in a records-only commit on top of the
+implementation commit. No source or test files changed in this appendix
+round; this is an evidence-only update (R-W2: no implementation tests
+removed or rewritten here).
+
+### BD-S10-1 — Post-weld closure instruments (re-run at current HEAD)
+
+Command:
+
+```
+$ PYTHONPATH=src python3 evidence/phases/P3_0/_b1a_probe.py
+```
+
+STATIC (verbatim):
+
+```
+======================================================================
+B-1a INSTRUMENT 1: STATIC TRANSITIVE IMPORT-CLOSURE (AST)
+======================================================================
+ORCHESTRATOR_MODULES_IN_STATIC_CLOSURE=31
+ARENA_MODULES_IN_STATIC_CLOSURE=0
+---STATIC_CLOSURE_MODULES---
+orchestrator.brain.action
+orchestrator.brain.belief_transition_policy
+orchestrator.brain.candidate_generators.student_generator
+orchestrator.brain.capability_broker
+orchestrator.brain.contradiction
+orchestrator.brain.defeater_types
+orchestrator.brain.evidence
+orchestrator.brain.hypothesis
+orchestrator.brain.plan_decision
+orchestrator.brain.rate_limiter
+orchestrator.brain.scope_parser
+orchestrator.brain.semantic_types
+orchestrator.brain.trust
+orchestrator.brain.waf_detector
+orchestrator.brain.world
+orchestrator.capabilities.interactive_shell.capability
+orchestrator.capabilities.interactive_shell.command_filter
+orchestrator.capabilities.interactive_shell.listener_manager
+orchestrator.capabilities.interactive_shell.session
+orchestrator.exec.safe_capability
+orchestrator.hardening.action_receipt
+orchestrator.runtime
+orchestrator.runtime.loop
+orchestrator.runtime.organs
+orchestrator.runtime.policy
+orchestrator.runtime.safe_proving_capability
+orchestrator.runtime.stages
+orchestrator.runtime.types
+orchestrator.student.payload_mutator
+orchestrator.student.stack_matcher
+orchestrator.student.student
+```
+
+LOADED (verbatim):
+
+```
+======================================================================
+B-1a INSTRUMENT 2: LOADED-MODULE WALK AFTER FULL EPISODE
+======================================================================
+ORCHESTRATOR_AND_ARENA_MODULES_AFTER_EPISODE=50
+ARENA_MODULES_AFTER_EPISODE=0
+---LOADED_RUNTIME_CLOSURE_MODULES---
+orchestrator.brain
+orchestrator.brain.action
+orchestrator.brain.candidate_generators
+orchestrator.brain.candidate_generators.student_generator
+orchestrator.brain.capability_broker
+orchestrator.brain.contradiction
+orchestrator.brain.evidence
+orchestrator.brain.hypothesis
+orchestrator.brain.neural_memory
+orchestrator.brain.phases
+orchestrator.brain.phases.models
+orchestrator.brain.rate_limiter
+orchestrator.brain.scope_parser
+orchestrator.brain.skill_indexer
+orchestrator.brain.strategy_learner
+orchestrator.brain.target_profiler
+orchestrator.brain.target_state
+orchestrator.brain.trust
+orchestrator.brain.waf_detector
+orchestrator.brain.world
+orchestrator.capabilities
+orchestrator.capabilities.interactive_shell
+orchestrator.capabilities.interactive_shell.capability
+orchestrator.capabilities.interactive_shell.command_filter
+orchestrator.capabilities.interactive_shell.listener_manager
+orchestrator.capabilities.interactive_shell.reverse_shell
+orchestrator.capabilities.interactive_shell.session
+orchestrator.capabilities.interactive_shell.ssh_shell
+orchestrator.capabilities.interactive_shell.tty_normalizer
+orchestrator.exec
+orchestrator.exec.inv1_guard
+orchestrator.exec.safe_capability
+orchestrator.hardening
+orchestrator.hardening.action_receipt
+orchestrator.runtime
+orchestrator.runtime.loop
+orchestrator.runtime.organs
+orchestrator.runtime.policy
+orchestrator.runtime.safe_proving_capability
+orchestrator.runtime.stages
+orchestrator.runtime.types
+orchestrator.student
+orchestrator.student.chain_synthesizer
+orchestrator.student.coverage_gap_filler
+orchestrator.student.integration_pipeline
+orchestrator.student.knowledge_background_service
+orchestrator.student.payload_mutator
+orchestrator.student.research_scheduler
+orchestrator.student.stack_matcher
+orchestrator.student.student
+
+======================================================================
+VERDICTS
+======================================================================
+STATIC_ARENA_FREE: True
+EPISODE_ARENA_FREE: True
+```
+
+Explicit verdicts: STATIC — 31 orchestrator modules / 0 Arena; LOADED — 50 modules / 0 Arena. `orchestrator.kali_tools_client` occurrences in both closures: 0. No canonical Runtime reachability to SUB-10. PARITY-BY-UNREACHABILITY confirmed at the current post-weld HEAD.
+
+### BD-S10-2 — Source-side routing statement
+
+1. `KaliToolsClient.run()` first uses the pre-existing remote HTTP/API path (`httpx.AsyncClient` POST to `{base_url}/run` under the timeout guard).
+2. The retained `httpx` network primitive is pre-existing legacy behavior; it was not introduced by this weld.
+3. SUB-10 is legacy-envelope-only: the ~30 wrapper callers and the deprecated Head-1 loop sit outside the canonical Runtime closure.
+4. The canonical Runtime does not import or invoke `kali_tools_client` (0 occurrences in both B-1a closures above).
+5. On remote failure (`GuardTimeout`, `httpx.ConnectError`, any `Exception`) or local-force conditions (`FORCE_LOCAL` / `_use_local`), execution now FAILS CLOSED with `RuntimeError("kali_tools_client._run_local is removed in WELD-SUB10. All execution must go through the broker-gated capability.")`.
+6. The local subprocess fallback (`_run_local`, `asyncio.create_subprocess_exec`) has been removed; `grep` at the implementation commit confirms `async def _run_local` NOT FOUND and `class KaliBypassNotAuthorized` NOT FOUND.
+7. No new unbrokered canonical primitive path exists: the canonical surface never reached this module.
+8. The weld narrows the legacy envelope: local subprocess execution → fail-closed RuntimeError.
+
+### BD-S10-3 — Seam ledger (exact sequence state)
+
+- SUB-14: WELDED — `740861f2e` (accepted, unchanged)
+- SUB-13: CLOSED-BY-FOLD — `740861f2e` (accepted as part of SUB-14, unchanged)
+- SUB-10: WELDED — `a099ba460` (this round; third closed seam in the sequence)
+- SHELL: DEFERRED / SD-1 — next in fixed sequence, locked pending SUB-10 acceptance
+
+### BD-S10-4 — P3.1 reconciliation (SUB-10 row)
+
+| Seam | Previous state | Current disposition | Implementation commit | Evidence status |
+|---|---|---|---|---|
+| SUB-10 | WRAPPED / LIVE | WELDED | `a099ba460` | prepared for artifact-only adjudication |
+| SUB-14 | WELDED / ACCEPTED | unchanged, accepted | `740861f2e` | accepted |
+| SUB-13 | CLOSED-BY-FOLD / ACCEPTED | unchanged, accepted | `740861f2e` (+ `258a9894` institutional proof) | accepted |
+| SHELL | DEFERRED | deferred, untouched | — | pending SUB-10 acceptance |
+
+### Riding one-liners
+
+1. FLOOR BREAKDOWN: 239 legacy + 8 P2.1 walking skeleton + 9 G2-C2 fail-closed + 26 P2 guardrail + 11 G3-EN-5 = 293.
+2. GUARDRAIL REGISTER: 25 → 26 due to the new SUB-10 institutional test (`test_sub10_kali_client_fails_closed`).
+3. GIT LINEAGE (machine-captured at implementation commit, pre-evidence commit): `2caeb4923 ↓ a099ba460 ↓ evidence commit` (this file only). Implementation/pre-evidence count: 52. Final count is 53 after the evidence commit (52 + 1); see W-D.2. The guardrail count changed 25 → 26 (it did not stay unchanged).
+
+### R-W1 provenance note for this appendix
+
+A. Implementation state: commit `a099ba460`, count 52, five implementation files (one production, three guardrail rewrites, one new test).
+B. Evidence-commit state: this file added on top of `a099ba460`; count therefore 53.
+C. Authoritative current state: established by external machine verification after this records-only commit (see W-D pattern). This file does not embed its own commit hash (self-reference rule).
+
+### R-W2 note for this appendix
+
+This appendix round is evidence-only: no implementation tests were removed or rewritten here. The accepted W-B transition record above is unchanged.
