@@ -30,16 +30,22 @@ class ShellNotAuthorized(Exception):
     pass
 
 
-def require_shell_authorization(authorization) -> None:
+def require_shell_authorization(authorization, expected_session_id=None) -> None:
     """Validate a Broker-issued shell execution context (fail-closed).
 
     Accepts the SessionReceipt returned by
-    CapabilityBroker.authorize_shell_session(). Raises ShellNotAuthorized
-    when the receipt is missing, unauthorized, expired, or not
-    Broker-issued. Duck-typed (no import of session.py) to avoid a
-    circular import: session.py imports ShellConnectionInfo from this
-    module.
+    CapabilityBroker.authorize_shell_session(), or a broker-held
+    ShellSession record. Authorization is bound to broker-issued state:
+    the session_id must resolve to a live entry in the broker-held
+    issuance registry (see session.is_shell_session_authorized).
+    Arbitrary receipt-shaped field bags are rejected. Raises
+    ShellNotAuthorized when the context is missing, unauthorized,
+    expired, revoked, unknown, or mismatched. The session module is
+    imported lazily to avoid a circular import: session.py imports
+    ShellConnectionInfo from this module.
     """
+    from .session import is_shell_session_authorized
+
     if authorization is None:
         raise ShellNotAuthorized(
             "InteractiveShellCapability construction requires a valid "
@@ -48,23 +54,38 @@ def require_shell_authorization(authorization) -> None:
             "Direct construction without broker authorization is denied. "
             "Path ID: SHELL."
         )
-    authorized = getattr(authorization, "authorized", False)
-    authorized_by = getattr(authorization, "authorized_by", "")
-    expires_at = getattr(authorization, "expires_at", 0)
-    session_id = getattr(authorization, "session_id", "")
-    if (
-        authorized is not True
-        or authorized_by != "capability_broker"
-        or not session_id
-        or not isinstance(expires_at, (int, float))
-        or expires_at <= time.time()
-    ):
+    session_id = getattr(authorization, "session_id", None)
+    if not session_id or not isinstance(session_id, str):
         raise ShellNotAuthorized(
-            "Invalid shell execution context: a valid Broker-issued "
-            "SessionReceipt (authorized=True, "
-            "authorized_by='capability_broker', unexpired) is required. "
+            "Invalid shell execution context: no session identity. "
             "Direct construction without broker authorization is denied. "
             "Path ID: SHELL."
+        )
+    if expected_session_id is not None and session_id != expected_session_id:
+        raise ShellNotAuthorized(
+            "Shell execution context does not match the requested session. "
+            "Direct construction without broker authorization is denied. "
+            "Path ID: SHELL."
+        )
+    # Defense in depth: receipt-shaped objects must also carry affirmative
+    # broker-issued fields. Broker-held ShellSession records carry no such
+    # fields and are validated by registry membership alone.
+    if hasattr(authorization, "authorized") or hasattr(
+        authorization, "authorized_by"
+    ):
+        if getattr(authorization, "authorized", False) is not True or getattr(
+            authorization, "authorized_by", ""
+        ) != "capability_broker":
+            raise ShellNotAuthorized(
+                "Invalid shell execution context: not Broker-issued. "
+                "Direct construction without broker authorization is denied. "
+                "Path ID: SHELL."
+            )
+    if not is_shell_session_authorized(session_id):
+        raise ShellNotAuthorized(
+            "Unknown, expired, or revoked shell session: a live "
+            "Broker-issued authorization is required. Direct construction "
+            "without broker authorization is denied. Path ID: SHELL."
         )
 
 

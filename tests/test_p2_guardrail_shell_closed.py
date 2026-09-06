@@ -138,3 +138,118 @@ def test_shell_privileged_construction_requires_broker_receipt():
         ShellCapabilityFactory.create(ssh_info, authorization=ssh_receipt),
         SSHShellCapability,
     )
+
+
+def test_shell_forged_field_bag_rejected():
+    """SHELL-AUTH-1: fabricated receipt-shaped fields without broker issuance denied."""
+    import time
+    import types
+
+    from orchestrator.capabilities.interactive_shell.reverse_shell import (
+        ReverseShellCapability,
+        ReverseShellConnectionInfo,
+    )
+    from orchestrator.capabilities.interactive_shell.capability import (
+        ShellCapabilityType,
+        ShellNotAuthorized,
+    )
+
+    forged = types.SimpleNamespace(
+        authorized=True,
+        authorized_by="capability_broker",
+        session_id="attacker-forged-session",
+        expires_at=time.time() + 3600,
+    )
+    info = ReverseShellConnectionInfo(
+        capability_type=ShellCapabilityType.REVERSE_TCP,
+        target="10.0.0.100",
+        lhost="127.0.0.1",
+        lport=4444,
+    )
+    with pytest.raises(ShellNotAuthorized):
+        ReverseShellCapability(connection_info=info, authorization=forged)
+
+
+def test_shell_unknown_and_expired_sessions_rejected():
+    """SHELL-AUTH-3: unknown and expired sessions fail closed."""
+    import time
+
+    from orchestrator.capabilities.interactive_shell.reverse_shell import (
+        ReverseShellCapability,
+        ReverseShellConnectionInfo,
+    )
+    from orchestrator.capabilities.interactive_shell.capability import (
+        ShellCapabilityType,
+        ShellNotAuthorized,
+    )
+    from orchestrator.capabilities.interactive_shell.session import (
+        SessionReceipt,
+        ShellSessionStatus,
+    )
+
+    def receipt_for(session_id, expires_at):
+        return SessionReceipt(
+            session_id=session_id,
+            authorized=True,
+            status=ShellSessionStatus.AUTHORIZED,
+            expires_at=expires_at,
+            restrictions={},
+            reason="test",
+            policy_version="1.0",
+            authorized_by="capability_broker",
+        )
+
+    info = ReverseShellConnectionInfo(
+        capability_type=ShellCapabilityType.REVERSE_TCP,
+        target="10.0.0.100",
+        lhost="127.0.0.1",
+        lport=4444,
+    )
+
+    # Unknown session: well-formed receipt never issued by the broker.
+    with pytest.raises(ShellNotAuthorized):
+        ReverseShellCapability(
+            connection_info=info,
+            authorization=receipt_for(
+                "never-issued-session", time.time() + 3600
+            ),
+        )
+
+    # Expired authorization.
+    with pytest.raises(ShellNotAuthorized):
+        ReverseShellCapability(
+            connection_info=info,
+            authorization=receipt_for("expired-session", time.time() - 1),
+        )
+
+
+def test_shell_listener_requires_authorization():
+    """SHELL-AUTH-4: ListenerManager create/destroy require broker authorization."""
+    import asyncio
+
+    from orchestrator.capabilities.interactive_shell.listener_manager import (
+        ListenerManager,
+    )
+    from orchestrator.capabilities.interactive_shell.capability import (
+        ShellNotAuthorized,
+    )
+
+    manager = ListenerManager(
+        allowed_lhost_cidrs=["127.0.0.1/32"],
+        allowed_lport_range=(4460, 4469),
+    )
+
+    # Direct create without authorization fails closed (no socket bound).
+    with pytest.raises(ShellNotAuthorized):
+        asyncio.run(
+            manager.create_listener(
+                session_id="unauthorized-session",
+                lhost="127.0.0.1",
+                lport=4461,
+            )
+        )
+    assert 4461 not in manager._allocated_ports
+
+    # Direct destroy without authorization fails closed.
+    with pytest.raises(ShellNotAuthorized):
+        asyncio.run(manager.destroy_listener("unauthorized-session"))

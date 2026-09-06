@@ -78,6 +78,8 @@ from orchestrator.capabilities.interactive_shell.session import (
     CommandFilterDecision,
     ShellSessionStore,
     TerminationReceipt,
+    register_authorized_shell_session,
+    revoke_authorized_shell_session,
 )
 from orchestrator.capabilities.interactive_shell.listener_manager import get_listener_manager
 from orchestrator.capabilities.interactive_shell.command_filter import CommandFilterPipeline, FilterDecision
@@ -667,7 +669,10 @@ class CapabilityBroker:
                     metadata={"lhost": proposal.lhost, "lport": proposal.lport},
                 ))
             else:
-                # Provision listener
+                # Provision listener. Register the session first so the
+                # listener boundary can verify broker-issued provenance;
+                # revoked below if the session is ultimately denied.
+                register_authorized_shell_session(session_id, session.expires_at)
                 try:
                     import asyncio
                     loop = asyncio.new_event_loop()
@@ -680,6 +685,7 @@ class CapabilityBroker:
                             protocol="tcp",
                             allowed_callback_cidrs=proposal.metadata.get("allowed_callback_cidrs"),
                             callback_timeout=proposal.metadata.get("callback_timeout", 60.0),
+                            authorization=session,
                         )
                     )
                     loop.close()
@@ -705,6 +711,7 @@ class CapabilityBroker:
             session.transition(ShellSessionStatus.AUTHORIZED)
             self._shell_sessions[session_id] = session
             self._shell_session_store.save(session)
+            register_authorized_shell_session(session_id, session.expires_at)
 
             receipt = SessionReceipt(
                 session_id=session_id,
@@ -724,6 +731,7 @@ class CapabilityBroker:
             logger.info(f"Shell session authorized: {session_id} ({proposal.capability_type.value} on {proposal.target})")
         else:
             session.transition(ShellSessionStatus.ERROR)
+            revoke_authorized_shell_session(session_id)
             deny_reasons = [c.reason for c in checks if c.decision == AuthorizationDecision.DENY]
             receipt = SessionReceipt(
                 session_id=session_id,
@@ -791,6 +799,7 @@ class CapabilityBroker:
         if session.check_denial_threshold():
             session.transition(ShellSessionStatus.TERMINATING)
             self._shell_session_store.save(session)
+            revoke_authorized_shell_session(session_id)
             return CommandReceipt(
                 command_id=f"cmd_{uuid.uuid4().hex[:12]}",
                 session_id=session_id,
@@ -1009,7 +1018,9 @@ class CapabilityBroker:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             try:
-                loop.run_until_complete(self._listener_manager.destroy_listener(session_id))
+                loop.run_until_complete(self._listener_manager.destroy_listener(
+                    session_id, authorization=session
+                ))
             finally:
                 loop.close()
 
@@ -1017,6 +1028,7 @@ class CapabilityBroker:
         session.transition(ShellSessionStatus.TERMINATED)
         self._shell_session_store.save(session)
         self._shell_sessions.pop(session_id, None)
+        revoke_authorized_shell_session(session_id)
 
         receipt = TerminationReceipt(
             session_id=session_id,

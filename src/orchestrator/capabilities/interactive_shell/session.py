@@ -15,6 +15,38 @@ from typing import Any, Optional
 from .capability import ShellCapabilityType, ShellConnectionInfo
 
 
+# ── Broker-issued shell authorization registry (Weld-SHELL) ──────────────
+# The CapabilityBroker records every shell session it authorizes here.
+# Shell constructors and ListenerManager consult this registry (via
+# is_shell_session_authorized) so that authorization is bound to
+# broker-issued state, not to arbitrary receipt-shaped fields.
+# No second PDP: the Broker remains the sole writer of this registry.
+_AUTHORIZED_SHELL_SESSIONS: dict = {}  # session_id -> expires_at (float)
+
+
+def register_authorized_shell_session(session_id: str, expires_at: float) -> None:
+    """Record a Broker-authorized shell session (called by CapabilityBroker)."""
+    _AUTHORIZED_SHELL_SESSIONS[session_id] = expires_at
+
+
+def revoke_authorized_shell_session(session_id: str) -> None:
+    """Remove a shell session from the authorized set (terminate/revoke)."""
+    _AUTHORIZED_SHELL_SESSIONS.pop(session_id, None)
+
+
+def is_shell_session_authorized(session_id: str) -> bool:
+    """True iff session_id was Broker-authorized and is unexpired."""
+    if not session_id or not isinstance(session_id, str):
+        return False
+    expires_at = _AUTHORIZED_SHELL_SESSIONS.get(session_id)
+    if expires_at is None:
+        return False
+    if not isinstance(expires_at, (int, float)) or expires_at <= time.time():
+        _AUTHORIZED_SHELL_SESSIONS.pop(session_id, None)
+        return False
+    return True
+
+
 class ShellSessionStatus(str, Enum):
     """Lifecycle states for a shell session."""
     PROPOSED = "proposed"           # Planner proposed, awaiting Broker authorization

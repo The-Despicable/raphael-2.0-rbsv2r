@@ -134,6 +134,7 @@ class ListenerManager:
         key_path: str = "",
         allowed_callback_cidrs: List[str] = None,
         callback_timeout: float = 60.0,
+        authorization=None,
     ) -> ListenerConfig:
         """
         Create and start a reverse shell listener.
@@ -141,9 +142,15 @@ class ListenerManager:
         This is called by CapabilityBroker.authorize_shell_session()
         for reverse_tcp capability types.
 
+        Weld-SHELL (P3) SD-1: requires a Broker-issued authorization
+        bound to this session_id. Direct invocation without broker
+        authorization fails closed.
+
         Returns:
             ListenerConfig with the actual bound lhost/lport
         """
+        from .capability import require_shell_authorization
+        require_shell_authorization(authorization, expected_session_id=session_id)
         # Validate
         if not self.validate_lhost(lhost):
             raise ValueError(f"LHOST {lhost} not in allowed CIDR ranges")
@@ -234,8 +241,15 @@ class ListenerManager:
             return self._listeners.get(lport)
         return None
 
-    async def destroy_listener(self, session_id: str) -> bool:
-        """Destroy listener associated with a session."""
+    async def destroy_listener(self, session_id: str, authorization=None) -> bool:
+        """Destroy listener associated with a session.
+
+        Weld-SHELL (P3) SD-1: requires a Broker-issued authorization
+        bound to this session_id. Direct invocation without broker
+        authorization fails closed.
+        """
+        from .capability import require_shell_authorization
+        require_shell_authorization(authorization, expected_session_id=session_id)
         lport = self._session_to_port.pop(session_id, None)
         if lport is None:
             logger.warning("No listener found for session %s", session_id)
@@ -256,14 +270,22 @@ class ListenerManager:
 
         return False
 
-    async def destroy_listener_by_port(self, lport: int) -> bool:
-        """Destroy listener by port."""
+    async def destroy_listener_by_port(
+        self, lport: int, authorization=None
+    ) -> bool:
+        """Destroy listener by port.
+
+        Weld-SHELL (P3) SD-1: authorization is forwarded to
+        destroy_listener and subject to the same boundary.
+        """
         active = self._listeners.get(lport)
         if not active:
             return False
 
         session_id = active.config.session_id
-        return await self.destroy_listener(session_id)
+        return await self.destroy_listener(
+            session_id, authorization=authorization
+        )
 
     def get_all_listeners(self) -> List[ListenerConfig]:
         """Get all active listener configs."""
@@ -293,7 +315,7 @@ class ListenerManager:
             active.connections_accepted += 1
             active.last_callback_at = time.time()
 
-    async def cleanup_expired(self, max_age_seconds: float = 3600):
+    async def cleanup_expired(self, max_age_seconds: float = 3600, authorization=None):
         """Clean up listeners older than max_age (orphaned sessions)."""
         now = time.time()
         expired = [
@@ -305,13 +327,16 @@ class ListenerManager:
             session_id = self._port_to_session.get(lport)
             if session_id:
                 logger.warning("Cleaning up expired listener for session %s (port %d)", session_id, lport)
-                await self.destroy_listener(session_id)
+                await self.destroy_listener(session_id, authorization=authorization)
 
-    async def shutdown_all(self):
-        """Shutdown all listeners (graceful shutdown)."""
+    async def shutdown_all(self, authorization=None):
+        """Shutdown all listeners (graceful shutdown).
+
+        Weld-SHELL (P3) SD-1: authorization is forwarded per listener.
+        """
         ports = list(self._listeners.keys())
         for lport in ports:
-            await self.destroy_listener_by_port(lport)
+            await self.destroy_listener_by_port(lport, authorization=authorization)
 
         logger.info("All listeners shut down")
 
