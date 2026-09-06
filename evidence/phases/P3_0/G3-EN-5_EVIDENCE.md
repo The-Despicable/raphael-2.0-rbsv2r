@@ -1,8 +1,8 @@
 # RAPHAEL P3.0 G3-EN-5 — Final Evidence Package (Organ Wiring)
 
-> Submission HEAD: `d480bdf66ed3696916cbd83c075b8d0a37ca0884`
-> Branch: `main` (ahead of `origin/main` by 44)
-> Commit count since canonical `7272880f7`: **44** (per `git rev-list --count 7272880f7..HEAD`)
+> Submission HEAD: `f26859de7b9050889531d98949e40cff99bd5f08`
+> Branch: `main` (ahead of `origin/main` by 45)
+> Commit count since canonical `7272880f7`: **45** (per `git rev-list --count 7272880f7..HEAD`)
 > Probe evidence-capture script: `evidence/phases/P3_0/_b1a_probe.py`
 > Author: RAPHAEL P3.0 G3-EN-5 Audit
 > Phase: P3.0 G3-EN-5 (canonical organ wiring)
@@ -23,12 +23,19 @@ The code tree being proved is the tree at `7c10c8331cbca06db99e3e99382fb70353013
 (G3-EN-5 implementation commit). Commits between `7c10c8331` and the
 current HEAD are evidence/records/test-correction commits only.
 
+Prior capture HEAD (the HEAD at the moment the B-1a probe was
+executed and the B-1a transcripts were captured):
+`d480bdf66ed3696916cbd83c075b8d0a37ca0884` (count 44). The current
+HEAD `f26859de` is a records-only commit that captures this
+corrected evidence package; no source or test was modified in that
+commit.
+
 ---
 
 ## B-1a — CLOSURE INSTRUMENTS (machine-verifiable, both GREEN)
 
 The two arena-closure instruments were executed against the LIVE
-runtime at the actual submission HEAD
+runtime at the actual capture HEAD
 (`d480bdf66ed3696916cbd83c075b8d0a37ca0884`) via the evidence-capture
 probe `evidence/phases/P3_0/_b1a_probe.py`. The exact command and
 verdicts:
@@ -46,7 +53,7 @@ $ PYTHONPATH=src python3 evidence/phases/P3_0/_b1a_probe.py
   from `orchestrator.runtime`. Returns sorted closure + any arena
   modules in closure.
 
-**Verbatim output (transcript from probe run at HEAD `d480bdf6`):**
+**Verbatim output (transcript from probe run at capture HEAD `d480bdf6`):**
 
 ```
 ======================================================================
@@ -100,7 +107,7 @@ the static transitive closure. **0 arena modules.**
   `sys.modules` for `orchestrator.*` + `arena.*`. Returns sorted closure
   + any arena modules.
 
-**Verbatim output (transcript from probe run at HEAD `d480bdf6`):**
+**Verbatim output (transcript from probe run at capture HEAD `d480bdf6`):**
 
 ```
 ======================================================================
@@ -204,35 +211,45 @@ tests/test_g3_en5_organ_wiring.py::test_g3_en5_arena_free PASSED         [100%]
 
 ## B-1b — MACHINE-GENERATED PROVENANCE (verbatim transcript at submission HEAD)
 
-These outputs were captured by executing `git` directly at the actual
-submission HEAD. They are not hand-authored.
+These outputs were captured by executing `git` directly at the
+current submission HEAD. They are not hand-authored.
 
 ```
 $ git rev-parse HEAD
-d480bdf66ed3696916cbd83c075b8d0a37ca0884
+f26859de7b9050889531d98949e40cff99bd5f08
 
 $ git rev-list --count 7272880f7..HEAD
-44
+45
 
 $ git status -sb
-## main...origin/main [ahead 44]
+## main...origin/main [ahead 45]
 ```
 
-The `git status -sb` line shows the `evidence/phases/P3_0/_b1a_probe.py`
-untracked-file entry is **not** present in the in-tree `git status`
-output because the probe lives in the evidence subdirectory tracked
-by the tree (it is untracked because it was created in this evidence
-session and is not part of any source/test change).
-
-Note: an earlier `git status` run did show `_b1a_probe.py`,
-`_probe_arena_free.py`, `_probe_arena_free_v2.py` as untracked files
-at the repo root; those two scratch variants (`_probe_arena_free.py`,
-`_probe_arena_free_v2.py`) have since been removed; the canonical
-B-1a probe is now at `evidence/phases/P3_0/_b1a_probe.py`.
+The `git status -sb` line shows a clean tree (working tree matches
+HEAD; only the records-only commit `f26859de` is ahead of `origin/main`).
 
 ```
-$ git log --oneline --decorate -n 50
-d480bdf66 (HEAD -> main) G3-EN-5: FINAL evidence package — all B-1a/B-1b/B-1c/B-1d requirements satisfied
+$ git log --oneline --decorate -n 10
+f26859de7 (HEAD -> main) G3-EN-5: B-1a/B-1b/B-1c/B-1d evidence package — machine-verifiable
+d480bdf66 G3-EN-5: FINAL evidence package — all B-1a/B-1b/B-1c/B-1d requirements satisfied
+7ec4b26fd G3-EN-5 evidence: FINAL reconciliation
+4dccb4a8f G3-EN-5 evidence: final internally consistent package
+afe11c791 G3-EN-5: EN5-C4 source correction - real isinstance for all 7 organs
+65daca152 G3-EN-5 evidence: EN5-C1..C4 records corrections
+ab8a36239 G3-EN-5 evidence: final final provenance correction
+83e8e9fc4 G3-EN-5 evidence: final provenance correction
+c92b78b56 G3-EN-5 evidence: correct HEAD, commit count, branch, and sequencing
+d9a50ffe4 G3-EN-5 evidence: organ wiring complete, 289 passed, G3-EN-5 satisfied
+```
+
+**The evidence document refers to submission HEAD `f26859de7b9050889531d98949e40cff99bd5f08`, commit count 45.**
+
+Full lineage since canonical `7272880f7` (top to bottom, 45 commits):
+
+```
+$ git log --oneline --decorate 7272880f7..HEAD
+f26859de7 (HEAD -> main) G3-EN-5: B-1a/B-1b/B-1c/B-1d evidence package — machine-verifiable
+d480bdf66 G3-EN-5: FINAL evidence package — all B-1a/B-1b/B-1c/B-1d requirements satisfied
 7ec4b26fd G3-EN-5 evidence: FINAL reconciliation
 4dccb4a8f G3-EN-5 evidence: final internally consistent package
 afe11c791 G3-EN-5: EN5-C4 source correction - real isinstance for all 7 organs
@@ -278,8 +295,6 @@ b3f32f5ae P2.0: transcribe ADR-001..010 from v4 §12.2 + ADR-011 addendum + ADR-
 a68c129a8 (tag: raphael-p1-post-migration-7272880f) P1: canonical runtime packaging + seam work (per v4 §12 + v4.1 AM-4/AM-7/AM-13.3)
 7272880f7 (grafted, tag: raphael-p1-pre-migration-7272880f, tag: raphael-p0-baseline-7272880f, origin/main, origin/HEAD) chore: purge offensive payloads from working tree (W0.5 scope)
 ```
-
-**The evidence document refers to submission HEAD `d480bdf66ed3696916cbd83c075b8d0a37ca0884`, commit count 44.**
 
 ---
 
@@ -355,10 +370,10 @@ Verified by `git show 22eff1774:tests/...py | grep "def test_"`:
 ### Full accounting
 
 ```
-P2.0 (982079425):   5 + 2 + 2 + 3 + 5 = 17
-RC-D (02c3b9c01):   1 removed (P9), 2 renamed/scope-narrowed → 16
-GLM RC-B (03385c311): 3 added, 1 skip removed (strengthened)       → 19
-CONV-2/3 (22eff1774): 5 added (INV-1/CONV-3 tests)                → 24
+P2.0 (982079425):       5 + 2 + 2 + 3 + 5 = 17
+RC-D (02c3b9c01):       1 removed (P9), 2 renamed/scope-narrowed → 16
+GLM RC-B (03385c311):   3 added, 1 skip removed (strengthened)     → 19
+CONV-2/3 (22eff1774):   5 added (INV-1/CONV-3 tests)              → 24
 ─────────────────────────────────────
 Final:                                                                24
 ```
@@ -388,7 +403,7 @@ stage handlers invoked by `RaphaelRuntime.step()` via
 
 The institutional isinstance tests live in
 `tests/test_g3_en5_organ_wiring.py`. Verbatim pytest transcript at
-HEAD `d480bdf6`:
+current HEAD:
 
 ```
 $ PYTHONPATH=src python3 -m pytest tests/test_g3_en5_organ_wiring.py -v
@@ -556,7 +571,7 @@ that commit (`git show --name-status 7c10c8331`):
 | A | `tests/test_g3_en5_organ_wiring.py` | NEW — 11 verification tests (all pass) |
 
 Commits between `7c10c8331` and the current HEAD
-(`d480bdf66ed3696916cbd83c075b8d0a37ca0884`) are records/evidence/
+(`f26859de7b9050889531d98949e40cff99bd5f08`) are records/evidence/
 test-correction commits; the code tree being proved is the tree at
 `7c10c8331`.
 
@@ -582,9 +597,9 @@ test-correction commits; the code tree being proved is the tree at
 
 ## 5. Final Verification (one-shot, machine-captured)
 
-**Submission HEAD:** `d480bdf66ed3696916cbd83c075b8d0a37ca0884`
-**Commit count since canonical:** 44
-**Branch:** `main` (ahead of `origin/main` by 44)
+**Submission HEAD:** `f26859de7b9050889531d98949e40cff99bd5f08`
+**Commit count since canonical:** 45
+**Branch:** `main` (ahead of `origin/main` by 45)
 **Pytest result:** 291 passed, 0 failed, 0 skipped, 0 xfail
 **B-1a probe:** Static closure 31 / 0 arena; Post-episode 50 / 0 arena; institutional pytest PASS
 **B-1b provenance:** captured verbatim from `git` CLI at HEAD
