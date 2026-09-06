@@ -524,3 +524,115 @@ Floor breakdown: 239 legacy + 8 P2.1 + 9 G2-C2 + 27 P2 guardrail + 11 G3-EN-5 = 
 ## GLM adjudication handoff
 
 SHELL evidence prepared for GLM artifact-only adjudication.
+
+---
+
+## BD-SHELL REMEDIATION APPENDIX (GLM-authorized defect fixes)
+
+This appendix records the GLM-authorized remediation of the two
+implementation defects found in audit (forgeable duck-typed
+authorization; ungated ListenerManager). No architecture redesign, no
+second PDP, no new stages. This is an implementation + records round;
+R-W2 applies to the test additions below.
+
+### R1 — Broker-state-bound authorization (fixes DEFECT 1)
+
+`session.py` now holds a broker-written issuance registry:
+
+```python
+_AUTHORIZED_SHELL_SESSIONS: dict = {}  # session_id -> expires_at (float)
+
+def register_authorized_shell_session(session_id: str, expires_at: float) -> None: ...
+def revoke_authorized_shell_session(session_id: str) -> None: ...
+def is_shell_session_authorized(session_id: str) -> bool: ...  # present + unexpired, prunes expired
+```
+
+`capability.py require_shell_authorization(authorization, expected_session_id=None)`:
+1. extracts `session_id` (absent/non-string → deny);
+2. enforces `expected_session_id` match when given;
+3. keeps the affirmative-field sanity check for receipt-shaped objects;
+4. **requires a live registry hit** (`is_shell_session_authorized`) — the
+   provenance binding. Import is lazy (function-level) to avoid the
+   `session.py → capability.py` circular import.
+
+`capability_broker.py` (existing session path only):
+- `authorize_shell_session` success: `register_authorized_shell_session(session_id, session.expires_at)`;
+  provisional registration before listener provisioning with revoke on the
+  deny path (receipt does not exist yet at provisioning time);
+- denial-threshold TERMINATING: revoke;
+- `terminate_shell_session`: passes the broker-held session record as
+  `authorization` to `destroy_listener`, then pops and revokes;
+- `create_listener` call site passes `authorization=session`.
+
+Machine-demonstrated before/after:
+```
+# BEFORE (duck-typed only):
+FORGED RECEIPT ACCEPTED / FORGED CONSTRUCTION SUCCEEDED
+# AFTER (registry-bound):
+forged denied (GOOD)
+```
+
+### R2 — Listener gating (fixes DEFECT 2)
+
+`listener_manager.py`: `create_listener(..., authorization=None)` and
+`destroy_listener(session_id, authorization=None)` both validate via
+`require_shell_authorization` (`create` additionally binds
+`expected_session_id=session_id`). `destroy_listener_by_port`,
+`cleanup_expired`, and `shutdown_all` accept and forward an optional
+`authorization` (fail closed by default). No in-repo callers of these
+helpers pass authorization today; the only production callers
+(`capability_broker.py:676` create with the broker-held session,
+`:1012` destroy with the broker-held session) were updated.
+
+### R3 — Tests (R-W2)
+
+`tests/test_p2_guardrail_shell_closed.py` grows 1 → 4 tests, all in
+implementation commit `379f037e1`:
+- `test_shell_privileged_construction_requires_broker_receipt` (RETAINED from prior round, unchanged)
+- `test_shell_forged_field_bag_rejected` (ADDED: forged SimpleNamespace denied)
+- `test_shell_unknown_and_expired_sessions_rejected` (ADDED: unknown + expired denied)
+- `test_shell_listener_requires_authorization` (ADDED: unauthenticated create/destroy denied, no port bound)
+
+```
+$ PYTHONPATH=src python3 -m pytest tests/test_p2_guardrail_shell_closed.py -v --no-header
+tests/test_p2_guardrail_shell_closed.py::test_shell_privileged_construction_requires_broker_receipt PASSED [ 25%]
+tests/test_p2_guardrail_shell_closed.py::test_shell_forged_field_bag_rejected PASSED [ 50%]
+tests/test_p2_guardrail_shell_closed.py::test_shell_unknown_and_expired_sessions_rejected PASSED [ 75%]
+tests/test_p2_guardrail_shell_closed.py::test_shell_listener_requires_authorization PASSED [100%]
+4 passed in 0.28s
+```
+
+e1 (34) and e2 (36) unchanged and passing; no e1/e2 transitions in this
+round. Full floor: **297 passed**, 0 failed, 0 skipped, 0 xfail
+(previous 294; delta **+3**, the three new remediation tests).
+Guardrails: **30** (was 27).
+
+Bearer-token caveat (honest): a snooped *valid live* session_id presented
+with affirmative fields would pass construction-time validation, exactly
+as presenting a stolen live receipt would. Token theft is out of scope
+for constructor gating; per-command authorization remains broker-enforced
+and termination revokes issuance.
+
+### R4 — Invariants re-verified at remediation HEAD
+
+```
+$ PYTHONPATH=src python3 -m pytest tests/test_g3_en5_organ_wiring.py tests/test_p2_guardrail_inv1.py tests/test_g2_c2_fail_closed.py --no-header -q
+25 passed, 1 warning in 0.80s
+$ PYTHONPATH=src python3 -m pytest tests/e1_interactive_shell_test.py tests/e2_shell_candidate_generation_test.py --no-header -q
+70 passed in 0.50s
+```
+Single PDP, single loop, INV-1/INV-2, fail-closed green. SUB-14/SUB-13/SUB-10 untouched
+(`grep` confirms zero reintroduction; their guardrail asserts unchanged and passing).
+Closure re-run at remediation HEAD: static 31/0, loaded 50/0, both verdicts True.
+Parity re-run at remediation HEAD: IDENTICAL to pre-weld baseline (10/10 stages).
+
+### R5 — Provenance for this round (three-state model)
+
+- Implementation state: commit `379f037e1`, count 57, five files
+  (session.py, capability.py, listener_manager.py, capability_broker.py,
+  test_p2_guardrail_shell_closed.py).
+- Evidence-commit state: this file amended on top of `379f037e1`
+  (this file only); count therefore 58.
+- Authoritative current state: established by external machine
+  verification after the records commit (self-reference rule: this file
+  does not embed its own commit hash).
