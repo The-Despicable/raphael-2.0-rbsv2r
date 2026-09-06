@@ -13,6 +13,7 @@ At P2.0, Runtime is not yet created. This test verifies:
 1. No existing module under orchestrator/ or raphael/ imports a seam module
 2. The seam interface (if it exists) is never imported by code that could
    become Runtime
+After WELD-SUB14, the _subprocess_fallback method is removed from Executor.
 """
 import ast
 from pathlib import Path
@@ -101,14 +102,10 @@ def test_no_orchestrator_imports_seam_pattern():
 
 
 def test_seam_quarantines_are_off_by_default():
-    """v4.1 AM-4.2: seam is OFF by default.
-
-    Verify the SUB-10 and SUB-14 quarantine flags are at their default
-    OFF state in the current source.
-    """
+    """SUB-14 seam: _subprocess_fallback method is removed after WELD-SUB14.
+    SUB-10 seam: _BYPASS_AUTHORIZED flag is OFF by default."""
+    # Check SUB-10: _BYPASS_AUTHORIZED must be False
     kali_file = SRC_ROOT / "orchestrator" / "kali_tools_client.py"
-    executor_file = SRC_ROOT / "raphael" / "executor" / "executor.py"
-
     if kali_file.exists():
         content = kali_file.read_text()
         # Check that _BYPASS_AUTHORIZED is defined as False
@@ -120,13 +117,15 @@ def test_seam_quarantines_are_off_by_default():
         assert "KaliBypassNotAuthorized" in content, (
             "SUB-10 seam: must raise KaliBypassNotAuthorized when not authorized"
         )
-
+    # Check SUB-14: _subprocess_fallback method is removed
+    executor_file = SRC_ROOT / "raphael" / "executor" / "executor.py"
     if executor_file.exists():
         content = executor_file.read_text()
-        assert "_bypass_authorized: bool = False" in content, (
-            "SUB-14 seam: _bypass_authorized must default to False "
-            "(v4.1 AM-4 weld discipline)"
+        # The method should not exist
+        assert "_subprocess_fallback" not in content, (
+            "SUB-14 seam: _subprocess_fallback method must be removed after WELD-SUB14"
         )
-        assert "BypassNotAuthorized" in content, (
-            "SUB-14 seam: must raise BypassNotAuthorized when not authorized"
+        # Also check that the field _bypass_authorized is removed
+        assert "_bypass_authorized" not in content, (
+            "SUB-14 seam: _bypass_authorized field must be removed after WELD-SUB14"
         )

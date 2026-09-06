@@ -29,6 +29,8 @@ SRC_ROOT = REPO_ROOT / "src"
 TESTS_ROOT = REPO_ROOT / "tests"
 
 # Functions that opt-in to the seam (must NOT be called from production code)
+# Note: authorize_bypass is removed in WELD-SUB14, so we only check for authorize_local_bypass in production
+# However, we keep the set for completeness and to avoid breaking the AST function if the string appears in comments.
 BYPASS_FUNCTIONS = {
     "authorize_bypass",
     "authorize_local_bypass",
@@ -108,11 +110,11 @@ def test_bypass_functions_only_callable_via_explicit_optin():
     """The bypass opt-in functions must require an explicit 'reason' parameter.
 
     This ensures that any future opt-in is documented.
+    Note: authorize_bypass is removed in WELD-SUB14, so we only check authorize_local_bypass.
     """
     sys.path.insert(0, str(SRC_ROOT))
 
     from orchestrator import kali_tools_client
-    from raphael.executor.executor import Executor
 
     # Check authorize_local_bypass
     sig_kali = inspect.signature(kali_tools_client.authorize_local_bypass)
@@ -120,8 +122,4 @@ def test_bypass_functions_only_callable_via_explicit_optin():
         "authorize_local_bypass must require a 'reason' parameter"
     )
 
-    # Check authorize_bypass
-    sig_exec = inspect.signature(Executor.authorize_bypass)
-    assert "reason" in sig_exec.parameters, (
-        "Executor.authorize_bypass must require a 'reason' parameter"
-    )
+    # Note: authorize_bypass is removed in WELD-SUB14, so we do not check it.

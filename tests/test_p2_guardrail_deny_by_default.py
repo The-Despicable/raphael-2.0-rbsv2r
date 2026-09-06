@@ -10,9 +10,9 @@ Per v4 master roadmap:
 
 This test verifies that:
 1. SUB-10 (kali_tools_client._run_local) raises when called without opt-in
-2. SUB-14 (executor._subprocess_fallback) raises when called without opt-in
-3. The opt-in functions (authorize_local_bypass, authorize_bypass) exist
-   but the flags are OFF by default
+2. SUB-14 (executor._subprocess_fallback) is removed after WELD-SUB14
+3. The opt-in functions (authorize_local_bypass, authorize_bypass) exist for SUB-10, but authorize_bypass is removed after WELD-SUB14
+4. Both seams are OFF after fresh import (SUB-10 via flag, SUB-14 via removal)
 """
 import asyncio
 import inspect
@@ -46,22 +46,14 @@ def test_sub10_kali_bypass_raises_when_not_authorized():
         asyncio.run(_run_local("echo", "test", 5))
 
 
-def test_sub14_executor_bypass_raises_when_not_authorized():
-    """SUB-14: Executor._subprocess_fallback raises BypassNotAuthorized
-    when _bypass_authorized is False (default)."""
-    from raphael.executor.executor import BypassNotAuthorized, Executor
+def test_sub14_executor_bypass_removed():
+    """SUB-14: Executor._subprocess_fallback method is removed after WELD-SUB14."""
+    from raphael.executor.executor import Executor
 
-    # Verify default state
-    assert Executor._bypass_authorized is False, (
-        "SUB-14: Executor._bypass_authorized must default to False (v4.1 AM-4)"
+    # The _subprocess_fallback method should not exist on the class
+    assert not hasattr(Executor, "_subprocess_fallback"), (
+        "Executor should not have _subprocess_fallback method after WELD-SUB14"
     )
-
-    # _subprocess_fallback is an instance method. Create a minimal Executor
-    # instance (bypassing __init__) to test the quarantine gate.
-    executor = Executor.__new__(Executor)
-    # Verify _subprocess_fallback raises when not authorized
-    with pytest.raises(BypassNotAuthorized):
-        asyncio.run(executor._subprocess_fallback("echo", "test", 5))
 
 
 def test_sub10_authorize_local_bypass_exists():
@@ -80,24 +72,18 @@ def test_sub10_authorize_local_bypass_exists():
     )
 
 
-def test_sub14_authorize_bypass_exists():
-    """SUB-14: Executor.authorize_bypass() opt-in method exists."""
+def test_sub14_authorize_bypass_removed():
+    """SUB-14: Executor.authorize_bypass method is removed after WELD-SUB14."""
     from raphael.executor.executor import Executor
 
-    assert hasattr(Executor, "authorize_bypass"), (
-        "SUB-14: Executor.authorize_bypass() opt-in method must exist"
-    )
-    sig = inspect.signature(Executor.authorize_bypass)
-    assert "reason" in sig.parameters, (
-        "SUB-14: Executor.authorize_bypass must accept a 'reason' parameter"
+    assert not hasattr(Executor, "authorize_bypass"), (
+        "Executor should not have authorize_bypass method after WELD-SUB14"
     )
 
 
 def test_seam_state_consistent_across_imports():
-    """Both SUB-10 and SUB-14 seams must be OFF after fresh import.
-
-    This catches any state leakage between test runs.
-    """
+    """SUB-10 seam: _BYPASS_AUTHORIZED flag is OFF by default.
+    SUB-14 seam: _subprocess_fallback method is removed (so OFF by construction)."""
     import importlib
 
     # Force reimport
@@ -110,4 +96,6 @@ def test_seam_state_consistent_across_imports():
     from raphael.executor.executor import Executor
 
     assert _BYPASS_AUTHORIZED is False
-    assert Executor._bypass_authorized is False
+    # The Executor seam is removed, so we check for the absence of the field/method
+    assert not hasattr(Executor, "_bypass_authorized")
+    assert not hasattr(Executor, "_subprocess_fallback")
