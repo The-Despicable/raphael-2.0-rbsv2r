@@ -103,19 +103,22 @@ def test_no_orchestrator_imports_seam_pattern():
 
 def test_seam_quarantines_are_off_by_default():
     """SUB-14 seam: _subprocess_fallback method is removed after WELD-SUB14.
-    SUB-10 seam: _BYPASS_AUTHORIZED flag is OFF by default."""
-    # Check SUB-10: _BYPASS_AUTHORIZED must be False
+    SUB-10 seam: bypass symbols are removed after WELD-SUB10."""
+    # Check SUB-10: bypass symbols must be absent from the source
     kali_file = SRC_ROOT / "orchestrator" / "kali_tools_client.py"
     if kali_file.exists():
         content = kali_file.read_text()
-        # Check that _BYPASS_AUTHORIZED is defined as False
-        assert "_BYPASS_AUTHORIZED: bool = False" in content, (
-            "SUB-10 seam: _BYPASS_AUTHORIZED must default to False "
-            "(v4.1 AM-4 weld discipline)"
+        assert "_BYPASS_AUTHORIZED: bool = False" not in content, (
+            "SUB-10 seam: _BYPASS_AUTHORIZED flag must be removed after WELD-SUB10"
         )
-        # Check that the gate raises when not authorized
-        assert "KaliBypassNotAuthorized" in content, (
-            "SUB-10 seam: must raise KaliBypassNotAuthorized when not authorized"
+        assert "class KaliBypassNotAuthorized" not in content, (
+            "SUB-10 seam: KaliBypassNotAuthorized must be removed after WELD-SUB10"
+        )
+        assert "async def _run_local" not in content, (
+            "SUB-10 seam: _run_local must be removed after WELD-SUB10"
+        )
+        assert "def authorize_local_bypass" not in content, (
+            "SUB-10 seam: authorize_local_bypass must be removed after WELD-SUB10"
         )
     # Check SUB-14: _subprocess_fallback method is removed
     executor_file = SRC_ROOT / "raphael" / "executor" / "executor.py"

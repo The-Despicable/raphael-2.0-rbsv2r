@@ -110,16 +110,18 @@ def test_bypass_functions_only_callable_via_explicit_optin():
     """The bypass opt-in functions must require an explicit 'reason' parameter.
 
     This ensures that any future opt-in is documented.
-    Note: authorize_bypass is removed in WELD-SUB14, so we only check authorize_local_bypass.
+    Note: authorize_bypass is removed in WELD-SUB14 and authorize_local_bypass
+    is removed in WELD-SUB10, so both must now be absent.
     """
     sys.path.insert(0, str(SRC_ROOT))
 
     from orchestrator import kali_tools_client
+    from raphael.executor.executor import Executor
 
-    # Check authorize_local_bypass
-    sig_kali = inspect.signature(kali_tools_client.authorize_local_bypass)
-    assert "reason" in sig_kali.parameters, (
-        "authorize_local_bypass must require a 'reason' parameter"
+    # Both opt-in functions are removed by their welds; absence is the proof.
+    assert not hasattr(kali_tools_client, "authorize_local_bypass"), (
+        "authorize_local_bypass must be removed after WELD-SUB10"
     )
-
-    # Note: authorize_bypass is removed in WELD-SUB14, so we do not check it.
+    assert not hasattr(Executor, "authorize_bypass"), (
+        "Executor.authorize_bypass must be removed after WELD-SUB14"
+    )
