@@ -636,3 +636,112 @@ Parity re-run at remediation HEAD: IDENTICAL to pre-weld baseline (10/10 stages)
 - Authoritative current state: established by external machine
   verification after the records commit (self-reference rule: this file
   does not embed its own commit hash).
+
+---
+
+## BD-SH CONVERSION APPENDIX (GLM conversion round; records-only)
+
+No production, test, or implementation changes in this appendix round.
+This section only adds the records GLM required for conversion.
+
+### Defect-origin record (G3 §14.12 accounting seed)
+
+Both defects were discovered during the SHELL evidence audit, before any
+gate acceptance, at tree state `9bfb1edc0` (branch
+`weld-sub10-evidence`): (1) `require_shell_authorization()` validated
+only duck-typed receipt-shaped fields — a forged `SimpleNamespace` was
+machine-demonstrated to pass validation and construct a
+`ReverseShellCapability`; (2) `ListenerManager.create_listener()` and
+`destroy_listener()` accepted no authorization proof (convention-only,
+broker the sole in-repo caller). The remediation was then implemented at
+`379f037e1` (registry-bound validation + listener gating + three new
+institutional tests). Neither defect ever reached an accepted gate.
+
+### BD-SH-2 — Committed parity harness and transcripts
+
+Harness: `evidence/phases/P3_0/_shell_parity_probe.py` (committed at
+`5e73a1103`; same seeded probe as `/tmp/shell_parity.py` plus R-W1a
+HEAD/branch/status/count self-binding in every run block).
+
+PRE (tree state `f652152f9`, count 54 — pre-implementation; HEAD binding
+established by session record because this output predates the
+self-binding harness; decision lines verbatim):
+```
+SEED=20260906
+TERMINATED=True
+REASON=G3-EN-5 organ-wired walking skeleton: one iteration complete
+ITERATIONS=1
+TRACE t0 stage=observe success=True error=None
+TRACE t0 stage=worldmodel_read success=True error=None
+TRACE t0 stage=student_candidate success=True error=None
+TRACE t0 stage=planner_request success=True error=None
+TRACE t0 stage=broker success=True error=None
+TRACE t0 stage=pep success=True error=None
+TRACE t0 stage=receipt success=True error=None
+TRACE t0 stage=worldmodel_integrate success=True error=None
+TRACE t0 stage=contradiction success=True error=None
+TRACE t0 stage=replan success=True error=None
+```
+
+POST (tree state `82c4138e5`, count 58 — remediation evidence HEAD;
+HEAD-bound run block, verbatim decision lines):
+```
+HEAD=82c4138e503dfe4034802060cffcc083b752e9ab
+BRANCH=weld-sub10-evidence
+STATUS=## weld-sub10-evidence
+?? evidence/phases/P3_0/_shell_parity_probe.py
+COUNT=58
+SEED=20260906
+TERMINATED=True
+REASON=G3-EN-5 organ-wired walking skeleton: one iteration complete
+ITERATIONS=1
+TRACE t0 stage=observe success=True error=None
+TRACE t0 stage=worldmodel_read success=True error=None
+TRACE t0 stage=student_candidate success=True error=None
+TRACE t0 stage=planner_request success=True error=None
+TRACE t0 stage=broker success=True error=None
+TRACE t0 stage=pep success=True error=None
+TRACE t0 stage=receipt success=True error=None
+TRACE t0 stage=worldmodel_integrate success=True error=None
+TRACE t0 stage=contradiction success=True error=None
+TRACE t0 stage=replan success=True error=None
+```
+
+`diff` of decision lines (SEED/TERMINATED/REASON/ITERATIONS/TRACE):
+IDENTICAL. Zero authorization-only differences (the canonical path never
+constructs shell capabilities, so the new gate is never exercised there).
+
+SHELL parity consists of THREE legs:
+1. canonical-episode invariance (the pre/post transcripts above — proves
+   the weld changes nothing on the canonical path);
+2. positive-path proof: e1 = 34/34, e2 = 36/36 (proves broker-authorized
+   shell flows still work);
+3. negative-path proof: institutional authorization-rejection tests
+   (proves direct/forged/expired/unknown construction fails closed).
+The harness alone proves only leg 1; legs 2 and 3 are proven by the cited
+suites, not by the harness.
+
+### BD-SH-3 note
+
+The final atomic provenance block (rev-parse, branch, status, count,
+log, parents) is captured after the records commit that adds this
+appendix and is transmitted in the submission cover, not embedded here
+(self-reference rule). Implementation state `379f037e1`/52→57 chain and
+evidence-commit parentage are in W-D/R5 above.
+
+### BD-SH-4 — Sequence-closing records
+
+Seam ledger (exact sequence state):
+- SUB-14 — WELDED (`740861f2e`, accepted)
+- SUB-13 — CLOSED-BY-FOLD (`740861f2e`, accepted)
+- SUB-10 — WELDED (`a099ba460`, accepted)
+- SHELL — CLOSED at `379f037e1` (broker-issued authorization required at construction and listener lifecycle)
+
+P3.1 reconciliation row (SHELL): previous WRAPPED/LIVE (SD-1 deferred
+since P1) → current WELDED at `379f037e1`, evidence prepared for
+artifact-only adjudication; SUB-14/SUB-13/SUB-10 remain accepted; SHELL
+was the last deferred seam and no seams remain deferred after it.
+
+P4 hardening ticket: bind live shell-session handles to decision/mission identity, define TTL policy, and add issuance audit.
+
+P4 hardening ticket: extend construction-time denial observability/DecisionTrace coverage where capability/ledger depth requires it.
