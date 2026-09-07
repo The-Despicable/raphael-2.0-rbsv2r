@@ -116,9 +116,9 @@ class RaphaelRuntime:
         )
 
     def run_episode(self, mission: MissionContext,
-                     max_iterations: int = 1,
-                     action_cap: int = 1,
-                     require_scope: bool = False,
+                     max_iterations: Optional[int] = None,
+                     action_cap: Optional[int] = None,
+                     require_scope: Optional[bool] = None,
                      episode_outputs: Optional[list] = None) -> tuple:
         """Full episode loop.
 
@@ -138,7 +138,27 @@ class RaphaelRuntime:
         remain, the episode continues so denial feedback can drive a
         changed next decision (replan-at-episode-level). Single-iteration
         callers observe byte-identical behavior.
+        P4.1 §15.1: explicit params win; when None, halt conditions ride
+        from ``mission.constraints["halt"]`` (populated by
+        MissionContext.from_spec); otherwise legacy defaults apply
+        (max_iterations=1, action_cap=1, require_scope=False).
         """
+        constraints = mission.constraints if isinstance(mission.constraints, dict) else {}
+        halt = constraints.get("halt", {})
+        if not isinstance(halt, dict):
+            halt = {}
+        if max_iterations is None:
+            max_iterations = halt.get("max_iterations", 1)
+        if action_cap is None:
+            action_cap = halt.get("action_cap", 1)
+        if require_scope is None:
+            require_scope = halt.get("require_scope", False)
+        try:
+            max_iterations = int(max_iterations)
+        except (TypeError, ValueError):
+            max_iterations = 1
+        if max_iterations < 1:
+            max_iterations = 1
         scope = mission.scope
         if scope is not None and not isinstance(scope, ScopeV0):
             return [], LoopTermination(
@@ -154,7 +174,6 @@ class RaphaelRuntime:
                 iterations=0,
                 final_stage="scope",
             )
-        constraints = mission.constraints if isinstance(mission.constraints, dict) else {}
         candidates_by_iter = constraints.get("candidates", {})
         if not isinstance(candidates_by_iter, dict):
             candidates_by_iter = {}
@@ -162,7 +181,8 @@ class RaphaelRuntime:
         objective_id = constraints.get("objective_id", mission.mission_id)
         all_traces = []
         for i in range(max_iterations):
-            view = {"mission_name": mission.name, "iteration": i, "target": default_target,
+            view = {"mission_name": mission.name, "mission_id": mission.mission_id,
+                    "iteration": i, "target": default_target,
                     "objective_id": objective_id}
             iter_candidates = candidates_by_iter.get(str(i), candidates_by_iter.get(i, None))
             if isinstance(iter_candidates, list) and iter_candidates:
@@ -179,6 +199,7 @@ class RaphaelRuntime:
             all_traces.append(trace)
             if episode_outputs is not None:
                 episode_outputs.append(iter_outputs)
+            if termination.terminated:
                 # P3.11 §14.10: a broker-stage denial with remaining
                 # iterations continues the episode (denial feedback drives
                 # the next decision). All other terminations break.

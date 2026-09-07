@@ -58,6 +58,41 @@ class MissionContext:
     constraints: dict = field(default_factory=dict)
     scope: Optional["ScopeV0"] = None
 
+    @staticmethod
+    def from_spec(spec: Any, extra_constraints: Optional[dict] = None) -> "MissionContext":
+        """Build a Runtime MissionContext from a first-class MissionSpec.
+
+        P4.1 §15.1: the spec's identity/objectives/target envelope/
+        constraints/scope become the runtime context. The spec's halt
+        conditions ride in constraints under the reserved "halt" key so
+        run_episode can consume them; per-iteration candidate sets ride
+        under the reserved "candidates" key. ``extra_constraints`` adds
+        ephemeral caller keys (e.g. test-declared candidates) without
+        mutating the spec. Reserved keys in extra_constraints fail
+        closed rather than silently overriding the spec.
+        """
+        from orchestrator.runtime.mission_spec import MissionSpec as _MissionSpec
+        if not isinstance(spec, _MissionSpec):
+            raise ValueError("MissionContext.from_spec: 'spec' must be a MissionSpec")
+        merged: dict = dict(spec.constraints)
+        if extra_constraints:
+            if not isinstance(extra_constraints, dict):
+                raise ValueError("MissionContext.from_spec: 'extra_constraints' must be a mapping")
+            for reserved in ("halt", "candidates"):
+                if reserved in extra_constraints:
+                    raise ValueError(
+                        f"MissionContext.from_spec: reserved key '{reserved}' "
+                        "must come from the MissionSpec, not extra_constraints"
+                    )
+            merged.update(extra_constraints)
+        merged["halt"] = spec.halt.to_dict()
+        return MissionContext(
+            mission_id=spec.mission_id,
+            name=spec.name,
+            objectives=list(spec.objectives),
+            constraints=merged,
+            scope=spec.scope,
+        )
 
 @dataclass
 class StageResult:
@@ -124,13 +159,33 @@ class ExecutionEvent:
 
 @dataclass
 class EvidenceReceipt:
-    """Links an ExecutionEvent to its PolicyDecision and downstream consumers."""
+    """Links an ExecutionEvent to its PolicyDecision and downstream consumers.
+
+    P4.1 provenance depth (§15.1): the receipt additionally records the
+    mission/scope identity, the authorized action dimensions (F1
+    bindings, copied from the Broker's stored authorization truth —
+    never re-evaluated here), and the Broker receipt id. All new fields
+    default to empty so existing constructions are unchanged. Evidence
+    remains non-authorizing: this object links and describes; it cannot
+    permit execution.
+    """
     receipt_id: str = field(default_factory=lambda: _new_id("RCP"))
     event_id: str = ""
     decision_id: str = ""
     hypothesis_id: Optional[str] = None
     summary: str = ""
     timestamp: float = field(default_factory=time.time)
+    # P4.1 provenance linkage (all defaulted; populated by stage_receipt
+    # from the broker-stage stored authorization + mission context).
+    mission_id: str = ""
+    scope_hash: str = ""
+    action_type: str = ""
+    target: str = ""
+    capability: str = ""
+    method: str = ""
+    argv: tuple = ()
+    broker_receipt_id: str = ""
+    artifact_refs: tuple = ()
 
     def to_dict(self) -> dict:
         return {
@@ -140,6 +195,15 @@ class EvidenceReceipt:
             "hypothesis_id": self.hypothesis_id,
             "summary": self.summary,
             "timestamp": self.timestamp,
+            "mission_id": self.mission_id,
+            "scope_hash": self.scope_hash,
+            "action_type": self.action_type,
+            "target": self.target,
+            "capability": self.capability,
+            "method": self.method,
+            "argv": list(self.argv),
+            "broker_receipt_id": self.broker_receipt_id,
+            "artifact_refs": list(self.artifact_refs),
         }
 
 

@@ -72,6 +72,56 @@ def _record_broker_denial_feedback(ctx: dict, request: "ActionRequest",
         pass
 
 
+def _derive_auth_context(ctx: dict, request: "ActionRequest",
+                         receipt: Any, decision: "PolicyDecision") -> Any:
+    """P4.1 §15.1: derive a fresh per-decision AuthorizationContext.
+
+    Built from the current Mission + Scope + ActionSpec + the Broker's
+    decision. Frozen data subordinate to the stored authorization; it
+    records derivation inputs and cannot authorize anything (no PDP
+    reference, no evaluation logic). Never raises: falls back to empty
+    fields rather than breaking the broker stage.
+    """
+    try:
+        from orchestrator.runtime.mission_spec import AuthorizationContext
+        view = ctx.get("view", {}) if isinstance(ctx.get("view"), dict) else {}
+        mission_id = str(view.get("mission_id", "") or "")
+        scope = ctx.get("scope")
+        try:
+            scope_hash = scope.scope_hash() if scope is not None and hasattr(scope, "scope_hash") else ""
+        except Exception:
+            scope_hash = ""
+        args = getattr(request, "args", None)
+        argv = ()
+        if isinstance(args, dict):
+            raw_argv = args.get("argv", ())
+            if isinstance(raw_argv, (tuple, list)):
+                argv = tuple(a for a in raw_argv if isinstance(a, str))
+        metadata = getattr(receipt, "metadata", None)
+        impact = 0.0
+        if isinstance(metadata, dict):
+            try:
+                impact = float(metadata.get("impact_estimate", 0.0))
+            except (TypeError, ValueError):
+                impact = 0.0
+        return AuthorizationContext(
+            mission_id=mission_id,
+            scope_hash=scope_hash or "",
+            action_id=getattr(request, "action_id", "") or "",
+            action_type=getattr(request, "action_type", "") or "",
+            target=getattr(request, "target", "") or "",
+            capability=getattr(request, "capability", "") or ctx.get("capability_name", "") or "",
+            method=getattr(request, "method", "") or "",
+            argv=argv,
+            impact_estimate=impact,
+            decision_id=getattr(decision, "decision_id", "") or "",
+            decision=getattr(decision, "decision", "deny") or "deny",
+            reason=getattr(decision, "reason", "") or "",
+        )
+    except Exception:
+        return None
+
+
 def _map_receipt_to_decision(receipt: Any, request: ActionRequest) -> PolicyDecision:
     """Map a CapabilityBroker ActionReceipt to a Runtime PolicyDecision."""
     from orchestrator.brain.capability_broker import ActionProposalStatus
@@ -269,7 +319,8 @@ def stage_broker(ctx: dict) -> StageResult:
         return StageResult.make(
             stage_name=STAGE_BROKER,
             success=False,
-            output={"decision": decision},
+            output={"decision": decision,
+                    "auth_context": _derive_auth_context(ctx, request, receipt, decision)},
             error=(
                 f"G3-EN-5 fail-closed: denied by real Broker "
                 f"(class='{request.action_type}', "
@@ -292,7 +343,8 @@ def stage_broker(ctx: dict) -> StageResult:
             return StageResult.make(
                 stage_name=STAGE_BROKER,
                 success=False,
-                output={"decision": decision},
+                output={"decision": decision,
+                        "auth_context": _derive_auth_context(ctx, request, receipt, decision)},
                 error="§14.6 Scope v0 fail-closed: Scope v0: no impact estimate available",
                 duration_ms=(time.time() - t0) * 1000.0,
             )
@@ -309,14 +361,16 @@ def stage_broker(ctx: dict) -> StageResult:
             return StageResult.make(
                 stage_name=STAGE_BROKER,
                 success=False,
-                output={"decision": decision},
+                output={"decision": decision,
+                        "auth_context": _derive_auth_context(ctx, request, receipt, decision)},
                 error=f"§14.6 Scope v0 fail-closed: {scope_reason}",
                 duration_ms=(time.time() - t0) * 1000.0,
             )
     return StageResult.make(
         stage_name=STAGE_BROKER,
         success=True,
-        output={"decision": decision, "receipt": receipt},
+        output={"decision": decision, "receipt": receipt,
+                "auth_context": _derive_auth_context(ctx, request, receipt, decision)},
         duration_ms=(time.time() - t0) * 1000.0,
     )
 
@@ -436,15 +490,36 @@ def _stage_pep_sandboxed(ctx: dict, request: "ActionRequest",
 
 
 def stage_receipt(ctx: dict) -> StageResult:
-    """Receipt emission. Links ExecutionEvent to PolicyDecision."""
+    """Receipt emission. Links ExecutionEvent to PolicyDecision.
+
+    P4.1 §15.1: the receipt additionally records mission/scope
+    identity and the authorized action dimensions, copied from the
+    broker-stage stored authorization truth (never re-evaluated here).
+    Evidence remains non-authorizing.
+    """
     t0 = time.time()
     from orchestrator.runtime.types import EvidenceReceipt
     event: ExecutionEvent = ctx["pep"]["event"]
     decision = ctx["broker"]["decision"]
+    broker_receipt = ctx["broker"].get("receipt")
+    view = ctx.get("view", {}) if isinstance(ctx.get("view"), dict) else {}
+    scope = ctx.get("scope")
+    try:
+        scope_hash = scope.scope_hash() if scope is not None and hasattr(scope, "scope_hash") else ""
+    except Exception:
+        scope_hash = ""
     receipt = EvidenceReceipt(
         event_id=event.event_id,
         decision_id=decision.decision_id,
         summary=f"PEP minted receipt for {event.capability} -> {event.target}",
+        mission_id=str(view.get("mission_id", "") or ""),
+        scope_hash=scope_hash or "",
+        action_type=getattr(broker_receipt, "action_type", "") or "",
+        target=getattr(broker_receipt, "target", "") or getattr(event, "target", "") or "",
+        capability=getattr(broker_receipt, "capability", "") or "",
+        method=getattr(broker_receipt, "method", "") or "",
+        argv=tuple(getattr(broker_receipt, "authorized_argv", ()) or ()),
+        broker_receipt_id=getattr(broker_receipt, "action_id", "") or "",
     )
     return StageResult.make(
         stage_name=STAGE_RECEIPT,
