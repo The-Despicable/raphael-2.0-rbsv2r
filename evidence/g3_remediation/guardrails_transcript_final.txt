@@ -1,0 +1,30 @@
+============================= test session starts ==============================
+platform linux -- Python 3.14.4, pytest-9.1.1, pluggy-1.6.0
+rootdir: /home/yaser/external-audits/raphael-2
+configfile: pyproject.toml
+plugins: anyio-4.15.0, asyncio-1.4.0, typeguard-4.4.4
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function
+collected 30 items
+
+tests/test_p2_guardrail_belief_transition_port.py ...                    [ 10%]
+tests/test_p2_guardrail_deny_by_default.py .....                         [ 26%]
+tests/test_p2_guardrail_deprecated_import.py ..                          [ 33%]
+tests/test_p2_guardrail_inv1.py .....                                    [ 50%]
+tests/test_p2_guardrail_no_production_bypass.py ..                       [ 56%]
+tests/test_p2_guardrail_runtime_no_seam.py ...                           [ 66%]
+tests/test_p2_guardrail_shell_closed.py ....                             [ 80%]
+tests/test_p2_guardrail_single_runtime.py ....                           [ 93%]
+tests/test_p2_guardrail_sub10_closed.py .                                [ 96%]
+tests/test_p2_guardrail_sub13_closed.py .                                [100%]
+
+=============================== warnings summary ===============================
+tests/test_p2_guardrail_deprecated_import.py::test_no_canonical_module_imports_p2_deprecated
+tests/test_p2_guardrail_inv1.py::test_inv1_exec_package_may_use_primitives
+tests/test_p2_guardrail_no_production_bypass.py::test_no_production_module_calls_authorize_bypass
+tests/test_p2_guardrail_runtime_no_seam.py::test_no_orchestrator_imports_seam_pattern
+tests/test_p2_guardrail_single_runtime.py::test_no_canonical_import_of_p2_deprecated
+tests/test_p2_guardrail_single_runtime.py::test_no_seam_import
+  <unknown>:141: SyntaxWarning: "\-" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\-"? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 30 passed, 6 warnings in 13.35s ========================
