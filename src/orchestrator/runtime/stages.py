@@ -248,6 +248,13 @@ def stage_pep(ctx: dict) -> StageResult:
             error="Capability or decision not available",
             duration_ms=(time.time() - t0) * 1000.0,
         )
+    # §14.4: sandboxed execution dispatch. Broker-allowed requests with
+    # action_type "sandboxed_exec" run through the exec/-owned minimal
+    # sandbox behind the same allow-decision gate (no new stage, no new
+    # PDP). The lazy import keeps runtime/*.py free of primitive imports
+    # (INV-1 file scan). The sandbox re-verifies the broker receipt.
+    if request.action_type == "sandboxed_exec":
+        return _stage_pep_sandboxed(ctx, request, decision, t0)
     # CONV-3 gating: record broker authorization before invoking the
     # capability. The capability checks that record_authorization was
     # called for this target; if not, it raises CapabilityNotGatedError.
@@ -266,6 +273,72 @@ def stage_pep(ctx: dict) -> StageResult:
         stage_name=STAGE_PEP,
         success=True,
         output={"event": event, "result": result},
+        duration_ms=(time.time() - t0) * 1000.0,
+    )
+
+def _stage_pep_sandboxed(ctx: dict, request: "ActionRequest",
+                         decision: "PolicyDecision", t0: float) -> "StageResult":
+    """PEP sandboxed branch (§14.4). Broker-allowed only; receipt re-verified."""
+    import tempfile
+    from orchestrator.exec.sandbox import (
+        SandboxedExecutor,
+        SandboxPolicy,
+        SandboxRequest,
+    )
+    broker = ctx.get("broker")
+    receipt = ctx["broker"].get("receipt")
+    if not hasattr(broker, "receipt_store"):
+        # The sequencer replaces stage_ctx["broker"] with the broker-stage
+        # output dict; fall back to the PEP capability's bound broker
+        # (same object the Runtime constructed the capability with).
+        broker = getattr(ctx.get("capability"), "broker", None)
+    args = request.args if isinstance(request.args, dict) else {}
+    try:
+        sandbox_request = SandboxRequest(
+            target=request.target,
+            argv=tuple(args.get("argv", ())),
+            artifacts=tuple(args.get("artifacts", ())),
+        )
+    except Exception as exc:
+        return StageResult.make(
+            stage_name=STAGE_PEP,
+            success=False,
+            error=f"§14.4 sandbox setup failure: malformed request: {exc}",
+            duration_ms=(time.time() - t0) * 1000.0,
+        )
+    try:
+        workdir_root = tempfile.gettempdir()
+        executor = SandboxedExecutor(
+            broker=broker,
+            policy=SandboxPolicy(workdir_root=workdir_root),
+        )
+        result = executor.execute(sandbox_request, receipt)
+    except Exception as exc:
+        return StageResult.make(
+            stage_name=STAGE_PEP,
+            success=False,
+            error=f"§14.4 sandbox denied: {type(exc).__name__}: {exc}",
+            duration_ms=(time.time() - t0) * 1000.0,
+        )
+    from orchestrator.runtime.types import ExecutionEvent
+    event = ExecutionEvent(
+        action_id=request.action_id,
+        decision_id=decision.decision_id,
+        capability="sandbox.exec",
+        target=request.target,
+        args=request.args,
+        outcome=result.status,
+        output={"status": result.status, "returncode": result.returncode,
+                "reason": result.reason,
+                "artifacts": sorted(result.artifacts.keys())},
+    )
+    return StageResult.make(
+        stage_name=STAGE_PEP,
+        success=result.status == "success",
+        output={"event": event, "result": result},
+        error=None if result.status == "success" else (
+            f"§14.4 sandbox {result.status}: {result.reason}"
+        ),
         duration_ms=(time.time() - t0) * 1000.0,
     )
 

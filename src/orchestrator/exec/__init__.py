@@ -30,14 +30,24 @@ from orchestrator.exec.safe_capability import (
     SafeProvingCapability,
     CapabilityResult,
 )
-from orchestrator.exec.inv1_guard import (
-    verify_inv1_primitive_confinement,
-    INV1_VIOLATION,
+from orchestrator.exec.sandbox import (
+    SandboxedExecutor,
+    SandboxPolicy,
+    SandboxRequest,
+    SandboxResult,
+    SandboxError,
+    SandboxNotAuthorized,
 )
 
 __all__ = [
     "SafeProvingCapability",
     "CapabilityResult",
+    "SandboxedExecutor",
+    "SandboxPolicy",
+    "SandboxRequest",
+    "SandboxResult",
+    "SandboxError",
+    "SandboxNotAuthorized",
     "verify_inv1_primitive_confinement",
     "INV1_VIOLATION",
 ]
