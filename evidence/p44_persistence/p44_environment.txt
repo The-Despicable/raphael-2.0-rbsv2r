@@ -1,0 +1,4 @@
+Python 3.14.4
+pytest 9.1.1
+5ba213ac0529aea8caad13a5f078b4d9c035a848
+weld-sub10-evidence

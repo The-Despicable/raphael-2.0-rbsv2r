@@ -1,0 +1,29 @@
+============================= test session starts ==============================
+collecting ... collected 24 items
+
+tests/test_p44_receipt_persistence.py::test_append_and_get_roundtrip PASSED [  4%]
+tests/test_p44_receipt_persistence.py::test_serialization_deterministic_bytes PASSED [  8%]
+tests/test_p44_receipt_persistence.py::test_same_receipt_same_bytes_idempotent PASSED [ 12%]
+tests/test_p44_receipt_persistence.py::test_f1_fields_survive_roundtrip PASSED [ 16%]
+tests/test_p44_receipt_persistence.py::test_tampered_scalar_field_refused[target-evil.target] PASSED [ 20%]
+tests/test_p44_receipt_persistence.py::test_tampered_scalar_field_refused[capability-shell.exec] PASSED [ 25%]
+tests/test_p44_receipt_persistence.py::test_tampered_scalar_field_refused[action_type-reverse_shell] PASSED [ 29%]
+tests/test_p44_receipt_persistence.py::test_tampered_scalar_field_refused[method-netcat] PASSED [ 33%]
+tests/test_p44_receipt_persistence.py::test_tampered_scalar_field_refused[decision-deny] PASSED [ 37%]
+tests/test_p44_receipt_persistence.py::test_tampered_scalar_field_refused[action_id-forged-id] PASSED [ 41%]
+tests/test_p44_receipt_persistence.py::test_tampered_argv_refused PASSED [ 45%]
+tests/test_p44_receipt_persistence.py::test_tampered_mission_binding_refused PASSED [ 50%]
+tests/test_p44_receipt_persistence.py::test_tampered_audit_hash_refused PASSED [ 54%]
+tests/test_p44_receipt_persistence.py::test_missing_file_is_empty_store PASSED [ 58%]
+tests/test_p44_receipt_persistence.py::test_malformed_line_refuses_whole_load PASSED [ 62%]
+tests/test_p44_receipt_persistence.py::test_truncated_line_refuses_whole_load PASSED [ 66%]
+tests/test_p44_receipt_persistence.py::test_unknown_schema_refused PASSED [ 70%]
+tests/test_p44_receipt_persistence.py::test_identity_conflict_rejected PASSED [ 75%]
+tests/test_p44_receipt_persistence.py::test_non_receipt_rejected PASSED  [ 79%]
+tests/test_p44_receipt_persistence.py::test_capacity_cap_fail_closed PASSED [ 83%]
+tests/test_p44_receipt_persistence.py::test_mission_traceability_survives PASSED [ 87%]
+tests/test_p44_receipt_persistence.py::test_cross_mission_mismatch_detectable PASSED [ 91%]
+tests/test_p44_receipt_persistence.py::test_persisted_receipt_cannot_authorize PASSED [ 95%]
+tests/test_p44_receipt_persistence.py::test_receipts_survive_process_restart PASSED [100%]
+
+============================== 24 passed in 1.14s ==============================
