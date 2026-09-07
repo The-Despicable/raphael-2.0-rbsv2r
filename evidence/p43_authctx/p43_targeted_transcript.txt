@@ -1,0 +1,17 @@
+============================= test session starts ==============================
+collecting ... collected 12 items
+
+tests/test_p43_auth_context.py::test_derivation_uses_actual_spec_not_view_string PASSED [  8%]
+tests/test_p43_auth_context.py::test_legacy_mission_without_spec_honest_empty_digest PASSED [ 16%]
+tests/test_p43_auth_context.py::test_allow_path_context_bound PASSED     [ 25%]
+tests/test_p43_auth_context.py::test_deny_path_context_bound_not_approval PASSED [ 33%]
+tests/test_p43_auth_context.py::test_context_matches_stored_broker_truth PASSED [ 41%]
+tests/test_p43_auth_context.py::test_mission_digest_distinguishes_missions PASSED [ 50%]
+tests/test_p43_auth_context.py::test_context_reuse_across_missions_detectable PASSED [ 58%]
+tests/test_p43_auth_context.py::test_context_carries_bound_scope PASSED  [ 66%]
+tests/test_p43_auth_context.py::test_scope_evaluation_unchanged_single_evaluator PASSED [ 75%]
+tests/test_p43_auth_context.py::test_context_bound_to_actual_request_object PASSED [ 83%]
+tests/test_p43_auth_context.py::test_context_immutable_and_deterministic PASSED [ 91%]
+tests/test_p43_auth_context.py::test_context_source_has_no_authority PASSED [100%]
+
+============================== 12 passed in 0.31s ==============================
