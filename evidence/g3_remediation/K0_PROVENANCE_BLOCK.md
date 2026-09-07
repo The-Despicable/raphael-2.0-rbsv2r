@@ -1,6 +1,6 @@
 # K.0 Provenance Block — G3 Remediation Evidence Package
 
-**Block HEAD (authoritative):** `768285b331ca0ad7283c93b365b7fbc01e5bad2f`
+**Block HEAD (authoritative):** `cf0da0e6eaba4714fe109699c5821c842ed252b2`
 **Branch:** `weld-sub10-evidence`
 **Working tree:** clean (committed at the HEAD above)
 **Repository root:** `/home/yaser/external-audits/raphael-2`
@@ -18,7 +18,7 @@ two commits: `ee9497289` for the code/tests/perimeter record and
 
 | Anchor                       | Object                          | Type   | Resolves? |
 |------------------------------|---------------------------------|--------|-----------|
-| Remediation HEAD (final, authoritative) | `768285b331ca0ad7283c93b365b7fbc01e5bad2f` | commit | YES       |
+| Remediation HEAD (final, authoritative) | `cf0da0e6eaba4714fe109699c5821c842ed252b2` | commit | YES       |
 | Remediation HEAD (F1 implementation)   | `ee94972896a55a678a997d27e36dc497f4a24f5b` | commit | YES       |
 | `raphael-p1-pre-migration-7272880f`            | `215c4b76f685e1c15b9161b974c3c5da458d5db7` | tag | YES |
 | `raphael-p1-post-migration-7272880f`           | `935f63bc02d6f4205282a32d301aed3f4e183508` | tag | YES |
