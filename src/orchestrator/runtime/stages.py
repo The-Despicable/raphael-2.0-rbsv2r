@@ -42,6 +42,36 @@ STAGE_CONTRADICTION = "contradiction"
 STAGE_REPLAN = "replan"
 
 
+def _record_broker_denial_feedback(ctx: dict, request: "ActionRequest",
+                                   receipt: Any, reason: str) -> None:
+    """P3.11 §14.10: close the denial causal loop (additive, never authorizing).
+
+    On a broker-stage denial, record the denial as structured Planner
+    feedback (PERSISTENT scope/policy denials suppress the same proposal
+    on later iterations via the Planner's existing denial-feedback
+    machinery). The Broker remains the sole authority deciding ALLOW/DENY;
+    this only consumes the DENIED output as decision-relevant feedback.
+    Failures here must never change the denial itself: all exceptions
+    are swallowed.
+    """
+    try:
+        organs = ctx.get("organs")
+        planner = getattr(organs, "planner", None) if organs is not None else None
+        if planner is None or not hasattr(planner, "register_denial"):
+            return
+        capability = getattr(request, "capability", "") or ctx.get("capability_name", "")
+        receipt_id = getattr(receipt, "action_id", "") if receipt is not None else ""
+        planner.register_denial(
+            action_type=getattr(request, "action_type", ""),
+            target=getattr(request, "target", ""),
+            capability=capability or "",
+            receipt_id=receipt_id or "",
+            reason=reason or "",
+        )
+    except Exception:
+        pass
+
+
 def _map_receipt_to_decision(receipt: Any, request: ActionRequest) -> PolicyDecision:
     """Map a CapabilityBroker ActionReceipt to a Runtime PolicyDecision."""
     from orchestrator.brain.capability_broker import ActionProposalStatus
@@ -128,9 +158,54 @@ def stage_student_candidate(ctx: dict) -> StageResult:
 
 
 def stage_planner_request(ctx: dict) -> StageResult:
-    """Planner request generation (G3-EN-5: uses real Planner)."""
+    """Planner request generation (G3-EN-5: uses real Planner).
+
+    P3.11 §14.10: when the mission view carries a deterministic
+    ``candidates`` list (mission-declared safe-proving candidates), the
+    real Planner scores and selects via ``decide()`` and the selected
+    candidate becomes the ActionRequest. The Planner proposes only; the
+    Broker still authorizes. Without mission candidates the legacy
+    deterministic safe-proving request is preserved byte-for-byte.
+    """
     t0 = time.time()
     target = ctx.get("view", {}).get("target", "system_info.name")
+    view_candidates = ctx.get("view", {}).get("candidates", None)
+    organs = ctx.get("organs")
+    planner = getattr(organs, "planner", None) if organs is not None else None
+    if isinstance(view_candidates, list) and view_candidates and planner is not None:
+        try:
+            plan_decision = planner.decide(
+                candidates=list(view_candidates),
+                objective_id=ctx.get("view", {}).get("objective_id", "mvp-objective"),
+            )
+        except Exception:
+            plan_decision = None
+        selected = None
+        if plan_decision is not None and plan_decision.selected_action_id:
+            for cand in view_candidates:
+                if isinstance(cand, dict) and cand.get("action_id") == plan_decision.selected_action_id:
+                    selected = cand
+                    break
+        if selected is not None:
+            action_id = str(selected.get("action_id", "") or "")
+            request_kwargs: dict = dict(
+                action_type=str(selected.get("action_type", "safe_proving_capability")),
+                target=str(selected.get("target", target)),
+                args=dict(selected.get("args", {}) or {"read_only": True}),
+                rationale=str(selected.get("rationale", "P3.11 §14.10: Planner-selected mission candidate")),
+                capability=str(selected.get("capability", "")),
+                method=str(selected.get("method", "")),
+            )
+            if action_id:
+                request_kwargs["action_id"] = action_id
+            request = ActionRequest(**request_kwargs)
+            output = {"request": request, "plan_decision": plan_decision}
+            return StageResult.make(
+                stage_name=STAGE_PLANNER_REQUEST,
+                success=True,
+                output=output,
+                duration_ms=(time.time() - t0) * 1000.0,
+            )
     # The Planner produces an ActionRequest. For the walking skeleton,
     # the deterministic safe-proving request is the canonical choice.
     # The Planner is invoked to validate the request (it confirms
@@ -188,6 +263,9 @@ def stage_broker(ctx: dict) -> StageResult:
         )
     decision = _map_receipt_to_decision(receipt, request)
     if decision.decision != "allow":
+        # P3.11 §14.10: record the denial as Planner feedback before
+        # returning the unchanged fail-closed denial.
+        _record_broker_denial_feedback(ctx, request, receipt, decision.reason)
         return StageResult.make(
             stage_name=STAGE_BROKER,
             success=False,
@@ -225,6 +303,9 @@ def stage_broker(ctx: dict) -> StageResult:
             impact_estimate=estimate,
         )
         if not in_scope:
+            # P3.11 §14.10: record the scope denial as Planner feedback
+            # before returning the unchanged fail-closed denial.
+            _record_broker_denial_feedback(ctx, request, receipt, scope_reason)
             return StageResult.make(
                 stage_name=STAGE_BROKER,
                 success=False,
@@ -390,7 +471,13 @@ def stage_worldmodel_integrate(ctx: dict) -> StageResult:
 
 
 def stage_contradiction(ctx: dict) -> StageResult:
-    """Minimal contradiction/failure trigger (G3-EN-5: uses real ContradictionManager)."""
+    """Minimal contradiction/failure trigger (G3-EN-5: uses real ContradictionManager).
+
+    P3.11 §14.10: a broker-stage denial recorded as PERSISTENT Planner
+    feedback is itself a failure signal (plan vs policy). The stage
+    reports triggered=True when either real contradictions exist or
+    PERSISTENT denial feedback was recorded on an earlier iteration.
+    """
     t0 = time.time()
     organs = ctx.get("organs")
     # Walking skeleton: check for contradictions via the real
@@ -404,10 +491,27 @@ def stage_contradiction(ctx: dict) -> StageResult:
             triggered = contradictions_found > 0
         except Exception:
             triggered = False
+    # P3.11 §14.10: broker-denial failure signal from an earlier
+    # iteration also triggers (plan contradicted by policy).
+    denial_failures = 0
+    planner = getattr(organs, "planner", None) if organs is not None else None
+    feedback = getattr(planner, "feedback_records", None) if planner is not None else None
+    if isinstance(feedback, dict):
+        try:
+            from orchestrator.brain.action import DenialClass
+            denial_failures = sum(
+                1 for r in feedback.values()
+                if getattr(r, "denial_class", None) == DenialClass.PERSISTENT
+            )
+        except Exception:
+            denial_failures = 0
+    if denial_failures > 0:
+        triggered = True
     output = {
         "triggered": triggered,
         "contradictions_found": contradictions_found,
-        "rule": "g3-en-5.deterministic.no_contradiction",
+        "denial_failures": denial_failures,
+        "rule": "g3-en-5.deterministic.no_contradiction" if denial_failures == 0 else "p3.11.deterministic.broker_denial_failure",
     }
     return StageResult.make(
         stage_name=STAGE_CONTRADICTION,
@@ -418,8 +522,48 @@ def stage_contradiction(ctx: dict) -> StageResult:
 
 
 def stage_replan(ctx: dict) -> StageResult:
-    """Replan stage. G3-EN-5 walking skeleton: no replan needed."""
+    """Replan stage. G3-EN-5 walking skeleton: no replan needed.
+
+    P3.11 §14.10: when PERSISTENT denial feedback from an earlier
+    iteration exists AND the current iteration broker-authorized a
+    different (action_type, target, capability) triple, report
+    replanned=True with the changed decision. Otherwise preserve the
+    exact legacy output.
+    """
     t0 = time.time()
+    try:
+        organs = ctx.get("organs")
+        planner = getattr(organs, "planner", None) if organs is not None else None
+        feedback = getattr(planner, "feedback_records", None) if planner is not None else None
+        broker_out = ctx.get("broker") or {}
+        receipt = broker_out.get("receipt")
+        if isinstance(feedback, dict) and feedback and receipt is not None:
+            from orchestrator.brain.action import DenialClass
+            current = (
+                getattr(receipt, "action_type", ""),
+                getattr(receipt, "target", ""),
+                getattr(receipt, "capability", ""),
+            )
+            for rec in feedback.values():
+                if getattr(rec, "denial_class", None) != DenialClass.PERSISTENT:
+                    continue
+                denied = (rec.action_type, rec.target, rec.capability)
+                if denied != current:
+                    return StageResult.make(
+                        stage_name=STAGE_REPLAN,
+                        success=True,
+                        output={
+                            "replanned": True,
+                            "reason": "P3.11 §14.10: broker denial feedback suppressed the denied proposal; Planner selected a different authorized triple",
+                            "denied_triple": list(denied),
+                            "next_triple": list(current),
+                            "denial_receipt_id": rec.receipt_id,
+                            "next_receipt_id": getattr(receipt, "action_id", ""),
+                        },
+                        duration_ms=(time.time() - t0) * 1000.0,
+                    )
+    except Exception:
+        pass
     return StageResult.make(
         stage_name=STAGE_REPLAN,
         success=True,

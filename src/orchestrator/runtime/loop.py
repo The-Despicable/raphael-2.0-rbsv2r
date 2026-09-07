@@ -67,10 +67,15 @@ class RaphaelRuntime:
         # Backwards-compatible alias for the world model.
         self._world_model = self._organs.world_model
 
-    def step(self, ctx: RuntimeContext) -> tuple:
+    def step(self, ctx: RuntimeContext, stage_outputs: Optional[dict] = None) -> tuple:
         """One cognitive iteration.
 
         Returns (DecisionTrace, LoopTermination).
+
+        P3.11 §14.10: when ``stage_outputs`` is a dict, each stage's
+        output mapping is recorded under its stage name (best-effort;
+        a stage output that is not a dict is stored as-is). The default
+        None preserves the exact legacy contract.
         """
         trace = DecisionTrace(mission_id=ctx.mission_id)
         stage_ctx: dict = {
@@ -87,6 +92,8 @@ class RaphaelRuntime:
             handler = STAGE_HANDLERS[stage_name]
             result: StageResult = handler(stage_ctx)
             stage_ctx[stage_name] = result.output
+            if stage_outputs is not None:
+                stage_outputs[stage_name] = result.output
             trace.append({
                 "stage": stage_name,
                 "success": result.success,
@@ -111,12 +118,26 @@ class RaphaelRuntime:
     def run_episode(self, mission: MissionContext,
                      max_iterations: int = 1,
                      action_cap: int = 1,
-                     require_scope: bool = False) -> tuple:
+                     require_scope: bool = False,
+                     episode_outputs: Optional[list] = None) -> tuple:
         """Full episode loop.
+
+        P3.11 §14.10: when ``episode_outputs`` is a list, each
+        iteration's stage-output mapping is appended (best-effort).
+        The default None preserves the exact legacy contract.
 
         §14.6 Scope v0: when require_scope is True, a mission without a
         validated ScopeV0 fails closed before any stage executes. A
         non-ScopeV0 scope object also fails closed (no duck-typing).
+
+        P3.11 §14.10: the mission may declare deterministic per-iteration
+        candidate sets under ``mission.constraints["candidates"]`` (a
+        mapping of iteration index -> candidate list). Each iteration's
+        view carries its candidate set for the Planner stage. When an
+        iteration terminates at the broker stage (denial) and iterations
+        remain, the episode continues so denial feedback can drive a
+        changed next decision (replan-at-episode-level). Single-iteration
+        callers observe byte-identical behavior.
         """
         scope = mission.scope
         if scope is not None and not isinstance(scope, ScopeV0):
@@ -133,17 +154,42 @@ class RaphaelRuntime:
                 iterations=0,
                 final_stage="scope",
             )
+        constraints = mission.constraints if isinstance(mission.constraints, dict) else {}
+        candidates_by_iter = constraints.get("candidates", {})
+        if not isinstance(candidates_by_iter, dict):
+            candidates_by_iter = {}
+        default_target = constraints.get("default_target", "system_info.name")
+        objective_id = constraints.get("objective_id", mission.mission_id)
         all_traces = []
         for i in range(max_iterations):
+            view = {"mission_name": mission.name, "iteration": i, "target": default_target,
+                    "objective_id": objective_id}
+            iter_candidates = candidates_by_iter.get(str(i), candidates_by_iter.get(i, None))
+            if isinstance(iter_candidates, list) and iter_candidates:
+                view["candidates"] = iter_candidates
             ctx = RuntimeContext(
                 mission_id=mission.mission_id,
                 objective_id=mission.objectives[0] if mission.objectives else "default",
-                view={"mission_name": mission.name, "iteration": i, "target": "system_info.name"},
+                view=view,
                 iteration=i,
                 scope=scope,
             )
-            trace, termination = self.step(ctx)
+            iter_outputs: dict = {}
+            trace, termination = self.step(ctx, stage_outputs=iter_outputs)
             all_traces.append(trace)
-            if termination.terminated:
+            if episode_outputs is not None:
+                episode_outputs.append(iter_outputs)
+                # P3.11 §14.10: a broker-stage denial with remaining
+                # iterations continues the episode (denial feedback drives
+                # the next decision). All other terminations break.
+                if termination.final_stage == "broker" and (i + 1) < max_iterations:
+                    termination = LoopTermination(
+                        terminated=True,
+                        reason=f"P3.11 §14.10: broker denial at iteration {i}; continuing to replanned iteration {i + 1}",
+                        iterations=i + 1,
+                        final_stage="broker",
+                    )
+                    all_traces[-1] = trace
+                    continue
                 break
         return all_traces, termination

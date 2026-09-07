@@ -1,0 +1,84 @@
+{
+  "candidates": {
+    "0": [
+      {
+        "action_id": "mvp-injected-001",
+        "action_type": "safe_proving_capability",
+        "args": {
+          "read_only": true
+        },
+        "candidate_origin": "p311-mission-injection",
+        "capability": "fixture.inspect",
+        "confidence": 1.0,
+        "impact_estimate": 0.0,
+        "method": "inspect",
+        "rationale": "P3.11 \u00a714.10 mission injection: deliberately out-of-scope target; the Broker must deny this before any execution.",
+        "target": "prod.db.internal"
+      }
+    ],
+    "1": [
+      {
+        "action_id": "mvp-injected-001",
+        "action_type": "safe_proving_capability",
+        "args": {
+          "read_only": true
+        },
+        "candidate_origin": "p311-mission-injection",
+        "capability": "fixture.inspect",
+        "confidence": 1.0,
+        "impact_estimate": 0.0,
+        "method": "inspect",
+        "rationale": "P3.11 \u00a714.10 mission injection: deliberately out-of-scope target; the Broker must deny this before any execution.",
+        "target": "prod.db.internal"
+      },
+      {
+        "action_id": "mvp-valid-001",
+        "action_type": "safe_proving_capability",
+        "args": {
+          "read_only": true
+        },
+        "candidate_origin": "p311-mission",
+        "capability": "fixture.inspect",
+        "confidence": 1.0,
+        "impact_estimate": 0.0,
+        "method": "inspect",
+        "rationale": "P3.11 \u00a714.10 mission candidate: in-scope fixture inspection; the Broker must authorize this.",
+        "target": "system_info.name"
+      }
+    ]
+  },
+  "constraints": {
+    "default_target": "system_info.name",
+    "max_iterations": 2,
+    "objective_id": "mvp-objective-prove-fixture",
+    "require_scope": true
+  },
+  "mission_id": "p311-mvp-001",
+  "name": "p311-mvp-safe-proving-demonstration",
+  "notes": "P3.11 \u00a714.10 deterministic local MVP mission. Iteration 0 proposes only the injected out-of-scope candidate (Broker denies; denial feedback recorded). Iteration 1 proposes injected + valid (Planner suppresses the denied triple, selects valid; Broker authorizes; PEP executes the safe proving capability). No network, no Arena, no Decepticon, no Kali/C2, no offensive tools. Safe proving capability only.",
+  "objectives": [
+    "prove fixture inspection through the canonical Broker path"
+  ],
+  "scope": {
+    "allowed_action_types": [
+      "safe_proving_capability"
+    ],
+    "allowed_capabilities": [
+      "fixture.inspect"
+    ],
+    "max_impact": 0.0,
+    "mission_id": "p311-mvp-001",
+    "prohibited_action_types": [],
+    "prohibited_capabilities": [],
+    "scope_version": "v0",
+    "targets": [
+      "system_info.name"
+    ]
+  },
+  "student_profile": {
+    "stack_components": [
+      "nginx",
+      "django"
+    ]
+  }
+}
