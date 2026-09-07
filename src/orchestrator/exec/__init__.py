@@ -38,6 +38,7 @@ from orchestrator.exec.sandbox import (
     SandboxError,
     SandboxNotAuthorized,
 )
+from orchestrator.exec.evidence_store import EvidenceStore
 
 __all__ = [
     "SafeProvingCapability",
@@ -48,6 +49,7 @@ __all__ = [
     "SandboxResult",
     "SandboxError",
     "SandboxNotAuthorized",
+    "EvidenceStore",
     "verify_inv1_primitive_confinement",
     "INV1_VIOLATION",
 ]

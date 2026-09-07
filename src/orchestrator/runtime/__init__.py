@@ -45,6 +45,11 @@ from orchestrator.runtime.safe_proving_capability import (
 )
 from orchestrator.runtime.stages import STAGE_ORDER, STAGE_HANDLERS
 from orchestrator.runtime.scope import ScopeV0, ScopeError
+from orchestrator.runtime.evidence_v1 import (
+    EvidenceError,
+    EvidenceKind,
+    EvidenceRecord,
+)
 
 __all__ = [
     "RaphaelRuntime",
@@ -59,6 +64,9 @@ __all__ = [
     "DecisionTrace",
     "ScopeV0",
     "ScopeError",
+    "EvidenceError",
+    "EvidenceKind",
+    "EvidenceRecord",
     "BootstrapPolicy",
     "make_broker_from_bootstrap",
     "SafeProvingCapability",
