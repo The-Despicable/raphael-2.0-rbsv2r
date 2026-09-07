@@ -1,0 +1,27 @@
+============================= test session starts ==============================
+collecting ... collected 22 items
+
+tests/test_p45_artifact_store.py::test_identity_deterministic_content_addressed PASSED [  4%]
+tests/test_p45_artifact_store.py::test_same_content_same_identity PASSED [  9%]
+tests/test_p45_artifact_store.py::test_changed_content_changed_identity PASSED [ 13%]
+tests/test_p45_artifact_store.py::test_metadata_does_not_redefine_identity PASSED [ 18%]
+tests/test_p45_artifact_store.py::test_non_bytes_rejected PASSED         [ 22%]
+tests/test_p45_artifact_store.py::test_put_returns_ref_get_returns_identical PASSED [ 27%]
+tests/test_p45_artifact_store.py::test_get_by_bare_id_and_missing PASSED [ 31%]
+tests/test_p45_artifact_store.py::test_modified_content_fails PASSED     [ 36%]
+tests/test_p45_artifact_store.py::test_corrupted_metadata_fails PASSED   [ 40%]
+tests/test_p45_artifact_store.py::test_identity_mismatch_fails PASSED    [ 45%]
+tests/test_p45_artifact_store.py::test_missing_sidecar_fails PASSED      [ 50%]
+tests/test_p45_artifact_store.py::test_idempotent_reingest_same_bytes PASSED [ 54%]
+tests/test_p45_artifact_store.py::test_empty_content_roundtrip PASSED    [ 59%]
+tests/test_p45_artifact_store.py::test_producer_linkage_to_real_receipt PASSED [ 63%]
+tests/test_p45_artifact_store.py::test_ref_serialization_stable_and_strict PASSED [ 68%]
+tests/test_p45_artifact_store.py::test_metadata_bytes_stable PASSED      [ 72%]
+tests/test_p45_artifact_store.py::test_unknown_schema_refused PASSED     [ 77%]
+tests/test_p45_artifact_store.py::test_oversize_rejected PASSED          [ 81%]
+tests/test_p45_artifact_store.py::test_capacity_cap_fail_closed PASSED   [ 86%]
+tests/test_p45_artifact_store.py::test_missing_root_is_empty PASSED      [ 90%]
+tests/test_p45_artifact_store.py::test_artifactref_has_no_authority PASSED [ 95%]
+tests/test_p45_artifact_store.py::test_loaded_artifact_cannot_authorize PASSED [100%]
+
+============================== 22 passed in 0.57s ==============================
