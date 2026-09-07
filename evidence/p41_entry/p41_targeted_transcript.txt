@@ -1,0 +1,23 @@
+============================= test session starts ==============================
+collecting ... collected 18 items
+
+tests/test_p41_mission_models.py::test_mission_spec_valid_construction PASSED [  5%]
+tests/test_p41_mission_models.py::test_mission_spec_rejects_empty_identity PASSED [ 11%]
+tests/test_p41_mission_models.py::test_mission_spec_rejects_empty_objectives_and_targets PASSED [ 16%]
+tests/test_p41_mission_models.py::test_mission_spec_rejects_non_scope PASSED [ 22%]
+tests/test_p41_mission_models.py::test_halt_conditions_validation PASSED [ 27%]
+tests/test_p41_mission_models.py::test_mission_spec_strict_from_dict_roundtrip PASSED [ 33%]
+tests/test_p41_mission_models.py::test_mission_spec_scope_mapping_accepted PASSED [ 38%]
+tests/test_p41_mission_models.py::test_mission_context_from_spec PASSED  [ 44%]
+tests/test_p41_mission_models.py::test_mission_context_from_spec_extra_constraints PASSED [ 50%]
+tests/test_p41_mission_models.py::test_runtime_consumes_spec_halt PASSED [ 55%]
+tests/test_p41_mission_models.py::test_scope_is_scopev0_implementation PASSED [ 61%]
+tests/test_p41_mission_models.py::test_auth_context_binds_decision_inputs PASSED [ 66%]
+tests/test_p41_mission_models.py::test_auth_context_cannot_authorize PASSED [ 72%]
+tests/test_p41_mission_models.py::test_auth_context_derived_fresh_per_decision PASSED [ 77%]
+tests/test_p41_mission_models.py::test_auth_context_on_deny_path PASSED  [ 83%]
+tests/test_p41_mission_models.py::test_evidence_receipt_defaults_preserve_legacy PASSED [ 88%]
+tests/test_p41_mission_models.py::test_evidence_receipt_provenance_linkage PASSED [ 94%]
+tests/test_p41_mission_models.py::test_evidence_receipt_cannot_authorize PASSED [100%]
+
+============================== 18 passed in 0.69s ==============================
