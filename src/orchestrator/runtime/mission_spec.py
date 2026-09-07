@@ -119,6 +119,31 @@ class MissionSpec:
         if self.scope is not None and not isinstance(self.scope, ScopeV0):
             raise ValueError("MissionSpec: 'scope' must be a ScopeV0/Scope or None")
 
+    def digest(self) -> str:
+        """Deterministic mission-identity digest (P4.3 §15).
+
+        sha256 over the canonical subset (mission_id, name,
+        objectives, targets, scope hash or ""). Binds an
+        AuthorizationContext to the actual mission so reuse across
+        missions is detectable. Pure: no I/O, no state change.
+        Constraints content is intentionally excluded: it may carry
+        ephemeral caller keys; the digest binds identity, and the
+        full constraints ride the mission that produced the request.
+        """
+        import hashlib
+        import json
+        canonical = json.dumps(
+            {
+                "mission_id": self.mission_id,
+                "name": self.name,
+                "objectives": list(self.objectives),
+                "targets": list(self.targets),
+                "scope_hash": self.scope.scope_hash() if self.scope is not None else "",
+            },
+            sort_keys=True, separators=(",", ":"),
+        )
+        return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
     def to_dict(self) -> dict:
         return {
             "mission_id": self.mission_id,
@@ -129,7 +154,6 @@ class MissionSpec:
             "halt": self.halt.to_dict(),
             "scope": self.scope.to_dict() if self.scope is not None else None,
         }
-
     @staticmethod
     def from_dict(data: Mapping) -> "MissionSpec":
         """Strict reconstruction: unknown fields fail closed."""
@@ -181,6 +205,7 @@ class AuthorizationContext:
     (frozen dataclass, no PDP reference, no evaluation logic).
     """
     mission_id: str = ""
+    mission_digest: str = ""
     scope_hash: str = ""
     action_id: str = ""
     action_type: str = ""
@@ -190,13 +215,14 @@ class AuthorizationContext:
     argv: tuple = ()
     impact_estimate: float = 0.0
     decision_id: str = ""
+    receipt_id: str = ""
     decision: str = "deny"
     reason: str = ""
     derived_at: float = field(default_factory=time.time)
-
     def to_dict(self) -> dict:
         return {
             "mission_id": self.mission_id,
+            "mission_digest": self.mission_digest,
             "scope_hash": self.scope_hash,
             "action_id": self.action_id,
             "action_type": self.action_type,
@@ -206,6 +232,7 @@ class AuthorizationContext:
             "argv": list(self.argv),
             "impact_estimate": self.impact_estimate,
             "decision_id": self.decision_id,
+            "receipt_id": self.receipt_id,
             "decision": self.decision,
             "reason": self.reason,
             "derived_at": self.derived_at,

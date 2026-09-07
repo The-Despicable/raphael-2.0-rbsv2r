@@ -184,6 +184,11 @@ class RaphaelRuntime:
             view = {"mission_name": mission.name, "mission_id": mission.mission_id,
                     "iteration": i, "target": default_target,
                     "objective_id": objective_id}
+            # P4.3 §15: bind the actual MissionSpec object when the
+            # mission carries one (from_spec). The broker stage derives
+            # the AuthorizationContext from this spec authoritatively.
+            if getattr(mission, "spec", None) is not None:
+                view["mission_spec"] = mission.spec
             iter_candidates = candidates_by_iter.get(str(i), candidates_by_iter.get(i, None))
             if isinstance(iter_candidates, list) and iter_candidates:
                 view["candidates"] = iter_candidates

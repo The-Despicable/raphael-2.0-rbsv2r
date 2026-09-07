@@ -57,7 +57,12 @@ class MissionContext:
     objectives: List[str] = field(default_factory=list)
     constraints: dict = field(default_factory=dict)
     scope: Optional["ScopeV0"] = None
-
+    # P4.3 §15: optional bound first-class MissionSpec. When present
+    # (populated by from_spec), the broker stage derives the
+    # AuthorizationContext from this actual spec object rather than
+    # the view's mission_id string. Default None preserves legacy
+    # hand-built missions. Not part of equality-sensitive identity.
+    spec: Any = None
     @staticmethod
     def from_spec(spec: Any, extra_constraints: Optional[dict] = None) -> "MissionContext":
         """Build a Runtime MissionContext from a first-class MissionSpec.
@@ -92,6 +97,7 @@ class MissionContext:
             objectives=list(spec.objectives),
             constraints=merged,
             scope=spec.scope,
+            spec=spec,
         )
 
 @dataclass

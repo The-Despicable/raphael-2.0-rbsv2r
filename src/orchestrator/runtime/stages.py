@@ -74,18 +74,38 @@ def _record_broker_denial_feedback(ctx: dict, request: "ActionRequest",
 
 def _derive_auth_context(ctx: dict, request: "ActionRequest",
                          receipt: Any, decision: "PolicyDecision") -> Any:
-    """P4.1 §15.1: derive a fresh per-decision AuthorizationContext.
+    """P4.1 §15.1 / P4.3 §15: derive a fresh per-decision AuthorizationContext.
 
     Built from the current Mission + Scope + ActionSpec + the Broker's
     decision. Frozen data subordinate to the stored authorization; it
     records derivation inputs and cannot authorize anything (no PDP
     reference, no evaluation logic). Never raises: falls back to empty
     fields rather than breaking the broker stage.
+
+    P4.3 derivation precedence: when the view carries the actual
+    MissionSpec object (bound by run_episode from
+    MissionContext.from_spec), mission identity and digest come from
+    that spec authoritatively — the view's mission_id string is NOT
+    trusted in that case. Otherwise the legacy view string is used
+    with an empty digest (honestly recording "no spec bound").
+    The canonical ActionSpec is the ActionRequest actually passed to
+    broker.propose_action (no parallel action model). The receipt id
+    links to the Broker's stored authorization truth.
     """
     try:
         from orchestrator.runtime.mission_spec import AuthorizationContext
         view = ctx.get("view", {}) if isinstance(ctx.get("view"), dict) else {}
-        mission_id = str(view.get("mission_id", "") or "")
+        spec = view.get("mission_spec")
+        mission_id = ""
+        mission_digest = ""
+        if spec is not None and hasattr(spec, "mission_id") and hasattr(spec, "digest"):
+            try:
+                mission_id = str(spec.mission_id or "")
+                mission_digest = str(spec.digest() or "")
+            except Exception:
+                mission_id, mission_digest = "", ""
+        if not mission_id:
+            mission_id = str(view.get("mission_id", "") or "")
         scope = ctx.get("scope")
         try:
             scope_hash = scope.scope_hash() if scope is not None and hasattr(scope, "scope_hash") else ""
@@ -104,23 +124,31 @@ def _derive_auth_context(ctx: dict, request: "ActionRequest",
                 impact = float(metadata.get("impact_estimate", 0.0))
             except (TypeError, ValueError):
                 impact = 0.0
+        # P4.3: bind the dimensions the Broker actually authorized
+        # (stored receipt truth first, request as fallback). The broker
+        # stage may default empty request fields (e.g. method "inspect")
+        # when proposing; the context records what was authorized.
+        stored_capability = getattr(receipt, "capability", "") or ""
+        stored_method = getattr(receipt, "method", "") or ""
+        stored_action_type = getattr(receipt, "action_type", "") or ""
         return AuthorizationContext(
             mission_id=mission_id,
+            mission_digest=mission_digest,
             scope_hash=scope_hash or "",
             action_id=getattr(request, "action_id", "") or "",
-            action_type=getattr(request, "action_type", "") or "",
+            action_type=stored_action_type or getattr(request, "action_type", "") or "",
             target=getattr(request, "target", "") or "",
-            capability=getattr(request, "capability", "") or ctx.get("capability_name", "") or "",
-            method=getattr(request, "method", "") or "",
+            capability=stored_capability or getattr(request, "capability", "") or ctx.get("capability_name", "") or "",
+            method=stored_method or getattr(request, "method", "") or "",
             argv=argv,
             impact_estimate=impact,
             decision_id=getattr(decision, "decision_id", "") or "",
+            receipt_id=getattr(receipt, "action_id", "") or "",
             decision=getattr(decision, "decision", "deny") or "deny",
             reason=getattr(decision, "reason", "") or "",
         )
     except Exception:
         return None
-
 
 def _map_receipt_to_decision(receipt: Any, request: ActionRequest) -> PolicyDecision:
     """Map a CapabilityBroker ActionReceipt to a Runtime PolicyDecision."""
