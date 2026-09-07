@@ -1,6 +1,6 @@
 # K.0 Provenance Block — G3 Remediation Evidence Package
 
-**Block HEAD (authoritative):** `ee94972896a55a678a997d27e36dc497f4a24f5b`
+**Block HEAD (authoritative):** `768285b331ca0ad7283c93b365b7fbc01e5bad2f`
 **Branch:** `weld-sub10-evidence`
 **Working tree:** clean (committed at the HEAD above)
 **Repository root:** `/home/yaser/external-audits/raphael-2`
@@ -8,7 +8,9 @@
 
 This block reconciles repository identity and historical anchors at the
 final remediation HEAD. It does NOT mix pre-fix and post-fix provenance;
-everything below resolves to `ee9497289`.
+everything below resolves to `768285b3` (the remediation HEAD includes
+two commits: `ee9497289` for the code/tests/perimeter record and
+`768285b3` for the K.0 block + STATUS classification).
 
 ---
 
@@ -16,9 +18,8 @@ everything below resolves to `ee9497289`.
 
 | Anchor                       | Object                          | Type   | Resolves? |
 |------------------------------|---------------------------------|--------|-----------|
-| Remediation HEAD             | `ee94972896a55a678a997d27e36dc497f4a24f5b` | commit | YES       |
-| Predecessor baseline         | `7272880f7e4320f5d36ac3b645ff7fc68ea5d0e0` | commit | YES       |
-| `raphael-p0-baseline-7272880f` (annotated tag) | `72f33ee5623c656071a3a5a687712decd3c80b40` | tag | YES |
+| Remediation HEAD (final, authoritative) | `768285b331ca0ad7283c93b365b7fbc01e5bad2f` | commit | YES       |
+| Remediation HEAD (F1 implementation)   | `ee94972896a55a678a997d27e36dc497f4a24f5b` | commit | YES       |
 | `raphael-p1-pre-migration-7272880f`            | `215c4b76f685e1c15b9161b974c3c5da458d5db7` | tag | YES |
 | `raphael-p1-post-migration-7272880f`           | `935f63bc02d6f4205282a32d301aed3f4e183508` | tag | YES |
 | `raphael-p14.5-baseline`                       | `cf39458406147c052c5f0776560b96094983d64a` | tag | YES |
@@ -36,26 +37,17 @@ ahead of the predecessor; one of them is the remediation commit).
 ---
 
 ## 2. Reconciliation against handoff expectations
-
-| Handoff expected                | Actual                          | Match? |
-|---------------------------------|---------------------------------|--------|
-| `/home/yaser/external-audits/raphael-2` | `/home/yaser/external-audits/raphael-2` | YES |
-| Branch `weld-sub10-evidence`    | `weld-sub10-evidence`           | YES    |
-| Pre-fix HEAD `31d66c234…`       | `31d66c234…`                    | YES    |
-| Canonical remote `git@github.com:The-Despicable/Raphaelv4.1.git` | configured as `canonical` | YES (URL matches; SSH key not present so `git ls-remote canonical` returns permission denied — the remote URL is correct, the local agent simply lacks the deploy key) |
-| Predecessor baseline `7272880f7` | `7272880f7…`                    | YES (resolves as a commit; on `origin/main`) |
-
-No discrepancies against the handoff. The remediation HEAD is a single
-forward commit on top of `31d66c234` (the pre-fix HEAD) on the expected
+`git rev-list --count HEAD ^7272880f7` → `71` (remediation is 71 commits
+ahead of the predecessor; the last two commits are `ee9497289` (F1
+code/tests/perimeter record) and `768285b3` (K.0 block + STATUS)).
 branch in the expected repository.
 
 ---
 
 ## 3. Authorized work performed (this revision)
-
-The single commit `ee9497289` contains exactly the four authorized
-remediation items:
-
+The two remediation commits (`ee9497289` for the implementation, and
+`768285b3` for the K.0 block + STATUS classification) collectively
+deliver exactly the four authorized remediation items:
 1. **F1 request-binding fix** in
    `src/orchestrator/hardening/action_receipt.py` (ActionReceipt hash-bound
    fields `action_type` and `authorized_argv`), and in
