@@ -1,0 +1,30 @@
+============================= test session starts ==============================
+platform linux -- Python 3.14.4, pytest-9.1.1, pluggy-1.6.0 -- /usr/bin/python3
+cachedir: .pytest_cache
+rootdir: /home/yaser/external-audits/raphael-2
+configfile: pyproject.toml
+plugins: anyio-4.15.0, asyncio-1.4.0, typeguard-4.4.4
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function
+collecting ... collected 19 items
+
+tests/test_scope_v0.py::test_missing_scope_required_fails_closed_before_any_stage PASSED [  5%]
+tests/test_scope_v0.py::test_non_scopev0_scope_object_fails_closed PASSED [ 10%]
+tests/test_scope_v0.py::test_missing_mission_id_rejected PASSED          [ 15%]
+tests/test_scope_v0.py::test_empty_targets_rejected PASSED               [ 21%]
+tests/test_scope_v0.py::test_malformed_entries_rejected PASSED           [ 26%]
+tests/test_scope_v0.py::test_out_of_scope_target_rejected_after_broker_allow PASSED [ 31%]
+tests/test_scope_v0.py::test_prohibited_capability_rejected PASSED       [ 36%]
+tests/test_scope_v0.py::test_unlisted_capability_rejected_at_runtime PASSED [ 42%]
+tests/test_scope_v0.py::test_prohibited_action_type_rejected PASSED      [ 47%]
+tests/test_scope_v0.py::test_valid_in_scope_declaration_succeeds PASSED  [ 52%]
+tests/test_scope_v0.py::test_valid_scope_does_not_bypass_broker_denial PASSED [ 57%]
+tests/test_scope_v0.py::test_scope_covers_is_deterministic_and_bounded PASSED [ 63%]
+tests/test_scope_v0.py::test_serialization_roundtrip_stable PASSED       [ 68%]
+tests/test_scope_v0.py::test_scope_immutable_after_validation PASSED     [ 73%]
+tests/test_scope_v0.py::test_scope_module_is_pure_contract PASSED        [ 78%]
+tests/test_scope_v0.py::test_scope_does_not_touch_worldmodel_or_broker PASSED [ 84%]
+tests/test_scope_v0.py::test_over_max_impact_denied PASSED               [ 89%]
+tests/test_scope_v0.py::test_exact_max_impact_allowed PASSED             [ 94%]
+tests/test_scope_v0.py::test_stage_fails_closed_without_impact_estimate PASSED [100%]
+
+============================== 19 passed in 0.43s ==============================

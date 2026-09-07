@@ -89,7 +89,12 @@ class ActionRequest:
     target: str = ""
     args: dict = field(default_factory=dict)
     rationale: str = ""
-
+    # §14.6 F1: optional planner-side capability/method metadata threaded
+    # to the broker and the PEP. Existing planners that omit these get
+    # the broker-stage default ("fixture.inspect" / "inspect") via the
+    # capability_name context key.
+    capability: str = ""
+    method: str = ""
 
 @dataclass
 class PolicyDecision:

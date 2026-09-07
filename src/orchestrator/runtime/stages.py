@@ -166,12 +166,17 @@ def stage_broker(ctx: dict) -> StageResult:
             duration_ms=(time.time() - t0) * 1000.0,
         )
     try:
+        # §14.6 F1: extract the argv from the request args (when the
+        # request declares it) and thread it as authorization material.
+        # The broker records argv on the receipt; the PEP re-verifies it.
+        argv = tuple(request.args.get("argv", ())) if isinstance(request.args, dict) else ()
         receipt = broker.propose_action(
             target=request.target,
             action_type=request.action_type,
-            capability=ctx.get("capability_name", "fixture.inspect"),
-            method="inspect",
+            capability=(request.capability or ctx.get("capability_name", "fixture.inspect")),
+            method=(request.method or "inspect"),
             impact_estimate=0.0,
+            authorized_argv=argv,
         )
     except Exception as exc:
         return StageResult.make(
@@ -298,6 +303,12 @@ def _stage_pep_sandboxed(ctx: dict, request: "ActionRequest",
             target=request.target,
             argv=tuple(args.get("argv", ())),
             artifacts=tuple(args.get("artifacts", ())),
+            # §14.6 F1: thread the four request-side authorization
+            # dimensions so the sandbox can verify them against the
+            # stored receipt.
+            capability=getattr(request, "capability", "") or "",
+            action_type=getattr(request, "action_type", "") or "",
+            method=getattr(request, "method", "") or "",
         )
     except Exception as exc:
         return StageResult.make(

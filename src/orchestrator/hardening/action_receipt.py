@@ -1,37 +1,23 @@
 """action_receipt.py — Immutable action receipt with hash-chain verification.
 
-Every CapabilityBroker decision (ALLOW or DENY) produces an ActionReceipt.
+CONV-3 (also see evidence/phases/P3_0/CONV-2-3_EVIDENCE.md): every
+CapabilityBroker decision (ALLOW or DENY) produces an ActionReceipt.
 Execution status is tracked separately from authorization status — an
 AUTHORIZED receipt does not imply SUCCEEDED.
 
-State machine:
-
-    PROPOSED
-       │
-       ▼
-  ┌── AUTHORIZED ── DENIED
-  │       │
-  │       ▼
-  │    STARTED
-  │       │
-  │       ▼
-  │  ┌── SUCCEEDED ── FAILED ── TIMEOUT
-  │  │
-  │  └── (AUTHORIZED can also go directly to FAILED if execution
-  │       fails before STARTED — e.g., target unreachable)
-
-Invariant: DENIED receipts MUST NOT transition to execution states.
-Invariant: PROPOSED is the only valid initial state.
-Invariant: audit_hash changes when ANY field is modified.
-
-Schema version: 1
+§14.6 F1 request-binding (this revision): the receipt also carries
+action_type and authorized_argv as hash-bound authorization material.
+The PEP/sandbox must verify that the executing request's capability,
+action_type, method, and argv match the stored values. The Broker
+remains the sole PDP; argv becomes authorization material at the moment
+the broker records it on the receipt.
 """
 
 import hashlib
 import json
-import time
-import os
 import logging
+import os
+import time
 from dataclasses import dataclass, field, asdict
 from enum import Enum
 from typing import Any, Optional
@@ -51,13 +37,22 @@ class ActionProposalStatus(str, Enum):
 
 
 VALID_TRANSITIONS = {
-    ActionProposalStatus.PROPOSED: {ActionProposalStatus.AUTHORIZED, ActionProposalStatus.DENIED},
-    ActionProposalStatus.AUTHORIZED: {ActionProposalStatus.STARTED, ActionProposalStatus.FAILED},
-    ActionProposalStatus.DENIED: set(),       # Terminal — no further transitions
-    ActionProposalStatus.STARTED: {ActionProposalStatus.SUCCEEDED, ActionProposalStatus.FAILED, ActionProposalStatus.TIMEOUT},
+    ActionProposalStatus.PROPOSED: {
+        ActionProposalStatus.AUTHORIZED,
+        ActionProposalStatus.DENIED,
+    },
+    ActionProposalStatus.AUTHORIZED: {
+        ActionProposalStatus.STARTED,
+    },
+    ActionProposalStatus.STARTED: {
+        ActionProposalStatus.SUCCEEDED,
+        ActionProposalStatus.FAILED,
+        ActionProposalStatus.TIMEOUT,
+    },
     ActionProposalStatus.SUCCEEDED: set(),    # Terminal
     ActionProposalStatus.FAILED: set(),       # Terminal
     ActionProposalStatus.TIMEOUT: set(),      # Terminal
+    ActionProposalStatus.DENIED: set(),       # Terminal
 }
 
 
@@ -85,6 +80,15 @@ class ActionReceipt:
     capability: str = ""        # e.g., "port_scan", "http_request", "file_read"
     method: str = ""            # e.g., "nmap", "curl", "subprocess"
     impact_estimate: str = ""   # e.g., "low", "medium", "high"
+
+    # Authorization dimensions — broker-bound (§14.6 F1 request-binding).
+    # action_type is the type class the broker authorized (e.g.,
+    # "sandboxed_exec"). authorized_argv is the exact argv tuple the
+    # broker authorized; empty tuple when the action class does not bind
+    # argv. Both fields are part of the hash-bound authorization
+    # material and MUST NOT be mutated after the receipt is authorized.
+    action_type: str = ""
+    authorized_argv: tuple = ()
 
     # Authorization decision
     status: ActionProposalStatus = ActionProposalStatus.PROPOSED
@@ -117,8 +121,11 @@ class ActionReceipt:
         Excludes the two hash fields (audit_hash, proposal_hash) to avoid
         self-referential dependency. The hash is computed over:
         action_id, schema_version, target, capability, method, impact_estimate,
-        status, decision, reason, policy_version, authorized_by, started_at,
-        completed_at, result, evidence_ids, prev_hash.
+        action_type, authorized_argv, status, decision, reason, policy_version,
+        authorized_by, started_at, completed_at, result, evidence_ids,
+        prev_hash. The broker-bound fields action_type and authorized_argv
+        are part of the hash so that any post-authorization tampering with
+        them breaks the chain.
         """
         raw = json.dumps(
             {k: v for k, v in asdict(self).items()
@@ -145,6 +152,8 @@ class ActionReceipt:
             "capability": self.capability,
             "method": self.method,
             "impact_estimate": self.impact_estimate,
+            "action_type": self.action_type,
+            "authorized_argv": list(self.authorized_argv),
             "status": self.status.value,
             "decision": self.decision,
             "reason": self.reason,
@@ -165,17 +174,26 @@ def create_proposal(
     method: str = "",
     impact_estimate: str = "unknown",
     action_id: str = "",
+    action_type: str = "",
+    authorized_argv: tuple = (),
 ) -> ActionReceipt:
     """Create a new PROPOSED action receipt.
 
     This is the entry point. The receipt must be AUTHORIZED or DENIED
     before any execution can proceed.
+
+    §14.6 F1: action_type and authorized_argv are recorded here as
+    authorization material. They are part of the hash chain. Any change
+    after authorization breaks verify_integrity().
     """
     global _last_receipt_hash
 
     if not action_id:
         entropy = f"{time.time_ns()}:{os.urandom(8).hex()}"
         action_id = hashlib.sha256(entropy.encode()).hexdigest()[:16]
+
+    # Normalize argv to a tuple for stable hashing.
+    argv_tuple = tuple(authorized_argv) if authorized_argv else ()
 
     # Content hash for the proposal
     receipt = ActionReceipt(
@@ -185,6 +203,8 @@ def create_proposal(
         capability=capability,
         method=method,
         impact_estimate=impact_estimate,
+        action_type=action_type,
+        authorized_argv=argv_tuple,
         status=ActionProposalStatus.PROPOSED,
         decision="",
         reason="",

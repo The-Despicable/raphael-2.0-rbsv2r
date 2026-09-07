@@ -150,13 +150,23 @@ def test_execution_action_linkage_live_sandbox():
         allowed_capabilities=["fixture.inspect"]))
     receipt = broker.propose_action(
         target="t", action_type="sandboxed_exec",
-        capability="fixture.inspect", method="exec", impact_estimate=0.0)
+        capability="fixture.inspect", method="exec", impact_estimate=0.0,
+        # §14.6 F1: thread the argv the live sandbox will execute.
+        authorized_argv=("/bin/echo", "linked"),
+    )
     assert receipt.decision == "allow"
     executor = SandboxedExecutor(
         broker=broker, policy=SandboxPolicy(workdir_root=root))
     outcome = executor.execute(
-        SandboxRequest(target="t", argv=("/bin/echo", "linked")), receipt)
-    assert outcome.status == "success"
+        SandboxRequest(
+            target="t", argv=("/bin/echo", "linked"),
+            # §14.6 F1: thread the four request-side authorization dimensions.
+            capability="fixture.inspect",
+            action_type="sandboxed_exec",
+            method="exec",
+        ),
+        receipt,
+    )
     record = EvidenceRecord.execution_result_from_sandbox(
         mission_id="m", action_id=receipt.action_id, sandbox_result=outcome,
         decision=receipt.decision, policy_version="bootstrap-v0")

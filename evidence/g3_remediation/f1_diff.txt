@@ -1,0 +1,386 @@
+diff --git a/src/orchestrator/brain/capability_broker.py b/src/orchestrator/brain/capability_broker.py
+index 698a20b6d..b8d0efc3f 100644
+--- a/src/orchestrator/brain/capability_broker.py
++++ b/src/orchestrator/brain/capability_broker.py
+@@ -315,12 +315,21 @@ class CapabilityBroker:
+         method: str,
+         impact_estimate: float,
+         metadata: dict = None,
++        authorized_argv: tuple = (),
+     ) -> ActionReceipt:
+         """
+         Propose an action and get an authorization decision.
+-        
++
+         This is the MAIN ENTRY POINT. Returns an ActionReceipt that tracks
+         the entire lifecycle: PROPOSED -> AUTHORIZED/DENIED -> STARTED -> SUCCEEDED/FAILED.
++
++        §14.6 F1: ``authorized_argv`` is the exact argv tuple the broker
++        authorizes. Empty tuple (default) is appropriate for capability
++        classes that do not bind argv (e.g. ``fixture.inspect``); for
++        ``action_type == "sandboxed_exec"`` the broker must record the
++        exact argv the PEP will hand to ``SandboxRequest``. The stored
++        argv becomes hash-bound authorization material that the PEP
++        re-verifies at execution.
+         """
+         # 1. Create initial proposal receipt
+         receipt = create_proposal(
+@@ -328,11 +337,12 @@ class CapabilityBroker:
+             capability=capability,
+             method=method,
+             impact_estimate=impact_estimate,
++            action_type=action_type,
++            authorized_argv=tuple(authorized_argv or ()),
+         )
+         receipt.metadata = metadata or {}
+         receipt.metadata["action_type"] = action_type
+         receipt.metadata["impact_estimate"] = impact_estimate
+-        
+         # 2. Run ALL authorization checks
+         checks = self._run_all_checks(target, action_type, capability, method, impact_estimate)
+         
+diff --git a/src/orchestrator/exec/sandbox.py b/src/orchestrator/exec/sandbox.py
+index a08a96f5c..160076caa 100644
+--- a/src/orchestrator/exec/sandbox.py
++++ b/src/orchestrator/exec/sandbox.py
+@@ -128,15 +128,25 @@ class SandboxPolicy:
+             self, "allowed_executables", tuple(self.allowed_executables)
+         )
+ 
+-
+ @dataclass(frozen=True)
+ class SandboxRequest:
+-    """What to run. argv[0] allowlisted; no shell; relative artifact paths."""
++    """What to run. argv[0] allowlisted; no shell; relative artifact paths.
++
++    §14.6 F1: the request carries the four request-side authorization
++    dimensions (capability, action_type, method) plus argv. The PEP/sandbox
++    MUST verify that every dimension matches the broker-stored
++    authorization material before any primitive is touched.
++    """
+ 
+     target: str
+     argv: tuple
+     artifacts: tuple = ()
+     timeout_s: Optional[float] = None
++    # F1: request-side dimensions, threaded from the planner / broker
++    # call. Compared element-wise against the stored receipt below.
++    capability: str = ""
++    action_type: str = ""
++    method: str = ""
+ 
+     def __post_init__(self) -> None:
+         if not isinstance(self.target, str) or not self.target:
+@@ -155,7 +165,6 @@ class SandboxRequest:
+                     f"SandboxRequest: artifact must be relative: {artifact!r}"
+                 )
+ 
+-
+ @dataclass
+ class SandboxResult:
+     """Deterministic mechanism outcome for the receipt/evidence path."""
+@@ -169,13 +178,25 @@ class SandboxResult:
+     duration_ms: float = 0.0
+     reason: str = ""
+ 
+-
+-def _check_receipt(broker: Any, receipt: Any, target: str) -> None:
++def _check_receipt(broker: Any, request: "SandboxRequest", receipt: Any) -> None:
+     """Verify Broker-issued authorization using the broker's own store.
+ 
++    §14.6 F1 request-binding invariant (the proven HIGH-severity confused-
++    deputy defect fix): the receipt is consulted only as a lookup handle,
++    not as a self-authenticating object. The six-dimension authorization
++    invariant is::
++
++        stored.status == AUTHORIZED
++        AND stored.target == req.target
++        AND stored.capability == req.capability
++        AND stored.action_type == req.action_type
++        AND stored.method == req.method
++        AND req.argv == stored.authorized_argv
++
+     Raises SandboxNotAuthorized on: no broker, missing receipt, unknown
+-    action_id (forged), non-AUTHORIZED stored status, target mismatch.
+-    Only the STORED receipt's fields are trusted.
++    action_id (forged), non-AUTHORIZED stored status, or any dimension
++    mismatch. Only the STORED receipt's fields are trusted — the passed
++    receipt object itself is treated as an untrusted lookup handle.
+     """
+     if broker is None:
+         raise SandboxNotAuthorized("Sandbox: no broker bound; execution denied")
+@@ -195,10 +216,39 @@ def _check_receipt(broker: Any, receipt: Any, target: str) -> None:
+             f"Sandbox: receipt '{action_id}' is not AUTHORIZED "
+             f"(status={stored.status}); denied"
+         )
+-    if stored.target != target:
++    if stored.target != request.target:
+         raise SandboxNotAuthorized(
+             f"Sandbox: receipt target '{stored.target}' does not match "
+-            f"execution target '{target}'; denied"
++            f"execution target '{request.target}'; denied"
++        )
++    # F1: bind capability. The broker recorded the authorized capability
++    # at proposal time; the request must match.
++    if stored.capability != request.capability:
++        raise SandboxNotAuthorized(
++            f"Sandbox: receipt capability '{stored.capability}' does not "
++            f"match request capability '{request.capability}'; denied"
++        )
++    # F1: bind action_type. Previously stored only in receipt.metadata
++    # (not hash-bound); now promoted to a top-level hash-bound field.
++    if stored.action_type != request.action_type:
++        raise SandboxNotAuthorized(
++            f"Sandbox: receipt action_type '{stored.action_type}' does not "
++            f"match request action_type '{request.action_type}'; denied"
++        )
++    # F1: bind method. nmap vs curl vs subprocess matters.
++    if stored.method != request.method:
++        raise SandboxNotAuthorized(
++            f"Sandbox: receipt method '{stored.method}' does not match "
++            f"request method '{request.method}'; denied"
++        )
++    # F1: bind argv. The exact argv tuple the broker authorized must
++    # match the executing argv. Reject forged or tampered copies that
++    # swap args while reusing the action_id (the original confused-deputy
++    # exploit).
++    if tuple(stored.authorized_argv) != tuple(request.argv):
++        raise SandboxNotAuthorized(
++            f"Sandbox: request argv {tuple(request.argv)!r} does not match "
++            f"broker-authorized argv {tuple(stored.authorized_argv)!r}; denied"
+         )
+ 
+ 
+@@ -237,9 +287,13 @@ class SandboxedExecutor:
+         return self._policy
+ 
+     def execute(self, request: SandboxRequest, receipt: Any) -> SandboxResult:
+-        """Run a Broker-authorized request inside the minimal sandbox."""
++        """Run a Broker-authorized request inside the minimal sandbox.
++
++        §14.6 F1: authorization is verified against the stored receipt
++        across six dimensions before any primitive is touched.
++        """
+         t0 = time.time()
+-        _check_receipt(self._broker, receipt, request.target)
++        _check_receipt(self._broker, request, receipt)
+         policy = self._policy
+ 
+         if policy.allow_network:
+diff --git a/src/orchestrator/hardening/action_receipt.py b/src/orchestrator/hardening/action_receipt.py
+index 6675dfd3d..8ff9b3d77 100644
+--- a/src/orchestrator/hardening/action_receipt.py
++++ b/src/orchestrator/hardening/action_receipt.py
+@@ -1,37 +1,23 @@
+ """action_receipt.py — Immutable action receipt with hash-chain verification.
+ 
+-Every CapabilityBroker decision (ALLOW or DENY) produces an ActionReceipt.
++CONV-3 (also see evidence/phases/P3_0/CONV-2-3_EVIDENCE.md): every
++CapabilityBroker decision (ALLOW or DENY) produces an ActionReceipt.
+ Execution status is tracked separately from authorization status — an
+ AUTHORIZED receipt does not imply SUCCEEDED.
+ 
+-State machine:
+-
+-    PROPOSED
+-       │
+-       ▼
+-  ┌── AUTHORIZED ── DENIED
+-  │       │
+-  │       ▼
+-  │    STARTED
+-  │       │
+-  │       ▼
+-  │  ┌── SUCCEEDED ── FAILED ── TIMEOUT
+-  │  │
+-  │  └── (AUTHORIZED can also go directly to FAILED if execution
+-  │       fails before STARTED — e.g., target unreachable)
+-
+-Invariant: DENIED receipts MUST NOT transition to execution states.
+-Invariant: PROPOSED is the only valid initial state.
+-Invariant: audit_hash changes when ANY field is modified.
+-
+-Schema version: 1
++§14.6 F1 request-binding (this revision): the receipt also carries
++action_type and authorized_argv as hash-bound authorization material.
++The PEP/sandbox must verify that the executing request's capability,
++action_type, method, and argv match the stored values. The Broker
++remains the sole PDP; argv becomes authorization material at the moment
++the broker records it on the receipt.
+ """
+ 
+ import hashlib
+ import json
+-import time
+-import os
+ import logging
++import os
++import time
+ from dataclasses import dataclass, field, asdict
+ from enum import Enum
+ from typing import Any, Optional
+@@ -51,13 +37,22 @@ class ActionProposalStatus(str, Enum):
+ 
+ 
+ VALID_TRANSITIONS = {
+-    ActionProposalStatus.PROPOSED: {ActionProposalStatus.AUTHORIZED, ActionProposalStatus.DENIED},
+-    ActionProposalStatus.AUTHORIZED: {ActionProposalStatus.STARTED, ActionProposalStatus.FAILED},
+-    ActionProposalStatus.DENIED: set(),       # Terminal — no further transitions
+-    ActionProposalStatus.STARTED: {ActionProposalStatus.SUCCEEDED, ActionProposalStatus.FAILED, ActionProposalStatus.TIMEOUT},
++    ActionProposalStatus.PROPOSED: {
++        ActionProposalStatus.AUTHORIZED,
++        ActionProposalStatus.DENIED,
++    },
++    ActionProposalStatus.AUTHORIZED: {
++        ActionProposalStatus.STARTED,
++    },
++    ActionProposalStatus.STARTED: {
++        ActionProposalStatus.SUCCEEDED,
++        ActionProposalStatus.FAILED,
++        ActionProposalStatus.TIMEOUT,
++    },
+     ActionProposalStatus.SUCCEEDED: set(),    # Terminal
+     ActionProposalStatus.FAILED: set(),       # Terminal
+     ActionProposalStatus.TIMEOUT: set(),      # Terminal
++    ActionProposalStatus.DENIED: set(),       # Terminal
+ }
+ 
+ 
+@@ -86,6 +81,15 @@ class ActionReceipt:
+     method: str = ""            # e.g., "nmap", "curl", "subprocess"
+     impact_estimate: str = ""   # e.g., "low", "medium", "high"
+ 
++    # Authorization dimensions — broker-bound (§14.6 F1 request-binding).
++    # action_type is the type class the broker authorized (e.g.,
++    # "sandboxed_exec"). authorized_argv is the exact argv tuple the
++    # broker authorized; empty tuple when the action class does not bind
++    # argv. Both fields are part of the hash-bound authorization
++    # material and MUST NOT be mutated after the receipt is authorized.
++    action_type: str = ""
++    authorized_argv: tuple = ()
++
+     # Authorization decision
+     status: ActionProposalStatus = ActionProposalStatus.PROPOSED
+     decision: str = ""           # "allow" or "deny"
+@@ -117,8 +121,11 @@ class ActionReceipt:
+         Excludes the two hash fields (audit_hash, proposal_hash) to avoid
+         self-referential dependency. The hash is computed over:
+         action_id, schema_version, target, capability, method, impact_estimate,
+-        status, decision, reason, policy_version, authorized_by, started_at,
+-        completed_at, result, evidence_ids, prev_hash.
++        action_type, authorized_argv, status, decision, reason, policy_version,
++        authorized_by, started_at, completed_at, result, evidence_ids,
++        prev_hash. The broker-bound fields action_type and authorized_argv
++        are part of the hash so that any post-authorization tampering with
++        them breaks the chain.
+         """
+         raw = json.dumps(
+             {k: v for k, v in asdict(self).items()
+@@ -145,6 +152,8 @@ class ActionReceipt:
+             "capability": self.capability,
+             "method": self.method,
+             "impact_estimate": self.impact_estimate,
++            "action_type": self.action_type,
++            "authorized_argv": list(self.authorized_argv),
+             "status": self.status.value,
+             "decision": self.decision,
+             "reason": self.reason,
+@@ -165,11 +174,17 @@ def create_proposal(
+     method: str = "",
+     impact_estimate: str = "unknown",
+     action_id: str = "",
++    action_type: str = "",
++    authorized_argv: tuple = (),
+ ) -> ActionReceipt:
+     """Create a new PROPOSED action receipt.
+ 
+     This is the entry point. The receipt must be AUTHORIZED or DENIED
+     before any execution can proceed.
++
++    §14.6 F1: action_type and authorized_argv are recorded here as
++    authorization material. They are part of the hash chain. Any change
++    after authorization breaks verify_integrity().
+     """
+     global _last_receipt_hash
+ 
+@@ -177,6 +192,9 @@ def create_proposal(
+         entropy = f"{time.time_ns()}:{os.urandom(8).hex()}"
+         action_id = hashlib.sha256(entropy.encode()).hexdigest()[:16]
+ 
++    # Normalize argv to a tuple for stable hashing.
++    argv_tuple = tuple(authorized_argv) if authorized_argv else ()
++
+     # Content hash for the proposal
+     receipt = ActionReceipt(
+         action_id=action_id,
+@@ -185,6 +203,8 @@ def create_proposal(
+         capability=capability,
+         method=method,
+         impact_estimate=impact_estimate,
++        action_type=action_type,
++        authorized_argv=argv_tuple,
+         status=ActionProposalStatus.PROPOSED,
+         decision="",
+         reason="",
+@@ -315,4 +335,4 @@ def verify_chain() -> list[dict]:
+                 "status": receipt.status.value,
+             })
+ 
+-    return issues
++    return issues
+\ No newline at end of file
+diff --git a/src/orchestrator/runtime/stages.py b/src/orchestrator/runtime/stages.py
+index 30f40b4e7..6abcb8cc5 100644
+--- a/src/orchestrator/runtime/stages.py
++++ b/src/orchestrator/runtime/stages.py
+@@ -166,12 +166,17 @@ def stage_broker(ctx: dict) -> StageResult:
+             duration_ms=(time.time() - t0) * 1000.0,
+         )
+     try:
++        # §14.6 F1: extract the argv from the request args (when the
++        # request declares it) and thread it as authorization material.
++        # The broker records argv on the receipt; the PEP re-verifies it.
++        argv = tuple(request.args.get("argv", ())) if isinstance(request.args, dict) else ()
+         receipt = broker.propose_action(
+             target=request.target,
+             action_type=request.action_type,
+-            capability=ctx.get("capability_name", "fixture.inspect"),
+-            method="inspect",
++            capability=(request.capability or ctx.get("capability_name", "fixture.inspect")),
++            method=(request.method or "inspect"),
+             impact_estimate=0.0,
++            authorized_argv=argv,
+         )
+     except Exception as exc:
+         return StageResult.make(
+@@ -298,6 +303,12 @@ def _stage_pep_sandboxed(ctx: dict, request: "ActionRequest",
+             target=request.target,
+             argv=tuple(args.get("argv", ())),
+             artifacts=tuple(args.get("artifacts", ())),
++            # §14.6 F1: thread the four request-side authorization
++            # dimensions so the sandbox can verify them against the
++            # stored receipt.
++            capability=getattr(request, "capability", "") or "",
++            action_type=getattr(request, "action_type", "") or "",
++            method=getattr(request, "method", "") or "",
+         )
+     except Exception as exc:
+         return StageResult.make(
+diff --git a/src/orchestrator/runtime/types.py b/src/orchestrator/runtime/types.py
+index 876ac437b..eba18c3f4 100644
+--- a/src/orchestrator/runtime/types.py
++++ b/src/orchestrator/runtime/types.py
+@@ -89,7 +89,12 @@ class ActionRequest:
+     target: str = ""
+     args: dict = field(default_factory=dict)
+     rationale: str = ""
+-
++    # §14.6 F1: optional planner-side capability/method metadata threaded
++    # to the broker and the PEP. Existing planners that omit these get
++    # the broker-stage default ("fixture.inspect" / "inspect") via the
++    # capability_name context key.
++    capability: str = ""
++    method: str = ""
+ 
+ @dataclass
+ class PolicyDecision:

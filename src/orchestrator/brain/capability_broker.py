@@ -315,12 +315,21 @@ class CapabilityBroker:
         method: str,
         impact_estimate: float,
         metadata: dict = None,
+        authorized_argv: tuple = (),
     ) -> ActionReceipt:
         """
         Propose an action and get an authorization decision.
-        
+
         This is the MAIN ENTRY POINT. Returns an ActionReceipt that tracks
         the entire lifecycle: PROPOSED -> AUTHORIZED/DENIED -> STARTED -> SUCCEEDED/FAILED.
+
+        §14.6 F1: ``authorized_argv`` is the exact argv tuple the broker
+        authorizes. Empty tuple (default) is appropriate for capability
+        classes that do not bind argv (e.g. ``fixture.inspect``); for
+        ``action_type == "sandboxed_exec"`` the broker must record the
+        exact argv the PEP will hand to ``SandboxRequest``. The stored
+        argv becomes hash-bound authorization material that the PEP
+        re-verifies at execution.
         """
         # 1. Create initial proposal receipt
         receipt = create_proposal(
@@ -328,11 +337,12 @@ class CapabilityBroker:
             capability=capability,
             method=method,
             impact_estimate=impact_estimate,
+            action_type=action_type,
+            authorized_argv=tuple(authorized_argv or ()),
         )
         receipt.metadata = metadata or {}
         receipt.metadata["action_type"] = action_type
         receipt.metadata["impact_estimate"] = impact_estimate
-        
         # 2. Run ALL authorization checks
         checks = self._run_all_checks(target, action_type, capability, method, impact_estimate)
         

@@ -1,0 +1,45 @@
+============================= test session starts ==============================
+collecting ... collected 30 items
+
+tests/test_p2_guardrail_belief_transition_port.py::test_unbound_port_raises PASSED [  3%]
+tests/test_p2_guardrail_belief_transition_port.py::test_adapter_conforms_to_protocol PASSED [  6%]
+tests/test_p2_guardrail_belief_transition_port.py::test_bound_port_works PASSED [ 10%]
+tests/test_p2_guardrail_deny_by_default.py::test_sub10_kali_bypass_removed PASSED [ 13%]
+tests/test_p2_guardrail_deny_by_default.py::test_sub14_executor_bypass_removed PASSED [ 16%]
+tests/test_p2_guardrail_deny_by_default.py::test_sub10_authorize_local_bypass_removed PASSED [ 20%]
+tests/test_p2_guardrail_deny_by_default.py::test_sub14_authorize_bypass_removed PASSED [ 23%]
+tests/test_p2_guardrail_deny_by_default.py::test_seam_state_consistent_across_imports PASSED [ 26%]
+tests/test_p2_guardrail_deprecated_import.py::test_no_canonical_module_imports_p2_deprecated PASSED [ 30%]
+tests/test_p2_guardrail_deprecated_import.py::test_p2_registry_matches_guardrail PASSED [ 33%]
+tests/test_p2_guardrail_inv1.py::test_inv1_runtime_clean PASSED          [ 36%]
+tests/test_p2_guardrail_inv1.py::test_inv1_exec_package_may_use_primitives PASSED [ 40%]
+tests/test_p2_guardrail_inv1.py::test_inv1_stage_pep_delegates_to_exec PASSED [ 43%]
+tests/test_p2_guardrail_inv1.py::test_inv3_capability_gated_by_broker PASSED [ 46%]
+tests/test_p2_guardrail_inv1.py::test_inv3_capability_works_after_authorization PASSED [ 50%]
+tests/test_p2_guardrail_no_production_bypass.py::test_no_production_module_calls_authorize_bypass PASSED [ 53%]
+tests/test_p2_guardrail_no_production_bypass.py::test_bypass_functions_only_callable_via_explicit_optin PASSED [ 56%]
+tests/test_p2_guardrail_runtime_no_seam.py::test_no_seam_module_exists PASSED [ 60%]
+tests/test_p2_guardrail_runtime_no_seam.py::test_no_orchestrator_imports_seam_pattern PASSED [ 63%]
+tests/test_p2_guardrail_runtime_no_seam.py::test_seam_quarantines_are_off_by_default PASSED [ 66%]
+tests/test_p2_guardrail_shell_closed.py::test_shell_privileged_construction_requires_broker_receipt PASSED [ 70%]
+tests/test_p2_guardrail_shell_closed.py::test_shell_forged_field_bag_rejected PASSED [ 73%]
+tests/test_p2_guardrail_shell_closed.py::test_shell_unknown_and_expired_sessions_rejected PASSED [ 76%]
+tests/test_p2_guardrail_shell_closed.py::test_shell_listener_requires_authorization PASSED [ 80%]
+tests/test_p2_guardrail_single_runtime.py::test_no_canonical_import_of_p2_deprecated PASSED [ 83%]
+tests/test_p2_guardrail_single_runtime.py::test_no_arena_runtime_import_from_orchestrator_brain PASSED [ 86%]
+tests/test_p2_guardrail_single_runtime.py::test_no_seam_import PASSED    [ 90%]
+tests/test_p2_guardrail_single_runtime.py::test_no_absolute_paths_in_new_runtime_code PASSED [ 93%]
+tests/test_p2_guardrail_sub10_closed.py::test_sub10_kali_client_fails_closed PASSED [ 96%]
+tests/test_p2_guardrail_sub13_closed.py::test_sub13_kali_bridge_fails_closed PASSED [100%]
+
+=============================== warnings summary ===============================
+tests/test_p2_guardrail_deprecated_import.py::test_no_canonical_module_imports_p2_deprecated
+tests/test_p2_guardrail_inv1.py::test_inv1_exec_package_may_use_primitives
+tests/test_p2_guardrail_no_production_bypass.py::test_no_production_module_calls_authorize_bypass
+tests/test_p2_guardrail_runtime_no_seam.py::test_no_orchestrator_imports_seam_pattern
+tests/test_p2_guardrail_single_runtime.py::test_no_canonical_import_of_p2_deprecated
+tests/test_p2_guardrail_single_runtime.py::test_no_seam_import
+  <unknown>:141: SyntaxWarning: "\-" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\-"? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 30 passed, 6 warnings in 6.15s ========================

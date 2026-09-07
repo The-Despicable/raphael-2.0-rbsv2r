@@ -128,15 +128,25 @@ class SandboxPolicy:
             self, "allowed_executables", tuple(self.allowed_executables)
         )
 
-
 @dataclass(frozen=True)
 class SandboxRequest:
-    """What to run. argv[0] allowlisted; no shell; relative artifact paths."""
+    """What to run. argv[0] allowlisted; no shell; relative artifact paths.
+
+    §14.6 F1: the request carries the four request-side authorization
+    dimensions (capability, action_type, method) plus argv. The PEP/sandbox
+    MUST verify that every dimension matches the broker-stored
+    authorization material before any primitive is touched.
+    """
 
     target: str
     argv: tuple
     artifacts: tuple = ()
     timeout_s: Optional[float] = None
+    # F1: request-side dimensions, threaded from the planner / broker
+    # call. Compared element-wise against the stored receipt below.
+    capability: str = ""
+    action_type: str = ""
+    method: str = ""
 
     def __post_init__(self) -> None:
         if not isinstance(self.target, str) or not self.target:
@@ -155,7 +165,6 @@ class SandboxRequest:
                     f"SandboxRequest: artifact must be relative: {artifact!r}"
                 )
 
-
 @dataclass
 class SandboxResult:
     """Deterministic mechanism outcome for the receipt/evidence path."""
@@ -169,13 +178,25 @@ class SandboxResult:
     duration_ms: float = 0.0
     reason: str = ""
 
-
-def _check_receipt(broker: Any, receipt: Any, target: str) -> None:
+def _check_receipt(broker: Any, request: "SandboxRequest", receipt: Any) -> None:
     """Verify Broker-issued authorization using the broker's own store.
 
+    §14.6 F1 request-binding invariant (the proven HIGH-severity confused-
+    deputy defect fix): the receipt is consulted only as a lookup handle,
+    not as a self-authenticating object. The six-dimension authorization
+    invariant is::
+
+        stored.status == AUTHORIZED
+        AND stored.target == req.target
+        AND stored.capability == req.capability
+        AND stored.action_type == req.action_type
+        AND stored.method == req.method
+        AND req.argv == stored.authorized_argv
+
     Raises SandboxNotAuthorized on: no broker, missing receipt, unknown
-    action_id (forged), non-AUTHORIZED stored status, target mismatch.
-    Only the STORED receipt's fields are trusted.
+    action_id (forged), non-AUTHORIZED stored status, or any dimension
+    mismatch. Only the STORED receipt's fields are trusted — the passed
+    receipt object itself is treated as an untrusted lookup handle.
     """
     if broker is None:
         raise SandboxNotAuthorized("Sandbox: no broker bound; execution denied")
@@ -195,10 +216,39 @@ def _check_receipt(broker: Any, receipt: Any, target: str) -> None:
             f"Sandbox: receipt '{action_id}' is not AUTHORIZED "
             f"(status={stored.status}); denied"
         )
-    if stored.target != target:
+    if stored.target != request.target:
         raise SandboxNotAuthorized(
             f"Sandbox: receipt target '{stored.target}' does not match "
-            f"execution target '{target}'; denied"
+            f"execution target '{request.target}'; denied"
+        )
+    # F1: bind capability. The broker recorded the authorized capability
+    # at proposal time; the request must match.
+    if stored.capability != request.capability:
+        raise SandboxNotAuthorized(
+            f"Sandbox: receipt capability '{stored.capability}' does not "
+            f"match request capability '{request.capability}'; denied"
+        )
+    # F1: bind action_type. Previously stored only in receipt.metadata
+    # (not hash-bound); now promoted to a top-level hash-bound field.
+    if stored.action_type != request.action_type:
+        raise SandboxNotAuthorized(
+            f"Sandbox: receipt action_type '{stored.action_type}' does not "
+            f"match request action_type '{request.action_type}'; denied"
+        )
+    # F1: bind method. nmap vs curl vs subprocess matters.
+    if stored.method != request.method:
+        raise SandboxNotAuthorized(
+            f"Sandbox: receipt method '{stored.method}' does not match "
+            f"request method '{request.method}'; denied"
+        )
+    # F1: bind argv. The exact argv tuple the broker authorized must
+    # match the executing argv. Reject forged or tampered copies that
+    # swap args while reusing the action_id (the original confused-deputy
+    # exploit).
+    if tuple(stored.authorized_argv) != tuple(request.argv):
+        raise SandboxNotAuthorized(
+            f"Sandbox: request argv {tuple(request.argv)!r} does not match "
+            f"broker-authorized argv {tuple(stored.authorized_argv)!r}; denied"
         )
 
 
@@ -237,9 +287,13 @@ class SandboxedExecutor:
         return self._policy
 
     def execute(self, request: SandboxRequest, receipt: Any) -> SandboxResult:
-        """Run a Broker-authorized request inside the minimal sandbox."""
+        """Run a Broker-authorized request inside the minimal sandbox.
+
+        §14.6 F1: authorization is verified against the stored receipt
+        across six dimensions before any primitive is touched.
+        """
         t0 = time.time()
-        _check_receipt(self._broker, receipt, request.target)
+        _check_receipt(self._broker, request, receipt)
         policy = self._policy
 
         if policy.allow_network:
