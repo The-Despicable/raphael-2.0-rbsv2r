@@ -1,0 +1,83 @@
+{
+  "entries": [
+    {
+      "link": "mission_file",
+      "value": "tests/p311_mvp_mission.json"
+    },
+    {
+      "link": "scope_hash",
+      "value": "f10f5fbd430ed00deb484bde021e54022a00a8022a982a9b7356754d63859bac"
+    },
+    {
+      "link": "iteration_0_plan",
+      "value": "mvp-injected-001"
+    },
+    {
+      "link": "iteration_0_broker",
+      "value": "deny: \u00a714.6 Scope v0 fail-closed: Scope v0: target outside declared scope: prod.db.internal"
+    },
+    {
+      "link": "iteration_1_plan",
+      "value": "mvp-valid-001"
+    },
+    {
+      "link": "iteration_1_broker",
+      "value": "allow: target_authorization: Target allowed by: * | roe_authorization: Action type allowed: safe_proving_capability | capability_authorization: Capability allowed: fixture.inspect | rate_authorization: Rate limits OK | impact_authorization: Impact within budget"
+    },
+    {
+      "link": "pep_event",
+      "value": "EVT_7de5cd2ed57d"
+    },
+    {
+      "link": "pep_outcome",
+      "value": "ok"
+    },
+    {
+      "link": "broker_decision_id",
+      "value": "9dbbd227c08318ac"
+    },
+    {
+      "link": "broker_receipt_id",
+      "value": "9dbbd227c08318ac"
+    },
+    {
+      "link": "evidence_receipt_id",
+      "value": "RCP_6c6573f5dc7f"
+    },
+    {
+      "link": "worldmodel_integrated",
+      "value": "True"
+    },
+    {
+      "link": "contradiction_triggered",
+      "value": "True"
+    },
+    {
+      "link": "contradiction_rule",
+      "value": "p3.11.deterministic.broker_denial_failure"
+    },
+    {
+      "link": "replan",
+      "value": "replanned=True"
+    },
+    {
+      "link": "denied_triple",
+      "value": "['safe_proving_capability', 'prod.db.internal', 'fixture.inspect']"
+    },
+    {
+      "link": "next_triple",
+      "value": "['safe_proving_capability', 'system_info.name', 'fixture.inspect']"
+    },
+    {
+      "link": "student_iter0",
+      "value": "{'mode': 'recording', 'candidates_proposed': 3}"
+    },
+    {
+      "link": "student_iter1",
+      "value": "{'mode': 'recording', 'candidates_proposed': 3}"
+    }
+  ],
+  "head": "fc83a61796c0bf78cb136f553a7d4f1f431823da",
+  "mission_id": "p311-mvp-001",
+  "trace_id": "TRC_8b43fc89a675"
+}

@@ -1,0 +1,5 @@
+Python 3.14.4
+pytest 9.1.1
+fc83a61796c0bf78cb136f553a7d4f1f431823da
+weld-sub10-evidence
+?? evidence/p311_mvp/

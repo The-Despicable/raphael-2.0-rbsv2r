@@ -1,0 +1,26 @@
+============================= test session starts ==============================
+collecting ... collected 16 items
+
+tests/test_p311_mvp_demonstration.py::test_p311_mvp_mission_file_is_deterministic PASSED [  6%]
+tests/test_p311_mvp_demonstration.py::test_p311_mvp_full_chain PASSED    [ 12%]
+tests/test_p311_mvp_demonstration.py::test_p311_mvp_denial_executes_nothing PASSED [ 18%]
+tests/test_p311_adversarial_probes.py::test_adv_planner_decision_confirms_nothing_by_itself PASSED [ 25%]
+tests/test_p311_adversarial_probes.py::test_adv_broker_bound_capability_requires_recorded_authorization PASSED [ 31%]
+tests/test_p311_adversarial_probes.py::test_adv_no_primitive_imports_in_runtime PASSED [ 37%]
+tests/test_p311_adversarial_probes.py::test_adv_discriminator_proposals_do_not_execute PASSED [ 43%]
+tests/test_p311_adversarial_probes.py::test_adv_legacy_modes_unreachable_from_canonical_closure PASSED [ 50%]
+tests/test_p311_adversarial_probes.py::test_adv_no_seam_module_or_import PASSED [ 56%]
+tests/test_p311_adversarial_probes.py::test_adv_narrow_policy_denies_outside_grant PASSED [ 62%]
+tests/test_p311_adversarial_probes.py::test_adv_event_without_decision_id_is_detectable PASSED [ 68%]
+tests/test_p311_adversarial_probes.py::test_adv_fake_receipt_unknown_action_id_denied PASSED [ 75%]
+tests/test_p311_adversarial_probes.py::test_adv_relationship_without_evidence_rejected PASSED [ 81%]
+tests/test_p311_adversarial_probes.py::test_adv_copied_id_wrong_method_denied PASSED [ 87%]
+tests/test_p311_adversarial_probes.py::test_adv_full_episode_every_event_has_broker_id PASSED [ 93%]
+tests/test_p311_adversarial_probes.py::test_adv_single_runtime_pdp_pep_ten_stages PASSED [100%]
+
+=============================== warnings summary ===============================
+tests/test_p311_adversarial_probes.py::test_adv_no_seam_module_or_import
+  <unknown>:141: SyntaxWarning: "\-" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\-"? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 16 passed, 1 warning in 1.17s =========================
