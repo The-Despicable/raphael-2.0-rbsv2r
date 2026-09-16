@@ -1,0 +1,18 @@
+src/orchestrator/api/ci.py:12:from orchestrator.modes.autonomous import handle as autonomous_handle
+src/orchestrator/api/ci.py:194:    from orchestrator.agents.engage import run_agent_engage
+src/orchestrator/api/main.py:20:from orchestrator.chains.tool_registry import registry
+src/orchestrator/api/tools.py:22:from orchestrator.chains.tool_registry import (
+src/orchestrator/api/agent.py:24:from orchestrator.agents.engage import build_orchestrator, run_agent_engage
+src/bridge/raphael_bridge.py:22:from orchestrator.kali_tools_client import kali
+src/orchestrator/modes/student.py:50:    from orchestrator.kali_tools_client import kali
+src/orchestrator/chains/ad_kill_chain.py:5:from orchestrator.kali_tools_client import kali
+src/orchestrator/chains/ad_kill_chain.py:13:from orchestrator.c2.manager import get_c2
+src/orchestrator/chains/credential_spray.py:5:from orchestrator.kali_tools_client import kali
+src/orchestrator/chains/credential_spray.py:6:from orchestrator.c2.manager import get_c2
+src/orchestrator/agents/scan.py:142:        from orchestrator.kali_tools_client import kali
+src/orchestrator/agents/exploit.py:601:        from orchestrator.kali_tools_client import kali
+src/orchestrator/agents/exploit.py:695:        from orchestrator.kali_tools_client import kali
+src/orchestrator/agents/exploit.py:828:        from orchestrator.kali_tools_client import kali
+src/orchestrator/agents/exploit.py:846:        from orchestrator.kali_tools_client import kali
+src/orchestrator/agents/exploit.py:864:        from orchestrator.kali_tools_client import kali
+exit=0

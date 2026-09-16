@@ -1,0 +1,19 @@
+src/orchestrator/capabilities/interactive_shell/ssh_shell.py:40:        from .capability import require_shell_authorization
+src/orchestrator/capabilities/interactive_shell/ssh_shell.py:41:        require_shell_authorization(authorization)
+grep: src/orchestrator/capabilities/interactive_shell/__pycache__/reverse_shell.cpython-314.pyc: binary file matches
+grep: src/orchestrator/capabilities/interactive_shell/__pycache__/capability.cpython-314.pyc: binary file matches
+grep: src/orchestrator/capabilities/interactive_shell/__pycache__/listener_manager.cpython-314.pyc: binary file matches
+grep: src/orchestrator/capabilities/interactive_shell/__pycache__/ssh_shell.cpython-314.pyc: binary file matches
+src/orchestrator/capabilities/interactive_shell/reverse_shell.py:89:        from .capability import require_shell_authorization
+src/orchestrator/capabilities/interactive_shell/reverse_shell.py:90:        require_shell_authorization(authorization)
+src/orchestrator/capabilities/interactive_shell/reverse_shell.py:181:        from .capability import require_shell_authorization
+src/orchestrator/capabilities/interactive_shell/reverse_shell.py:182:        require_shell_authorization(authorization)
+src/orchestrator/capabilities/interactive_shell/capability.py:19:class ShellNotAuthorized(Exception):
+src/orchestrator/capabilities/interactive_shell/capability.py:33:def require_shell_authorization(authorization, expected_session_id=None) -> None:
+src/orchestrator/capabilities/interactive_shell/capability.py:150:        require_shell_authorization(authorization)
+src/orchestrator/capabilities/interactive_shell/capability.py:360:        require_shell_authorization(authorization)
+src/orchestrator/capabilities/interactive_shell/listener_manager.py:152:        from .capability import require_shell_authorization
+src/orchestrator/capabilities/interactive_shell/listener_manager.py:153:        require_shell_authorization(authorization, expected_session_id=session_id)
+src/orchestrator/capabilities/interactive_shell/listener_manager.py:251:        from .capability import require_shell_authorization
+src/orchestrator/capabilities/interactive_shell/listener_manager.py:252:        require_shell_authorization(authorization, expected_session_id=session_id)
+exit=0

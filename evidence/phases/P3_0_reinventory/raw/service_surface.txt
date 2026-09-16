@@ -1,0 +1,4 @@
+src/kali-tools/server.py:19:@app.post("/run")
+src/orchestrator/api/tools_bridge.py:1:"""Simplified tool bridge endpoints - maps /api/tools/{nmap,recon} to Kali container."""
+src/orchestrator/api/tools_bridge.py:18:KALI_CONTAINER_URL = "http://localhost:3800/run"
+exit=0

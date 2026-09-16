@@ -1,0 +1,5 @@
+ M evidence/g3_remediation/F2_PERIMETER_RECORD.md
+?? RAPHAEL_HANDOFF_v4.1.md
+?? claude.md.txt
+?? evidence/phases/P3_0_reinventory/
+?? tests/test_p3_0_reinventory_consistency.py

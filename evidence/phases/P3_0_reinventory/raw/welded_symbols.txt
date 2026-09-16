@@ -1,0 +1,2 @@
+src/orchestrator/kali_tools_client.py:22:# The local subprocess bypass (KaliBypassNotAuthorized, _BYPASS_AUTHORIZED,
+exit=0 (only WELD header comments expected)
