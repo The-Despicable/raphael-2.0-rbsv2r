@@ -18,6 +18,7 @@ No new stages. The existing 10 stages are modified in-place to call
 the real brain organs.
 """
 from __future__ import annotations
+import math
 import time
 from typing import Any, Optional
 
@@ -273,6 +274,7 @@ def stage_planner_request(ctx: dict) -> StageResult:
                 rationale=str(selected.get("rationale", "P3.11 §14.10: Planner-selected mission candidate")),
                 capability=str(selected.get("capability", "")),
                 method=str(selected.get("method", "")),
+                impact_estimate=selected.get("impact_estimate"),
             )
             if action_id:
                 request_kwargs["action_id"] = action_id
@@ -294,6 +296,9 @@ def stage_planner_request(ctx: dict) -> StageResult:
         target=target,
         args={"read_only": True},
         rationale="G3-EN-5 organ-wired walking skeleton: deterministic safe-proving via real Planner",
+        capability="fixture.inspect",
+        method="inspect",
+        impact_estimate=0.0,
     )
     output = {"request": request}
     return StageResult.make(
@@ -318,6 +323,29 @@ def stage_broker(ctx: dict) -> StageResult:
             error="G3-EN-5 fail-closed: no broker bound",
             duration_ms=(time.time() - t0) * 1000.0,
         )
+    # §14.6 F1 / R-1: the Broker must decide on the request's declared
+    # impact, not a hardcoded constant. Absent or malformed estimates
+    # fail closed here (no PEP, no fabricated 0.0).
+    request_impact = getattr(request, "impact_estimate", None)
+    try:
+        impact_estimate = float(request_impact)
+        if not math.isfinite(impact_estimate):
+            raise ValueError
+    except (TypeError, ValueError):
+        reason = ("no impact estimate available" if request_impact is None
+                  else "malformed impact estimate")
+        return StageResult.make(
+            stage_name=STAGE_BROKER,
+            success=False,
+            output={"decision": None},
+            error=f"§14.6 Scope v0 fail-closed: Scope v0: {reason}",
+            duration_ms=(time.time() - t0) * 1000.0,
+        )
+    # F-3: the Scope capability dimension evaluates the capability
+    # actually bound to THIS request, not a constant context default.
+    # Resolve once and thread the same value to the Broker and to Scope.
+    capability = request.capability or ctx.get("capability_name", "")
+    method = request.method or "inspect"
     try:
         # §14.6 F1: extract the argv from the request args (when the
         # request declares it) and thread it as authorization material.
@@ -326,9 +354,9 @@ def stage_broker(ctx: dict) -> StageResult:
         receipt = broker.propose_action(
             target=request.target,
             action_type=request.action_type,
-            capability=(request.capability or ctx.get("capability_name", "fixture.inspect")),
-            method=(request.method or "inspect"),
-            impact_estimate=0.0,
+            capability=capability,
+            method=method,
+            impact_estimate=impact_estimate,
             authorized_argv=argv,
         )
     except Exception as exc:
@@ -379,7 +407,7 @@ def stage_broker(ctx: dict) -> StageResult:
         in_scope, scope_reason = scope.covers(
             request.target,
             request.action_type,
-            ctx.get("capability_name", ""),
+            capability,
             impact_estimate=estimate,
         )
         if not in_scope:
@@ -404,7 +432,15 @@ def stage_broker(ctx: dict) -> StageResult:
 
 
 def stage_pep(ctx: dict) -> StageResult:
-    """PEP invocation. Calls the exec/-owned capability, emits an ExecutionEvent."""
+    """PEP invocation. Calls the exec/-owned capability, emits an ExecutionEvent.
+
+    §14.4/CONV-2: the Runtime owns the Broker execution lifecycle around the
+    PEP boundary (no new stage, no new PDP):
+        AUTHORIZED -> STARTED (immediately before execution)
+        -> SUCCEEDED/FAILED (reflects the actual PEP outcome)
+    A terminal receipt cannot start again, so completed authorization is
+    not replayable. Evidence v1 remains downstream and non-authoritative.
+    """
     t0 = time.time()
     capability = ctx.get("capability")
     decision = ctx["broker"]["decision"]
@@ -416,13 +452,83 @@ def stage_pep(ctx: dict) -> StageResult:
             error="Capability or decision not available",
             duration_ms=(time.time() - t0) * 1000.0,
         )
-    # §14.4: sandboxed execution dispatch. Broker-allowed requests with
-    # action_type "sandboxed_exec" run through the exec/-owned minimal
-    # sandbox behind the same allow-decision gate (no new stage, no new
-    # PDP). The lazy import keeps runtime/*.py free of primitive imports
-    # (INV-1 file scan). The sandbox re-verifies the broker receipt.
-    if request.action_type == "sandboxed_exec":
-        return _stage_pep_sandboxed(ctx, request, decision, t0)
+    from orchestrator.hardening.action_receipt import ActionProposalStatus
+
+    # The sequencer replaces ctx["broker"] with the broker-stage output
+    # dict; the exec/-owned capability holds the same Broker object.
+    broker = ctx.get("broker")
+    if not hasattr(broker, "receipt_store"):
+        broker = getattr(capability, "broker", None)
+    receipt = ctx["broker"].get("receipt")
+
+    # Only an AUTHORIZED Broker receipt may start. Terminal receipts
+    # (SUCCEEDED/FAILED/TIMEOUT/DENIED) are rejected here; the PEP's own
+    # six-dimension check independently rejects them.
+    if broker is None or receipt is None:
+        return StageResult.make(
+            stage_name=STAGE_PEP,
+            success=False,
+            error="§lifecycle fail-closed: no Broker receipt available",
+            duration_ms=(time.time() - t0) * 1000.0,
+        )
+    if getattr(receipt, "status", None) != ActionProposalStatus.AUTHORIZED:
+        return StageResult.make(
+            stage_name=STAGE_PEP,
+            success=False,
+            error=(
+                "§lifecycle fail-closed: broker receipt not STARTABLE "
+                f"(status={getattr(receipt, 'status', None)})"
+            ),
+            duration_ms=(time.time() - t0) * 1000.0,
+        )
+    started = broker.start_execution(receipt)
+    if started is None or getattr(started, "status", None) != ActionProposalStatus.STARTED:
+        return StageResult.make(
+            stage_name=STAGE_PEP,
+            success=False,
+            error="§lifecycle fail-closed: broker refused start_execution",
+            duration_ms=(time.time() - t0) * 1000.0,
+        )
+
+    try:
+        # §14.4: sandboxed execution dispatch. Broker-allowed requests with
+        # action_type "sandboxed_exec" run through the exec/-owned minimal
+        # sandbox behind the same allow-decision gate. The lazy import
+        # keeps runtime/*.py free of primitive imports (INV-1 file scan).
+        if request.action_type == "sandboxed_exec":
+            outcome = _stage_pep_sandboxed(ctx, request, decision, t0)
+        else:
+            outcome = _stage_pep_capability(capability, request, decision, t0)
+    except Exception as exc:
+        # A raised PEP must still reach a truthful terminal failure before
+        # the exception is converted into a stage failure.
+        broker.complete_execution(
+            receipt, success=False,
+            result=f"pep raised {type(exc).__name__}",
+        )
+        return StageResult.make(
+            stage_name=STAGE_PEP,
+            success=False,
+            error=(
+                f"§lifecycle fail-closed: PEP raised "
+                f"{type(exc).__name__}: {exc}"
+            ),
+            duration_ms=(time.time() - t0) * 1000.0,
+        )
+
+    # Terminal transition reflects the actual PEP outcome (never success
+    # merely because a Python object was returned).
+    broker.complete_execution(
+        receipt,
+        success=bool(outcome.success),
+        result=(outcome.error or "executed"),
+    )
+    return outcome
+
+
+def _stage_pep_capability(capability, request: "ActionRequest",
+                          decision: "PolicyDecision", t0: float) -> "StageResult":
+    """Capability branch: CONV-3 gating + exec/-owned capability invocation."""
     # CONV-3 gating: record broker authorization before invoking the
     # capability. The capability checks that record_authorization was
     # called for this target; if not, it raises CapabilityNotGatedError.
@@ -549,10 +655,56 @@ def stage_receipt(ctx: dict) -> StageResult:
         argv=tuple(getattr(broker_receipt, "authorized_argv", ()) or ()),
         broker_receipt_id=getattr(broker_receipt, "action_id", "") or "",
     )
+    # §14.5 receipt linkage: link the artifacts the PEP collected (sandbox
+    # branch). Descriptive provenance only; artifact refs authorize nothing.
+    pep_output = getattr(event, "output", None)
+    if isinstance(pep_output, dict):
+        artifact_refs = pep_output.get("artifacts")
+        if isinstance(artifact_refs, (list, tuple)):
+            receipt.artifact_refs = tuple(str(ref) for ref in artifact_refs)
+    # §14.5 Evidence v1: derive and persist a durable execution_result
+    # record from the canonical PEP event + Broker decision. Evidence
+    # records; it authorizes nothing (no store => legacy, no persistence).
+    # Idempotent replay: identity is content-addressed over the identity-
+    # bearing fields (observed_at is provenance, not identity), so an
+    # existing identity means the equivalent record is already durable.
+    evidence_v1_id = ""
+    store = ctx.get("evidence_store")
+    if store is not None:
+        from orchestrator.runtime.evidence_v1 import EvidenceRecord
+        try:
+            record = EvidenceRecord.execution_result(
+                mission_id=str(receipt.mission_id or ""),
+                producer="runtime.receipt",
+                action_id=str(
+                    event.action_id
+                    or getattr(broker_receipt, "action_id", "")
+                    or ""
+                ),
+                status=str(event.outcome or "unknown"),
+                reason=str(decision.reason or ""),
+                decision=str(decision.decision or ""),
+                policy_version=str(getattr(broker_receipt, "policy_version", "") or ""),
+            )
+            if store.get(record.identity) is None:
+                store.append(record)
+            evidence_v1_id = record.identity
+            receipt.evidence_v1_ids = (evidence_v1_id,)
+        except Exception as exc:
+            return StageResult.make(
+                stage_name=STAGE_RECEIPT,
+                success=False,
+                output={"receipt": receipt},
+                error=(
+                    f"§14.5 Evidence v1 fail-closed: "
+                    f"{type(exc).__name__}: {exc}"
+                ),
+                duration_ms=(time.time() - t0) * 1000.0,
+            )
     return StageResult.make(
         stage_name=STAGE_RECEIPT,
         success=True,
-        output={"receipt": receipt},
+        output={"receipt": receipt, "evidence_v1_id": evidence_v1_id},
         duration_ms=(time.time() - t0) * 1000.0,
     )
 

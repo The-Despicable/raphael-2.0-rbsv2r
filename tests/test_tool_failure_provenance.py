@@ -10,7 +10,10 @@ Run: python -m pytest tests/test_tool_failure_provenance.py -q
 
 import sys
 
-sys.path.insert(0, '/home/yaser/raphael-2.0-rbsv2r/src')
+from pathlib import Path
+
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(_REPO_ROOT / "src"))
 
 from arena.environment import RawObservation, ObservationNormalizer
 from orchestrator.brain.trust import TrustLevel

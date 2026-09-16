@@ -126,6 +126,27 @@ def test_out_of_scope_target_rejected_after_broker_allow():
     assert "scope" in term.reason.lower()
 
 
+def test_scope_denies_out_of_scope_action():
+    """§14.3 / §14.9: a Broker-allowed action outside the declared Scope is
+    denied at the broker stage and never reaches the PEP."""
+    rt = RaphaelRuntime()  # bootstrap broker allows "*" targets
+    scope = _walking_skeleton_scope(targets=("system_info.name",))
+    ctx = RuntimeContext(
+        mission_id="scope-denies", objective_id="inspect",
+        view={"target": "out.of.scope.example"}, scope=scope,
+    )
+    outputs: dict = {}
+    trace, term = rt.step(ctx, stage_outputs=outputs)
+
+    assert term.terminated
+    assert term.final_stage == "broker"
+    assert "outside declared scope" in term.reason
+    # Negative path: no execution event, no capability invocation.
+    assert "pep" not in {e["stage"] for e in trace.entries}
+    assert rt._capability.invocation_count == 0
+    assert "pep" not in outputs
+
+
 def test_prohibited_capability_rejected():
     """§14.6(4): prohibited capability class denied even when broker allows.
 
@@ -350,3 +371,253 @@ def test_stage_fails_closed_without_impact_estimate():
     result = stage_broker(ctx)
     assert result.success is False
     assert "no impact estimate available" in (result.error or "")
+
+
+# ── Real impact data flow: candidate -> Broker -> Scope ─────────────
+
+def _impact_mission(candidate, scope, mission_id="impact-flow"):
+    return MissionContext(
+        mission_id=mission_id, name=mission_id, objectives=["inspect"],
+        constraints={
+            "candidates": {"0": [candidate]},
+            "default_target": "system_info.name",
+            "objective_id": "impact-objective",
+        },
+        scope=scope,
+    )
+
+
+def _impact_candidate(**overrides):
+    base = dict(
+        action_id="impact-cand-001",
+        action_type="safe_proving_capability",
+        target="system_info.name",
+        capability="fixture.inspect",
+        method="inspect",
+        args={"read_only": True},
+        rationale="impact flow probe",
+        confidence=1.0,
+        impact_estimate=0.0,
+    )
+    base.update(overrides)
+    return base
+
+
+def _impact_broker(max_impact_per_action):
+    from orchestrator.brain.capability_broker import BrokerPolicy, CapabilityBroker
+
+    return CapabilityBroker(BrokerPolicy(
+        engagement_id="impact-flow",
+        allowed_targets=["*"],
+        allowed_action_types=["safe_proving_capability"],
+        allowed_capabilities=["fixture.inspect"],
+        max_impact_per_action=max_impact_per_action,
+    ))
+
+
+def test_candidate_impact_over_scope_max_denied_before_pep():
+    """The real candidate impact reaches Scope: 9.9 > max_impact=0.0 denied."""
+    rt = RaphaelRuntime(broker=_impact_broker(10.0))
+    scope = _walking_skeleton_scope(max_impact=0.0)
+    mission = _impact_mission(_impact_candidate(impact_estimate=9.9), scope)
+    outputs: list = []
+    traces, term = rt.run_episode(mission, episode_outputs=outputs)
+    assert term.final_stage == "broker"
+    assert "impact exceeds declared max" in term.reason
+    assert rt._capability.invocation_count == 0
+    assert "pep" not in {e["stage"] for e in traces[0].entries}
+    # The staged decision records the actual estimate, not 0.0.
+    decision = outputs[0]["broker"]["decision"]
+    stored = rt._broker.receipt_store[decision.decision_id]
+    assert stored.metadata["impact_estimate"] == 9.9
+    assert outputs[0]["broker"]["auth_context"].impact_estimate == 9.9
+
+
+def test_candidate_impact_equal_scope_max_allowed_and_recorded():
+    """impact == max_impact stays allowed; the receipt records the real value."""
+    rt = RaphaelRuntime(broker=_impact_broker(0.5))
+    scope = _walking_skeleton_scope(max_impact=0.5)
+    mission = _impact_mission(_impact_candidate(impact_estimate=0.5), scope)
+    outputs: list = []
+    traces, term = rt.run_episode(mission, episode_outputs=outputs)
+    assert term.final_stage == "replan"
+    assert rt._capability.invocation_count == 1
+    assert "pep" in {e["stage"] for e in traces[0].entries}
+    receipt = outputs[0]["broker"]["receipt"]
+    assert receipt.metadata["impact_estimate"] == 0.5
+    assert receipt.metadata["impact_estimate"] != 0.0
+
+
+def test_candidate_missing_impact_fails_closed_before_pep():
+    """A candidate with no impact estimate fails closed (never 0.0-passes)."""
+    rt = RaphaelRuntime()
+    scope = _walking_skeleton_scope(max_impact=0.0)
+    candidate = _impact_candidate()
+    candidate.pop("impact_estimate")
+    mission = _impact_mission(candidate, scope)
+    outputs: list = []
+    traces, term = rt.run_episode(mission, episode_outputs=outputs)
+    assert term.final_stage == "broker"
+    assert "no impact estimate available" in term.reason
+    assert rt._capability.invocation_count == 0
+    assert "pep" not in {e["stage"] for e in traces[0].entries}
+
+
+def test_candidate_invalid_impact_fails_closed_before_pep():
+    """A non-numeric impact estimate fails closed (no fabricated value)."""
+    rt = RaphaelRuntime()
+    scope = _walking_skeleton_scope(max_impact=0.0)
+    mission = _impact_mission(_impact_candidate(impact_estimate="high"), scope)
+    outputs: list = []
+    traces, term = rt.run_episode(mission, episode_outputs=outputs)
+    assert term.final_stage == "broker"
+    assert "malformed impact estimate" in term.reason
+    assert rt._capability.invocation_count == 0
+    assert "pep" not in {e["stage"] for e in traces[0].entries}
+
+
+def test_regression_impact_9_9_max_impact_0_never_executes():
+    """R-1 regression: candidate impact 9.9 with max_impact=0.0 must not run."""
+    rt = RaphaelRuntime()  # bootstrap broker: max_impact_per_action=0.0
+    scope = _walking_skeleton_scope(max_impact=0.0)
+    mission = _impact_mission(_impact_candidate(impact_estimate=9.9), scope)
+    outputs: list = []
+    traces, term = rt.run_episode(mission, episode_outputs=outputs)
+    assert term.final_stage == "broker"
+    assert rt._capability.invocation_count == 0
+    assert "pep" not in {e["stage"] for e in traces[0].entries}
+    decision = outputs[0]["broker"]["decision"]
+    assert decision.decision == "deny"
+    stored = rt._broker.receipt_store[decision.decision_id]
+    assert stored.metadata["impact_estimate"] == 9.9
+
+
+# ── Production CLI Scope binding + capability dimension (F-3) ────────
+
+def test_production_cli_builds_scope_for_target():
+    """The CLI canonical mission builder binds a ScopeV0 for the target."""
+    from raphael import main as cli
+
+    mission = cli._canonical_mission("cli-target.example")
+    assert mission.scope is not None
+    assert mission.scope.targets == ("cli-target.example",)
+    assert mission.scope.allowed_action_types == ("safe_proving_capability",)
+    assert mission.scope.allowed_capabilities == ("fixture.inspect",)
+    assert mission.constraints.get("default_target") == "cli-target.example"
+
+
+def test_production_cli_execution_has_non_none_scope(monkeypatch, capsys, tmp_path):
+    """The real production entry runs with a bound Scope (not scope-less)."""
+    import asyncio
+    import raphael.main as cli
+
+    monkeypatch.setenv("RAPHAEL_EVIDENCE_DIR", str(tmp_path))
+
+    captured: dict = {}
+    real_run = RaphaelRuntime.run_episode
+
+    def spy(self, mission, **kwargs):
+        captured["mission"] = mission
+        captured["kwargs"] = kwargs
+        return real_run(self, mission, **kwargs)
+
+    monkeypatch.setattr(RaphaelRuntime, "run_episode", spy)
+    monkeypatch.delenv("RAPHAEL_USE_LEGACY", raising=False)
+    monkeypatch.setattr(sys, "argv", ["raphael", "cli-target.example"])
+
+    asyncio.run(cli.main())
+
+    mission = captured["mission"]
+    assert mission.scope is not None
+    assert mission.scope.targets == ("cli-target.example",)
+    assert captured["kwargs"].get("require_scope") is True
+    # All 10 stages ran: the scoped CLI execution was not denied.
+    assert "Runtime trace: 10 stages" in capsys.readouterr().out
+
+
+def test_run_episode_out_of_scope_target_denied_before_pep():
+    """A non-None Scope denies an out-of-scope target before any PEP."""
+    rt = RaphaelRuntime()
+    scope = _walking_skeleton_scope(targets=("system_info.name",))
+    mission = MissionContext(
+        mission_id="scope-oos", name="scope-oos", objectives=["inspect"],
+        constraints={"default_target": "out.of.scope.example"},
+        scope=scope,
+    )
+    outputs: list = []
+    traces, term = rt.run_episode(mission, require_scope=True, episode_outputs=outputs)
+    assert term.final_stage == "broker"
+    assert "outside declared scope" in term.reason
+    assert rt._capability.invocation_count == 0
+    assert "pep" not in {e["stage"] for e in traces[0].entries}
+
+
+def test_run_episode_allowed_target_reaches_pep():
+    """An in-scope target with the canonical capability proceeds to PEP."""
+    rt = RaphaelRuntime()
+    scope = _walking_skeleton_scope(targets=("system_info.name",))
+    mission = MissionContext(
+        mission_id="scope-in", name="scope-in", objectives=["inspect"],
+        constraints={"default_target": "system_info.name"},
+        scope=scope,
+    )
+    traces, term = rt.run_episode(mission, require_scope=True)
+    assert term.final_stage == "replan"
+    assert rt._capability.invocation_count == 1
+    assert "pep" in {e["stage"] for e in traces[0].entries}
+
+
+def test_scope_capability_uses_request_capability_not_context_default():
+    """A request-capability mismatch is denied even when fixture.inspect is
+    allowed by the Scope and by the context capability_name."""
+    from orchestrator.brain.capability_broker import BrokerPolicy, CapabilityBroker
+    from orchestrator.runtime.stages import stage_broker
+    from orchestrator.runtime.types import ActionRequest
+
+    broker = CapabilityBroker(BrokerPolicy(
+        engagement_id="cap-dim",
+        allowed_targets=["*"],
+        allowed_action_types=["safe_proving_capability"],
+        allowed_capabilities=["other.inspect"],
+    ))
+    scope = _walking_skeleton_scope()  # allows only "fixture.inspect"
+    request = ActionRequest(
+        action_type="safe_proving_capability", target="system_info.name",
+        capability="other.inspect", method="inspect", impact_estimate=0.0,
+    )
+    ctx = {
+        "broker": broker,
+        "capability_name": "fixture.inspect",
+        "planner_request": {"request": request},
+        "scope": scope,
+    }
+    out = stage_broker(ctx)
+    assert out.success is False
+    assert "capability not in declared scope" in (out.error or "")
+
+
+def test_scope_capability_allows_matching_request_capability():
+    """The same stage allows the request capability that the Scope permits."""
+    from orchestrator.brain.capability_broker import BrokerPolicy, CapabilityBroker
+    from orchestrator.runtime.stages import stage_broker
+    from orchestrator.runtime.types import ActionRequest
+
+    broker = CapabilityBroker(BrokerPolicy(
+        engagement_id="cap-dim-ok",
+        allowed_targets=["*"],
+        allowed_action_types=["safe_proving_capability"],
+        allowed_capabilities=["fixture.inspect"],
+    ))
+    scope = _walking_skeleton_scope()
+    request = ActionRequest(
+        action_type="safe_proving_capability", target="system_info.name",
+        capability="fixture.inspect", method="inspect", impact_estimate=0.0,
+    )
+    ctx = {
+        "broker": broker,
+        "capability_name": "wrong.context.default",
+        "planner_request": {"request": request},
+        "scope": scope,
+    }
+    out = stage_broker(ctx)
+    assert out.success is True

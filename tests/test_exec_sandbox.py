@@ -345,6 +345,7 @@ def test_pep_sandboxed_branch_end_to_end():
         capability="fixture.inspect",
         method="exec",
         args={"argv": argv},
+        impact_estimate=0.0,
     )
     ctx = {
         "broker": broker,
@@ -382,6 +383,7 @@ def test_pep_sandboxed_denied_without_broker_allow():
         capability="fixture.inspect",
         method="exec",
         args={"argv": ("/bin/echo", "x")},
+        impact_estimate=0.0,
     )
     ctx = {
         "broker": broker,
@@ -662,3 +664,61 @@ def test_f1_hash_chain_protects_authorized_argv(tmp_path):
     # Tamper with authorized_argv in memory; integrity must fail.
     receipt.authorized_argv = ("/bin/echo", "tampered")
     assert not receipt.verify_integrity()
+
+
+# ── §14.5/§14.9 evidence receipt linked artifact ──────────────────
+
+def test_evidence_receipt_linked_artifact():
+    """§14.5 / §14.9: the canonical EvidenceReceipt links the artifact the
+    PEP actually collected, and the linkage resolves to real bytes."""
+    from orchestrator.runtime import RaphaelRuntime, MissionContext
+    from orchestrator.brain.capability_broker import BrokerPolicy, CapabilityBroker
+
+    broker = CapabilityBroker(BrokerPolicy(
+        engagement_id="ev-artifact", allowed_targets=["*"],
+        allowed_action_types=["sandboxed_exec"],
+        allowed_capabilities=["fixture.inspect"],
+    ))
+    rt = RaphaelRuntime(broker=broker)
+    candidate = {
+        "action_id": "ev-artifact-001",
+        "action_type": "sandboxed_exec",
+        "target": "sbx-target",
+        "capability": "fixture.inspect",
+        "method": "exec",
+        "args": {"argv": ("/bin/echo", "artifact-bytes"),
+                 "artifacts": ("stdout.cap",)},
+        "rationale": "artifact linkage",
+        "confidence": 1.0,
+        "impact_estimate": 0.0,
+    }
+    mission = MissionContext(
+        mission_id="ev-artifact", name="ev-artifact", objectives=["exec"],
+        constraints={"candidates": {"0": [candidate]},
+                     "default_target": "sbx-target",
+                     "objective_id": "ev-artifact"},
+    )
+    outputs: list = []
+    rt.run_episode(mission, episode_outputs=outputs)
+
+    receipt = outputs[0]["receipt"]["receipt"]
+    # The receipt links the artifact ref...
+    assert receipt.artifact_refs == ("stdout.cap",)
+    # ...and the linked ref resolves to bytes the PEP actually captured.
+    sandbox_result = outputs[0]["pep"]["result"]
+    assert sandbox_result.artifacts["stdout.cap"] == b"artifact-bytes\n"
+
+    # Negative: an execution that collects no artifact links none.
+    from orchestrator.runtime.scope import ScopeV0
+    no_art_scope = ScopeV0(
+        mission_id="ev-no-art", targets=("system_info.name",),
+        allowed_action_types=("safe_proving_capability",),
+        allowed_capabilities=("fixture.inspect",),
+    )
+    outputs2: list = []
+    RaphaelRuntime().run_episode(
+        MissionContext(mission_id="ev-no-art", name="x", objectives=["i"],
+                       scope=no_art_scope),
+        episode_outputs=outputs2,
+    )
+    assert outputs2[0]["receipt"]["receipt"].artifact_refs == ()

@@ -53,7 +53,8 @@ class RaphaelRuntime:
 
     def __init__(self, broker: Optional[CapabilityBroker] = None,
                  capability: Optional[SafeProvingCapability] = None,
-                 organs: Optional[OrganBundle] = None):
+                 organs: Optional[OrganBundle] = None,
+                 evidence_store: Optional[Any] = None):
         self._broker = broker if broker is not None else make_broker_from_bootstrap(
             capability_name="fixture.inspect"
         )
@@ -63,7 +64,13 @@ class RaphaelRuntime:
         else:
             self._capability = SafeProvingCapability(broker=self._broker)
         # G3-EN-5: organ bundle (Planner, WorldModel, Student, Contradiction).
-        self._organs = organs if organs is not None else OrganBundle()
+        self._organs = organs if organs is not None else OrganBundle(
+            evidence_store=evidence_store
+        )
+        # §14.5 Evidence v1: allow the caller to bind a durable store to an
+        # explicitly supplied organ bundle as well.
+        if evidence_store is not None and getattr(self._organs, "evidence_store", None) is None:
+            self._organs.evidence_store = evidence_store
         # Backwards-compatible alias for the world model.
         self._world_model = self._organs.world_model
 
@@ -86,6 +93,7 @@ class RaphaelRuntime:
             "organs": self._organs,
             "capability_name": "fixture.inspect",
             "scope": ctx.scope,
+            "evidence_store": getattr(self._organs, "evidence_store", None),
         }
 
         for stage_name in STAGE_ORDER:

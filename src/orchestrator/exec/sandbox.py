@@ -211,9 +211,16 @@ def _check_receipt(broker: Any, request: "SandboxRequest", receipt: Any) -> None
         )
     from orchestrator.hardening.action_receipt import ActionProposalStatus
 
-    if stored.status != ActionProposalStatus.AUTHORIZED:
+    # Lifecycle: the canonical Runtime transitions AUTHORIZED -> STARTED
+    # immediately before invoking the PEP. Both non-terminal states are
+    # accepted; every terminal state (SUCCEEDED/FAILED/TIMEOUT/DENIED)
+    # remains rejected, so a completed authorization cannot be replayed.
+    if stored.status not in (
+        ActionProposalStatus.AUTHORIZED,
+        ActionProposalStatus.STARTED,
+    ):
         raise SandboxNotAuthorized(
-            f"Sandbox: receipt '{action_id}' is not AUTHORIZED "
+            f"Sandbox: receipt '{action_id}' is not AUTHORIZED/STARTED "
             f"(status={stored.status}); denied"
         )
     if stored.target != request.target:

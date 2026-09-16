@@ -320,6 +320,32 @@ class RaphaelOrganism:
         logger.info("Raphael engagement complete")
 
 
+def _canonical_mission(target: str):
+    """Build the canonical CLI mission with a bound ScopeV0.
+
+    v4 INV-5 / F-3: the only production Runtime caller must not run
+    scope-less. The scope is derived from the actual CLI target and the
+    canonical safe-proving capability/action class the runtime uses.
+    """
+    from orchestrator.runtime import MissionContext
+    from orchestrator.runtime.scope import ScopeV0
+
+    scope = ScopeV0(
+        mission_id='cli-walking-skeleton',
+        targets=(target,),
+        allowed_action_types=('safe_proving_capability',),
+        allowed_capabilities=('fixture.inspect',),
+        max_impact=0.0,
+    )
+    return MissionContext(
+        mission_id='cli-walking-skeleton',
+        name='cli-walking-skeleton',
+        objectives=[target],
+        constraints={'default_target': target},
+        scope=scope,
+    )
+
+
 async def main():
     config = RaphaelConfig.from_env()
 
@@ -365,14 +391,20 @@ async def main():
         return
 
     # Canonical path: RaphaelRuntime one-iteration walking skeleton.
-    from orchestrator.runtime import RaphaelRuntime, MissionContext
-    rt = RaphaelRuntime()
-    mission = MissionContext(
-        mission_id='cli-walking-skeleton',
-        name='cli-walking-skeleton',
-        objectives=[config.target] if config.target else ['inspect'],
+    from orchestrator.runtime import RaphaelRuntime
+    from orchestrator.exec.evidence_store import EvidenceStore
+
+    # §14.5 Evidence v1: the production path persists each episode's
+    # execution result to the durable evidence store. Evidence records;
+    # it never authorizes. Directory is env-overridable.
+    evidence_dir = os.environ.get(
+        "RAPHAEL_EVIDENCE_DIR",
+        os.path.join(os.getcwd(), ".raphael", "evidence"),
     )
-    traces, termination = rt.run_episode(mission)
+    evidence_store = EvidenceStore(os.path.join(evidence_dir, "evidence_v1.jsonl"))
+    rt = RaphaelRuntime(evidence_store=evidence_store)
+    mission = _canonical_mission(config.target)
+    traces, termination = rt.run_episode(mission, require_scope=True)
     print(f'Runtime trace: {len(traces[0].entries)} stages')
     print(f'Termination: {termination.reason}')
 

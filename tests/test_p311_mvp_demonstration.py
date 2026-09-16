@@ -217,3 +217,28 @@ def test_p311_mvp_denial_executes_nothing():
     assert termination.final_stage == "broker"
     assert rt._capability.invocation_count == 0
     assert "pep" not in {e["stage"] for e in traces[0].entries}
+
+
+def test_replan_changes_next_decision():
+    """§14.7 / §14.10 / §14.9: denial feedback changes the next decision."""
+    rt, mission, doc, scope = _build_runtime_and_mission()
+    outputs: list = []
+    traces, term = rt.run_episode(
+        mission, max_iterations=2, require_scope=True,
+        episode_outputs=outputs,
+    )
+
+    plan0 = outputs[0]["planner_request"]["plan_decision"]
+    plan1 = outputs[1]["planner_request"]["plan_decision"]
+    # The denied proposal is suppressed; the next iteration chooses another.
+    assert plan0.selected_action_id != plan1.selected_action_id
+    # Iteration 0 denied by Scope before execution; iteration 1 executed.
+    t0_broker = next(e for e in traces[0].entries if e["stage"] == "broker")
+    assert t0_broker["success"] is False
+    assert "outside declared scope" in (t0_broker["error"] or "")
+    assert outputs[1]["broker"]["decision"].decision == "allow"
+    assert rt._capability.invocation_count == 1
+    # The replan stage reports the changed decision triple.
+    replan = outputs[1]["replan"]
+    assert replan["replanned"] is True
+    assert replan["denied_triple"] != replan["next_triple"]

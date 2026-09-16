@@ -17,7 +17,10 @@ Run: python -m pytest tests/test_run_identity.py -q
 import re
 import sys
 
-sys.path.insert(0, '/home/yaser/raphael-2.0-rbsv2r/src')
+from pathlib import Path
+
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(_REPO_ROOT / "src"))
 
 from arena.ablation import ABLATION_PRESETS
 from arena.ablation_runner import AblationRunner, ensure_run_dir

@@ -45,10 +45,14 @@ class OrganBundle:
     skeleton. Full organ depth is P4 work.
     """
 
-    def __init__(self):
+    def __init__(self, evidence_store: Optional[Any] = None):
         # EvidenceGraph is the substrate that WorldModel, Contradiction,
         # and Hypothesis all share.
         self.evidence_graph = EvidenceGraph()
+        # §14.5 Evidence v1 durable store (exec/-owned). Optional: when
+        # None the canonical path runs without persistence (legacy).
+        # Evidence records only; it never authorizes.
+        self.evidence_store = evidence_store
         # WorldModel: read + integrate target.
         self.world_model = WorldModel(evidence_graph=self.evidence_graph)
         # HypothesisManager: stores hypotheses (needed by Planner and

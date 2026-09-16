@@ -372,3 +372,129 @@ def test_artifact_ref_count_bounded():
         EvidenceRecord.execution_result(
             mission_id="m", producer="p", action_id="a", status="success",
             artifacts=tuple(f"f{i}.txt" for i in range(MAX_ARTIFACT_REFS + 1)))
+
+
+# ── 24. Canonical Runtime integration (producer -> store -> consumer) ──
+
+def _scoped_mission(mission_id="ev1-integration"):
+    from orchestrator.runtime import MissionContext
+    from orchestrator.runtime.scope import ScopeV0
+
+    scope = ScopeV0(
+        mission_id=mission_id, targets=("system_info.name",),
+        allowed_action_types=("safe_proving_capability",),
+        allowed_capabilities=("fixture.inspect",), max_impact=0.0,
+    )
+    return MissionContext(
+        mission_id=mission_id, name=mission_id, objectives=["inspect"],
+        scope=scope,
+    )
+
+
+def _candidate_mission(mission_id, action_id):
+    from orchestrator.runtime import MissionContext
+    from orchestrator.runtime.scope import ScopeV0
+
+    scope = ScopeV0(
+        mission_id=mission_id, targets=("system_info.name",),
+        allowed_action_types=("safe_proving_capability",),
+        allowed_capabilities=("fixture.inspect",), max_impact=0.0,
+    )
+    candidate = {
+        "action_id": action_id,
+        "action_type": "safe_proving_capability",
+        "target": "system_info.name",
+        "capability": "fixture.inspect",
+        "method": "inspect",
+        "args": {"read_only": True},
+        "rationale": "ev1 integration",
+        "confidence": 1.0,
+        "impact_estimate": 0.0,
+    }
+    return MissionContext(
+        mission_id=mission_id, name=mission_id, objectives=["inspect"],
+        constraints={"candidates": {"0": [candidate]},
+                     "default_target": "system_info.name",
+                     "objective_id": "ev1-objective"},
+        scope=scope,
+    )
+
+
+def test_canonical_episode_produces_and_persists_evidence_v1(tmp_path):
+    """A real canonical episode persists an execution_result and links it."""
+    from orchestrator.runtime import RaphaelRuntime
+
+    store = EvidenceStore(str(tmp_path / "evidence_v1.jsonl"))
+    rt = RaphaelRuntime(evidence_store=store)
+    outputs: list = []
+    traces, term = rt.run_episode(
+        _scoped_mission(), require_scope=True, episode_outputs=outputs)
+
+    assert term.final_stage == "replan"  # canonical Runtime still runs
+    receipt_out = outputs[0]["receipt"]
+    evidence_id = receipt_out["evidence_v1_id"]
+    assert evidence_id.startswith("ev1_")
+
+    record = store.get(evidence_id)
+    assert record is not None
+    assert record.kind == EvidenceKind.EXECUTION_RESULT
+    event = outputs[0]["pep"]["event"]
+    assert dict(record.payload)["action_id"] == event.action_id
+    # The canonical receipt links to the durable record.
+    assert receipt_out["receipt"].evidence_v1_ids == (evidence_id,)
+
+    # Durable + readable back from disk by a consumer.
+    reopened = EvidenceStore(str(tmp_path / "evidence_v1.jsonl"))
+    assert reopened.get(evidence_id) == record
+
+
+def test_canonical_episode_without_store_is_unchanged():
+    """No store bound: the canonical path runs with no persistence."""
+    from orchestrator.runtime import RaphaelRuntime
+
+    outputs: list = []
+    rt = RaphaelRuntime()
+    traces, term = rt.run_episode(
+        _scoped_mission("ev1-no-store"), require_scope=True,
+        episode_outputs=outputs)
+    assert term.final_stage == "replan"
+    assert outputs[0]["receipt"]["evidence_v1_id"] == ""
+    assert outputs[0]["receipt"]["receipt"].evidence_v1_ids == ()
+
+
+def test_evidence_v1_replay_is_idempotent(tmp_path):
+    """Replaying the same deterministic event does not duplicate evidence."""
+    from orchestrator.runtime import RaphaelRuntime
+
+    store = EvidenceStore(str(tmp_path / "evidence_v1.jsonl"))
+    rt = RaphaelRuntime(evidence_store=store)
+    rt.run_episode(
+        _candidate_mission("ev1-replay", "ev1-fixed-001"), require_scope=True)
+    assert len(store) == 1
+    rt.run_episode(
+        _candidate_mission("ev1-replay", "ev1-fixed-001"), require_scope=True)
+    # Same content-addressed identity: idempotent, no duplicate record.
+    assert len(store) == 1
+
+
+def test_evidence_v1_malformed_or_failing_store_fails_closed():
+    """Evidence production failure fails closed (and does not authorize)."""
+    from orchestrator.runtime import RaphaelRuntime
+
+    class _BrokenStore:
+        def get(self, identity):
+            raise EvidenceError("corrupt evidence store")
+
+        def append(self, record):
+            raise EvidenceError("corrupt evidence store")
+
+    outputs: list = []
+    rt = RaphaelRuntime(evidence_store=_BrokenStore())
+    traces, term = rt.run_episode(
+        _scoped_mission("ev1-broken"), require_scope=True,
+        episode_outputs=outputs)
+    assert term.final_stage == "receipt"
+    assert "Evidence v1 fail-closed" in term.reason
+    # PEP had already run, but the broken evidence never authorized it:
+    # the broker decision is the sole authorization (recorded at broker stage).
+    assert outputs[0]["broker"]["decision"].decision == "allow"

@@ -22,14 +22,10 @@ from typing import Any, Optional
 logger = logging.getLogger(__name__)
 
 # ── Optional imports ──────────────────────────────────────────────
-
-try:
-    from orchestrator.brain.waf_detector import WAFDetector, WAFType
-    HAS_WAF_DETECTOR = True
-except ImportError:
-    HAS_WAF_DETECTOR = False
-    WAFDetector = None
-    WAFType = None
+# INV-1: orchestrator.brain.waf_detector is a primitive-bearing (aiohttp)
+# module and must NOT be eagerly imported into the canonical Runtime
+# loaded closure. The Student receives an already-constructed detector by
+# injection; it never needs the class at import time.
 
 try:
     from orchestrator.student.payload_mutator import PayloadMutator, MutationResult
@@ -141,7 +137,7 @@ class Student:
 
     def _detect_waf(self, target: str) -> Optional[dict]:
         """Run WAF detection on target. Returns waf_info dict or None."""
-        if not self.waf_detector or not HAS_WAF_DETECTOR:
+        if not self.waf_detector:
             return None
 
         try:

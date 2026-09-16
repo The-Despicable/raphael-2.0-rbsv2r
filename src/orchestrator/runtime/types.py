@@ -136,6 +136,10 @@ class ActionRequest:
     # capability_name context key.
     capability: str = ""
     method: str = ""
+    # Declared impact estimate (0-10) carried from the candidate/request
+    # into the Broker so the Scope max_impact conjunction evaluates the
+    # real value. None means "not declared": stage_broker fails closed.
+    impact_estimate: Optional[float] = None
 
 @dataclass
 class PolicyDecision:
@@ -161,6 +165,34 @@ class ExecutionEvent:
     outcome: str = ""
     output: Any = None
     timestamp: float = field(default_factory=time.time)
+    def to_dict(self) -> dict:
+        """Return a dictionary representation of the ExecutionEvent."""
+        return {
+            "event_id": self.event_id,
+            "action_id": self.action_id,
+            "decision_id": self.decision_id,
+            "capability": self.capability,
+            "target": self.target,
+            "args": self.args,
+            "outcome": self.outcome,
+            "output": self.output,
+            "timestamp": self.timestamp,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "ExecutionEvent":
+        """Reconstruct an ExecutionEvent from a dictionary."""
+        return cls(
+            event_id=data.get("event_id", ""),
+            action_id=data.get("action_id", ""),
+            decision_id=data.get("decision_id", ""),
+            capability=data.get("capability", ""),
+            target=data.get("target", ""),
+            args=data.get("args", {}),
+            outcome=data.get("outcome", ""),
+            output=data.get("output"),
+            timestamp=data.get("timestamp", 0.0),
+        )
 
 
 @dataclass
@@ -191,6 +223,8 @@ class EvidenceReceipt:
     method: str = ""
     argv: tuple = ()
     broker_receipt_id: str = ""
+    # §14.5 Evidence v1 durable-record identities linked to this receipt.
+    evidence_v1_ids: tuple = ()
     artifact_refs: tuple = ()
 
     def to_dict(self) -> dict:
@@ -209,6 +243,7 @@ class EvidenceReceipt:
             "method": self.method,
             "argv": list(self.argv),
             "broker_receipt_id": self.broker_receipt_id,
+            "evidence_v1_ids": list(self.evidence_v1_ids),
             "artifact_refs": list(self.artifact_refs),
         }
 

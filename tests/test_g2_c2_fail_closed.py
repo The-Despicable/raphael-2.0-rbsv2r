@@ -63,6 +63,7 @@ def test_c2_2_denied_produces_no_execution_event():
         action_type="unauthorized_subprocess_exec",
         target="10.0.0.1",
         args={},
+        impact_estimate=0.0,
     )
     stage_ctx: dict = {
         "view": {},
@@ -94,6 +95,7 @@ def test_c2_3_denied_produces_no_receipt():
                 action_type="unauthorized_subprocess_exec",
                 target="10.0.0.1",
                 args={},
+                impact_estimate=0.0,
             )},
         )
 
@@ -134,6 +136,7 @@ def test_c2_4_denial_appears_in_decision_trace():
                 action_type="unauthorized_subprocess_exec",
                 target="10.0.0.1",
                 args={},
+                impact_estimate=0.0,
             )},
         )
 
@@ -172,6 +175,7 @@ def test_c2_5_denied_episode_terminates_deterministically():
                 action_type="unauthorized_subprocess_exec",
                 target="x",
                 args={},
+                impact_estimate=0.0,
             )},
         )
 
@@ -207,6 +211,7 @@ def test_c2_6a_missing_broker_fails_closed():
         "capability_name": "fixture.inspect",
         "planner_request": {"request": ActionRequest(
             action_type="safe_proving_capability", target="x", args={},
+            impact_estimate=0.0,
         )},
     }
     result = STAGE_HANDLERS[STAGE_BROKER](ctx)
@@ -231,6 +236,7 @@ def test_c2_6b_failing_broker_fails_closed():
         "capability_name": "fixture.inspect",
         "planner_request": {"request": ActionRequest(
             action_type="safe_proving_capability", target="x", args={},
+            impact_estimate=0.0,
         )},
     }
     result = STAGE_HANDLERS[STAGE_BROKER](ctx)
@@ -290,6 +296,7 @@ def test_c2_8_full_fail_closed_episode():
                 action_type="totally_unknown_action_class_zzz",
                 target="x",
                 args={},
+                impact_estimate=0.0,
             )},
         )
 

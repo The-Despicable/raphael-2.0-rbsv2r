@@ -9,7 +9,10 @@ Mechanically asserts the full causal chain:
 import sys
 import uuid
 
-sys.path.insert(0, '/home/yaser/raphael-2.0')
+from pathlib import Path
+
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(_REPO_ROOT / "src"))
 
 from arena.conclusion import (
     PlanDecision, ConclusionClaim, ConclusionPredicate, ConclusionProvenance,

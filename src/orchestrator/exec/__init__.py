@@ -13,18 +13,23 @@ orchestrator.exec.safe_capability. Constructor gating: the
 capability requires a CapabilityBroker reference; inspect()
 verifies broker authorization before performing the read.
 
-INV-1 goes live: process/network/file primitives are confined to
-exec/. The inv1_guard module provides static import-graph
-verification at exec/ package load time.
+INV-1: process/network/file primitives are confined to exec/. The
+inv1_guard module provides static AST verification over the declared
+G3 canonical perimeter (runtime/** + the loaded canonical brain
+control-plane modules + exec/**). It is invoked by the gate/test suite
+(tests/test_p2_guardrail_inv1.py); it is NOT executed at exec/ package
+load time (an import-time full-perimeter scan would be an expensive
+per-process side effect and would raise at import on a violation). The
+authoritative assertion is at gate/test time.
 
-The standing note defines the broadened INV-1 primitive lexicon:
-- subprocess (any form)
+The INV-1 primitive lexicon (enforced by inv1_guard):
+- subprocess (import or any call form)
+- asyncio.create_subprocess_exec / _shell, asyncio.subprocess
 - os.system, os.popen, os.exec*, os.spawn*
-- socket.*
-- urllib.*, http.client, http.server
-- requests
-- open(..., 'w'), open(..., 'a'), open(..., 'x')
+- socket, requests, httpx, aiohttp, paramiko, docker
+- urllib.request, http.client, http.server
 - os.remove, os.unlink, os.rmdir, shutil.rmtree
+- open(..., 'w'/'a'/'x'/'+')
 """
 from orchestrator.exec.safe_capability import (
     SafeProvingCapability,
@@ -39,6 +44,11 @@ from orchestrator.exec.sandbox import (
     SandboxNotAuthorized,
 )
 from orchestrator.exec.evidence_store import EvidenceStore
+from orchestrator.exec.inv1_guard import (
+    INV1_VIOLATION,
+    canonical_perimeter_modules,
+    verify_inv1_primitive_confinement,
+)
 
 __all__ = [
     "SafeProvingCapability",
@@ -51,5 +61,6 @@ __all__ = [
     "SandboxNotAuthorized",
     "EvidenceStore",
     "verify_inv1_primitive_confinement",
+    "canonical_perimeter_modules",
     "INV1_VIOLATION",
 ]

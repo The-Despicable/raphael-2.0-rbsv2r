@@ -20,7 +20,10 @@ Run: python -m pytest tests/test_prompted_agent_parity.py -q
 
 import sys
 
-sys.path.insert(0, '/home/yaser/raphael-2.0-rbsv2r/src')
+from pathlib import Path
+
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(_REPO_ROOT / "src"))
 
 from arena.ablation import ABLATION_PRESETS, IsolationVerifier
 from orchestrator.brain.capability_broker import BrokerPolicy, CapabilityBroker

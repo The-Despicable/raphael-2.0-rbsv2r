@@ -73,7 +73,7 @@ def test_derivation_uses_actual_spec_not_view_string():
     request = ActionRequest(
         action_type="safe_proving_capability", target="system_info.name",
         args={"read_only": True}, rationale="p43", capability="fixture.inspect",
-        method="inspect",
+        method="inspect", impact_estimate=0.0,
     )
     ctx = {
         "view": {"mission_id": "spoofed-mission", "mission_spec": spec,
@@ -153,7 +153,10 @@ def test_context_matches_stored_broker_truth():
     assert tuple(actx.argv) == tuple(stored.authorized_argv)
     assert actx.decision_id == stored.action_id
     from orchestrator.hardening.action_receipt import ActionProposalStatus
-    assert stored.status == ActionProposalStatus.AUTHORIZED
+    # §lifecycle: the canonical episode now drives the Broker execution
+    # lifecycle, so the stored receipt is terminal SUCCEEDED (the PEP ran).
+    assert stored.status == ActionProposalStatus.SUCCEEDED
+    assert stored.completed_at >= stored.started_at > 0.0
 
 
 # ── Mission binding (reuse detectable) ───────────────────
@@ -210,6 +213,7 @@ def test_context_bound_to_actual_request_object():
         action_id="ACT_p43_exact", action_type="safe_proving_capability",
         target="system_info.name", args={"read_only": True},
         rationale="p43 exact", capability="fixture.inspect", method="inspect",
+        impact_estimate=0.0,
     )
     ctx = {
         "view": {"mission_id": "p43-exact", "target": "system_info.name"},

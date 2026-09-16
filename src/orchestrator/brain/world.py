@@ -297,10 +297,24 @@ class WorldModel:
     # ── Relationship management ──────────────────────────────────
 
     def add_relationship(self, rel: Relationship) -> str:
-        """Add a relationship with provenance."""
+        """Add a relationship with provenance.
+
+        Referential integrity (F-5): every evidence_id must resolve to an
+        existing EvidenceGraph node. Fabricated IDs fail closed; no
+        synthetic evidence is manufactured and no invalid ID is dropped.
+        """
         if not rel.evidence_ids:
             raise ValueError("Relationship must have at least one evidence_id")
         
+        unknown = [
+            eid for eid in rel.evidence_ids
+            if self.evidence_graph.get_evidence(eid) is None
+        ]
+        if unknown:
+            raise ValueError(
+                f"Relationship evidence_ids not found in EvidenceGraph: {unknown}"
+            )
+
         self.relationships[rel.relationship_id] = rel
         
         # Update indexes
@@ -625,6 +639,13 @@ class WorldModel:
 
         if host_asset_id and not self.get_entity(host_asset_id):
             host_asset_id = ""  # Gracefully degrade if host asset not found
+
+        # F-5: register the ingested Evidence node so relationships created
+        # below resolve referentially. Idempotent: never overwrites an
+        # existing node and never synthesizes a placeholder.
+        ingested_id = getattr(evidence, 'evidence_id', '') or ''
+        if ingested_id and self.evidence_graph.get_evidence(ingested_id) is None:
+            self.evidence_graph.add_evidence(evidence)
 
         evidence_type = getattr(evidence, 'evidence_type', '') or ''
         structured = getattr(evidence, 'structured_content', {}) or {}
