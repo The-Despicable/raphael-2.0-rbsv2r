@@ -21,6 +21,7 @@ from orchestrator.api.types import (
     check_tool_permission,
 )
 from orchestrator.auth import require_scope
+from orchestrator.auth import require_broker_mediation
 from orchestrator.agents.engage import build_orchestrator, run_agent_engage
 from orchestrator.audit_trail import record_event
 
@@ -45,6 +46,15 @@ async def execute_agent(
     request: Request,
     req: AgentExecuteRequest,
     auth=Depends(require_scope("agent:execute")),
+    mediated=Depends(require_broker_mediation(
+        target="api-agent",
+        action_type="agent_engage",
+        capability="api.agent",
+        method="execute_agent",
+        impact_estimate=8.0,
+        path_id="R3.0-P06",
+        weld_ticket="W-03",
+    )),
 ):
     """
     Execute agent with Server-Sent Events streaming.
@@ -177,6 +187,15 @@ async def execute_agent(
 async def execute_agent_sync(
     req: AgentExecuteRequest,
     auth=Depends(require_scope("agent:execute")),
+    mediated=Depends(require_broker_mediation(
+        target="api-agent",
+        action_type="agent_engage",
+        capability="api.agent",
+        method="execute_agent_sync",
+        impact_estimate=8.0,
+        path_id="R3.0-P06",
+        weld_ticket="W-03",
+    )),
 ):
     """Execute agent synchronously (non-streaming)."""
     session_id = req.session_id or str(uuid.uuid4())

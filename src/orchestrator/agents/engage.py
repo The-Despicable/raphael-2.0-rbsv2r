@@ -43,7 +43,23 @@ def build_orchestrator(
 
 async def run_agent_engage(target: str, objective: str = "compromise",
                            persona: str = "", phases: Optional[list[str]] = None) -> dict:
-    """Run a full multi-agent engagement against target. Returns structured results."""
+    """Run a full multi-agent engagement against target. Returns structured results.
+
+    AM-4 W-03 (R3.0-P06) WELDED under Scope v0: the unbrokered engage fan-out
+    is deleted as an executable path. Every invocation proposes to the
+    canonical Broker (fail-closed WeldNotAuthorized unless AUTHORIZED).
+    """
+    from orchestrator.auth import enforce_broker_mediation
+    enforce_broker_mediation(
+        target=target,
+        action_type="agent_engage",
+        capability="agents.engage",
+        method="run_agent_engage",
+        impact_estimate=8.0,
+        argv=(target, objective),
+        path_id="R3.0-P06",
+        weld_ticket="W-03",
+    )
     t0 = time.time()
 
     bus = EventBus()

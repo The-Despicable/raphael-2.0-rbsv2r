@@ -9,6 +9,12 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+# AM-4 W-14 (R3.0-P23) weld dependency: broker mediation lives in the
+# canonical tree. Hard import (no fallback): the service fails closed at
+# startup when the canonical tree is absent.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from orchestrator.auth import enforce_broker_mediation, WeldNotAuthorized
+
 sys.path.insert(0, os.getenv("RAPHAEL_PATH", str(Path.home() / ".raphael")))
 try:
     from orchestrator.proxy_guard import ProxyGuard
@@ -136,6 +142,22 @@ async def list_methods():
 
 @app.post("/attack")
 async def launch_attack(req: AttackRequest):
+    # AM-4 W-14 (R3.0-P23) WELDED under Scope v0: unauthenticated DDoS
+    # launch is deleted as an executable path. Fail-closed 403 unless the
+    # canonical Broker AUTHORIZEs.
+    try:
+        enforce_broker_mediation(
+            target=req.target,
+            action_type="ddos_attack",
+            capability="mhddos",
+            method="launch_attack",
+            impact_estimate=10.0,
+            argv=(req.target, req.method),
+            path_id="R3.0-P23",
+            weld_ticket="W-14",
+        )
+    except WeldNotAuthorized as exc:
+        raise HTTPException(status_code=403, detail=str(exc))
     method = req.method.upper()
     if method not in ATTACK_METHODS:
         raise HTTPException(400, f"Unknown method '{method}'. Available: {', '.join(ATTACK_METHODS)}")
@@ -144,19 +166,13 @@ async def launch_attack(req: AttackRequest):
     proxy_arg = TOR_PROXY if req.proxy else "off"
 
     def run_real():
-        cmd = [MHDDOS_PYTHON, MHDPATH, req.target, method, str(req.threads), proxy_arg]
-        logger.info(f"Launching: {' '.join(cmd)}")
-        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        with _attacks_lock:
-            attacks[attack_id]["pid"] = proc.pid
-        try:
-            proc.wait(timeout=req.duration)
-        except subprocess.TimeoutExpired:
-            proc.kill()
-            proc.wait()
-        with _attacks_lock:
-            if attack_id in attacks:
-                attacks[attack_id]["status"] = "completed"
+        # AM-4-R2: the legacy real-execution branch (subprocess.Popen of the
+        # mhddos binary) is DELETED. This closure is retained only so the
+        # dispatch below documents the removed path; it must never launch.
+        raise WeldNotAuthorized(
+            "AM-4 W-14 R3.0-P23: real-attack execution branch deleted; "
+            "all execution routes through the broker-gated capability."
+        )
 
     def run_simulated():
         logger.info(f"[SIMULATED] Attacking {req.target} with {method} for {req.duration}s")
@@ -243,28 +259,35 @@ async def get_status():
 
 @app.post("/proxy/rotate")
 async def rotate_proxy():
+    # AM-4-R2 W-14 (R3.0-P23): the unauthenticated Tor-control route (both the
+    # ProxyGuard branch and the raw-socket fallback, which perform governed
+    # network effects) is deleted as an executable path. Fail-closed 403
+    # unless the canonical Broker AUTHORIZEs.
+    try:
+        enforce_broker_mediation(
+            target="tor-control",
+            action_type="proxy_rotate",
+            capability="mhddos",
+            method="rotate_proxy",
+            impact_estimate=7.0,
+            argv=("rotate",),
+            path_id="R3.0-P23",
+            weld_ticket="W-14",
+        )
+    except WeldNotAuthorized as exc:
+        raise HTTPException(status_code=403, detail=str(exc))
     if HAS_PROXY_GUARD:
         try:
             pg = ProxyGuard()
             circuit = pg.new_circuit()
             return {"status": "rotated", "circuit_id": circuit}
         except Exception as e:
-            logger.warning(f"ProxyGuard rotation failed, falling back to Tor control port: {e}")
+            logger.warning(f"ProxyGuard rotation failed: {e}")
+            raise HTTPException(502, f"Tor rotation failed: {e}")
 
-    try:
-        import socket
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.settimeout(5)
-        s.connect((TOR_CONTROL_HOST, TOR_CONTROL_PORT))
-        s.sendall(b"AUTHENTICATE\r\n")
-        data = s.recv(1024)
-        if b"250" in data:
-            s.sendall(b"SIGNAL NEWNYM\r\n")
-            s.recv(1024)
-        s.close()
-        return {"status": "rotated", "circuit": "new"}
-    except Exception as e:
-        raise HTTPException(502, f"Tor rotation failed: {e}")
+    # AM-4-R2: the legacy raw-socket Tor-control fallback branch
+    # (socket.socket/connect/sendall) is DELETED. No unauthenticated or
+    # fallback path to the Tor control port remains on this route.
 
 
 if __name__ == "__main__":

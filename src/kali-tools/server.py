@@ -1,5 +1,12 @@
-import subprocess, shlex, os, shutil
+import os
+import subprocess
+import shlex
+import shutil
+import sys
 from fastapi import FastAPI, Query, HTTPException
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+from orchestrator.auth import enforce_broker_mediation, WeldNotAuthorized
 
 app = FastAPI()
 
@@ -18,19 +25,28 @@ async def cache_tools():
 
 @app.post("/run")
 def run_tool(tool: str = Query(...), args: str = "", timeout: int = 300):
-    cmd = shlex.split(f"{tool} {args}")
+    # AM-4 W-09 (R3.0-P12) WELDED under Scope v0: the unauthenticated /run
+    # branch is deleted as an executable path. Execution requires a Broker
+    # AUTHORIZED decision (fail-closed 403 otherwise).
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
-        return {
-            "tool": tool,
-            "returncode": result.returncode,
-            "stdout": result.stdout,
-            "stderr": result.stderr
-        }
-    except FileNotFoundError:
-        raise HTTPException(status_code=404, detail=f"Tool '{tool}' not found")
-    except subprocess.TimeoutExpired:
-        return {"tool": tool, "returncode": -1, "stdout": "", "stderr": "timed out"}
+        enforce_broker_mediation(
+            target="kali-tools",
+            action_type="tool_execute",
+            capability="kali_tools",
+            method="run_tool",
+            impact_estimate=8.0,
+            argv=(tool, args),
+            path_id="R3.0-P12",
+            weld_ticket="W-09",
+        )
+    except WeldNotAuthorized as exc:
+        raise HTTPException(status_code=403, detail=str(exc))
+    # AM-4-R2: legacy subprocess execution body DELETED (was
+    # shlex.split + subprocess.run). No execution path remains past the gate.
+    raise WeldNotAuthorized(
+        "AM-4 W-09 R3.0-P12: /run execution branch deleted; "
+        "all execution routes through the broker-gated capability."
+    )
 
 @app.get("/tools")
 def list_tools():

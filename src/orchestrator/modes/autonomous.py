@@ -30,6 +30,21 @@ _RL_ACTIVE = os.getenv("RAPHAEL_RL_STRATEGY", "1") == "1"
 
 
 async def handle(target: str, phases: list = None, **kwargs) -> dict:
+    # AM-4 W-04/W-06 (R3.0-P07/P09) WELDED under Scope v0: the unbrokered
+    # autonomous fan-out (phase executors, chains, kali/c2 sinks) is deleted
+    # as an executable path. Every invocation proposes to the canonical
+    # Broker (fail-closed WeldNotAuthorized unless AUTHORIZED).
+    from orchestrator.auth import enforce_broker_mediation
+    enforce_broker_mediation(
+        target=target,
+        action_type="autonomous_handle",
+        capability="modes.autonomous",
+        method="handle",
+        impact_estimate=9.0,
+        argv=(target,),
+        path_id="R3.0-P07",
+        weld_ticket="W-04",
+    )
     if phases is None:
         phases = PHASES
 

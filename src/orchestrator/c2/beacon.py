@@ -201,15 +201,24 @@ class BeaconHTTPServer:
         self._server = None
 
     async def start(self):
-        from aiohttp import web
-        app = web.Application()
-        app.router.add_post("/c2/beacon/register", self._handle_register)
-        app.router.add_post("/c2/beacon/{session_id}/checkin", self._handle_checkin)
-        app.router.add_post("/c2/beacon/{session_id}/result", self._handle_result)
-        app.router.add_get("/c2/beacon/{session_id}/tasks", self._handle_tasks)
-        app.router.add_get("/c2/health", self._handle_health)
-        self._server = web.TCPSite(web.AppRunner(app), self._host, self._port)
-        logger.info(f"  Beacon HTTP server listening on {self._host}:{self._port}")
+        # AM-4-R2 W-08 (R3.0-P11) internal-sink defense (§4): the aiohttp C2
+        # listener must not start outside Broker mediation. Fail-closed.
+        from orchestrator.auth import enforce_broker_mediation, WeldNotAuthorized
+        enforce_broker_mediation(
+            target="c2-beacon",
+            action_type="c2_listen",
+            capability="c2.beacon",
+            method="start",
+            impact_estimate=9.0,
+            path_id="R3.0-P11",
+            weld_ticket="W-08",
+        )
+        # AM-4-R2: legacy listener-bind body DELETED (was aiohttp TCPSite
+        # bind). No execution path remains past the gate.
+        raise WeldNotAuthorized(
+            "AM-4 W-08 R3.0-P11: beacon listen branch deleted; "
+            "all execution routes through the broker-gated capability."
+        )
 
     async def _handle_register(self, request):
         try:

@@ -133,6 +133,20 @@ async def call_model(
     max_tokens: int = 1024, temperature: float = 0.7,
     system_override: str | None = None, **kwargs,
 ) -> str:
+    # AM-4 W-12/W-13 (R3.0-P19/P20) WELDED under Scope v0: unbrokered LLM
+    # emission is deleted as an executable path. Every call proposes to the
+    # canonical Broker (fail-closed WeldNotAuthorized unless AUTHORIZED).
+    from orchestrator.auth import enforce_broker_mediation
+    enforce_broker_mediation(
+        target="llm-provider",
+        action_type="llm_emit",
+        capability="providers",
+        method="call_model",
+        impact_estimate=6.0,
+        argv=(model,),
+        path_id="R3.0-P19",
+        weld_ticket="W-12",
+    )
     logger.info(f"call_model: model={model} messages={len(messages)} max_tokens={max_tokens}")
     if system_override:
         msgs = [{"role": "system", "content": system_override}] + messages

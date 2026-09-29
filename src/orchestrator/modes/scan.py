@@ -7,6 +7,20 @@ async def handle(target: str, ports: str = "1-1000",
                  nuclei_severity: str = None,
                  use_proxy: bool = True,
                  direct: bool = False) -> dict:
+    # AM-4 W-12 (R3.0-P19) WELDED under Scope v0: the unbrokered scan pipeline
+    # (incl. the --direct CLI bypass) is deleted as an executable path. Every
+    # call proposes to the canonical Broker (fail-closed unless AUTHORIZED).
+    from orchestrator.auth import enforce_broker_mediation
+    enforce_broker_mediation(
+        target=target,
+        action_type="scan_execute",
+        capability="modes.scan",
+        method="handle",
+        impact_estimate=8.0,
+        argv=(target, ports),
+        path_id="R3.0-P19",
+        weld_ticket="W-12",
+    )
     if direct:
         print("[scan] DIRECT MODE — scanning without proxy guard")
         os.environ["RAPHAEL_DEV_MODE"] = "1"

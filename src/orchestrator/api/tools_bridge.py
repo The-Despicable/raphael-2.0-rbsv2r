@@ -76,6 +76,20 @@ async def _run_in_kali(
     timeout: int = 120,
     env: dict[str, str] | None = None,
 ) -> ToolRunResponse:
+    # AM-4 W-02 (R3.0-P05) WELDED under Scope v0: the unauthenticated kali hop
+    # is deleted as an executable path. Every call proposes to the canonical
+    # Broker (fail-closed WeldNotAuthorized unless AUTHORIZED).
+    from orchestrator.auth import enforce_broker_mediation
+    enforce_broker_mediation(
+        target="kali-tools",
+        action_type="tool_execute",
+        capability="tools_bridge",
+        method="_run_in_kali",
+        impact_estimate=8.0,
+        argv=(tool, " ".join(args)),
+        path_id="R3.0-P05",
+        weld_ticket="W-02",
+    )
     params = {"tool": tool, "args": " ".join(args), "timeout": timeout}
     async with httpx.AsyncClient(timeout=httpx.Timeout(timeout + 10)) as client:
         try:

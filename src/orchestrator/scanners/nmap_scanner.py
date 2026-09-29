@@ -33,6 +33,20 @@ class NmapScanner:
 
     def scan_ports(self, target: str, ports: str = "1-1000", rate: int = 100,
                    sudo: bool = False) -> dict:
+        # AM-4 W-14/W-06 (R3.0-P23/P06) WELDED under Scope v0: unbrokered
+        # socket-scan emission is deleted as an executable path. Fail-closed
+        # unless the canonical Broker AUTHORIZEs.
+        from orchestrator.auth import enforce_broker_mediation
+        enforce_broker_mediation(
+            target=target,
+            action_type="scan_execute",
+            capability="scanners.nmap",
+            method="scan_ports",
+            impact_estimate=7.0,
+            argv=(target, ports),
+            path_id="R3.0-P23",
+            weld_ticket="W-14",
+        )
         self._validate_target(target)
 
         if self.pg:

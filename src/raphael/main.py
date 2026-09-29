@@ -382,13 +382,12 @@ async def main():
 
     # v4 L1: one canonical cognitive loop. v4 §13.5: CLI -> Runtime ->
     # observe -> ... -> receipt -> trace -> termination. The Runtime is the
-    # canonical path. The legacy Head-1 organism loop is preserved behind
-    # RAPHAEL_USE_LEGACY=1 as a separately documented migration path.
-    if os.environ.get('RAPHAEL_USE_LEGACY', '0') == '1':
-        organism = RaphaelOrganism(config)
-        await organism.initialize()
-        await organism.run()
-        return
+    # canonical path.
+    # AM-4 W-15 (P27 E-CLI-LEGACY) WELDED under Scope v0: the legacy Head-1
+    # organism loop behind RAPHAEL_USE_LEGACY=1 is deleted. The seam is fixed
+    # ON: main() unconditionally runs the canonical RaphaelRuntime path.
+    # RaphaelOrganism remains defined for P9 deletion handling (dead code;
+    # zero live callers after this weld).
 
     # Canonical path: RaphaelRuntime one-iteration walking skeleton.
     from orchestrator.runtime import RaphaelRuntime

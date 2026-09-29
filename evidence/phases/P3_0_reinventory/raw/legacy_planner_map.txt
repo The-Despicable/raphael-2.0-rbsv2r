@@ -1,0 +1,53 @@
+=== planner.py full call map (imports + calls) ===
+2:from __future__ import annotations
+3:import asyncio
+4:import logging
+5:from dataclasses import dataclass, field
+6:from typing import Optional
+7:from raphael.models.engagement_state import EngagementState
+8:from raphael.models.target_model import TargetModel, ConstraintDelta
+9:from raphael.models.capability_model import CapabilityModel
+10:from raphael.techniques import TECHNIQUE_REGISTRY, Technique
+11:from raphael.memory.statistical_prior import expected_value
+12:from raphael.cortex.model_refiner import get_refiner
+13:from raphael.cortex.hypothesizer import get_hypothesizer
+207:        When no technique is viable, run ModelRefiner and Hypothesizer in parallel.
+212:        # Run ModelRefiner and Hypothesizer in parallel
+214:        hypothesizer = get_hypothesizer()
+217:        hyp_task = hypothesizer.hypothesize(state)
+257:        fallback = hypothesizer._heuristic_fallback(state)
+270:        # For Wave 2: try hypothesizer while waiting
+271:        hypothesizer = get_hypothesizer()
+272:        result = await hypothesizer.hypothesize(state)
+=== hypothesizer second httpx site (line 190-210) ===
+        traceback: str,
+    ) -> Optional[dict]:
+        """Ask LLM to generate a one-shot exploit technique."""
+        api_url = os.getenv("ORCHESTRATOR_URL", "http://localhost:3800")
+        try:
+            import httpx
+
+            prompt = (
+                f"Target: {target_ip}:{port}\n"
+                f"Affordance: {ephemeral_affordance}\n"
+                f"Traceback: {traceback[:2000]}\n\n"
+                f"Write a Python script that exploits this specific stack trace. "
+                f"Output ONLY valid JSON matching this schema:\n"
+                f'{{"technique_name": "str", "tool_args_template": "str", "parser": "raw"}}\n'
+                f"Assign type='exploit'."
+            )
+
+            async with httpx.AsyncClient(timeout=30) as client:
+                resp = await client.post(
+                    f"{api_url}/agent/analyze",
+                    json={"prompt": prompt, "context": "ephemeral_exploit"},
+                    timeout=30,
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    suggestion = data.get("technique") or data.get("response", "")
+                    if suggestion:
+                        logger.info(f"Hypothesizer: LLM generated ephemeral technique for {ephemeral_affordance}")
+                        return {
+                            "action_type": "execute_ephemeral",
+                            "technique_name": f"ephemeral_{ephemeral_affordance.lower()}",

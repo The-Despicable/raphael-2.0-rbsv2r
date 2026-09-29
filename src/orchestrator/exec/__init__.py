@@ -22,13 +22,25 @@ load time (an import-time full-perimeter scan would be an expensive
 per-process side effect and would raise at import on a violation). The
 authoritative assertion is at gate/test time.
 
-The INV-1 primitive lexicon (enforced by inv1_guard):
+The INV-1 primitive lexicon (enforced by inv1_guard; 001R4/001R5 extensions marked):
 - subprocess (import or any call form)
 - asyncio.create_subprocess_exec / _shell, asyncio.subprocess
+- asyncio.open_connection / start_server (001R5: network sockets)
 - os.system, os.popen, os.exec*, os.spawn*
 - socket, requests, httpx, aiohttp, paramiko, docker
 - urllib.request, http.client, http.server
+- boto3.client/resource/Session + botocore construction/usage-gated calls (001R5:
+  bare imports never flag alone)
+- redis.from_url/Redis (+ redis.asyncio forms) construction + client operations
+  on proven Redis-derived receivers only (001R6: bare imports never flag alone;
+  fakeredis never flags; arbitrary `.ping()` never flags)
+- smtplib.SMTP/SSL construction/usage-gated calls (001R4/001R5: bare import never flags)
 - os.remove, os.unlink, os.rmdir, shutil.rmtree
+- os.rename/chmod, shutil.copy/copy2/copytree/move (001R4: file mutation)
+- pathlib write_text/write_bytes/unlink/rename/rmdir/chmod on proven Path receivers
+  only (001R5: structural proof; arbitrary `.rename()` never flags)
+- dotted import aliases resolved to canonical form before matching (001R6:
+  `import redis.asyncio as redis`; file-global simplification, documented)
 - open(..., 'w'/'a'/'x'/'+')
 """
 from orchestrator.exec.safe_capability import (

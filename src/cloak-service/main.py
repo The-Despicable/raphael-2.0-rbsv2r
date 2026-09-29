@@ -13,6 +13,30 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from .cloakbrowser import launch_async
 from pydantic import BaseModel, Field
+
+# AM-4 W-14 (R3.0-P23) weld dependency: broker mediation lives in the
+# canonical tree. Hard import (no fallback): the service fails closed at
+# startup when the canonical tree is absent.
+import sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+from orchestrator.auth import enforce_broker_mediation, WeldNotAuthorized
+
+
+def _weld_gate(target: str, method: str, argv: tuple = ()) -> None:
+    """AM-4 W-14 (R3.0-P23) shared entry gate: fail-closed 403 unless AUTHORIZED."""
+    try:
+        enforce_broker_mediation(
+            target=target,
+            action_type="cloak_execute",
+            capability="cloak",
+            method=method,
+            impact_estimate=7.0,
+            argv=argv,
+            path_id="R3.0-P23",
+            weld_ticket="W-14",
+        )
+    except WeldNotAuthorized as exc:
+        raise HTTPException(status_code=403, detail=str(exc))
 try:
     from stem import Signal
     from stem.control import Controller
@@ -141,36 +165,53 @@ async def apply_wait_strategy(page, req):
 
 
 async def get_tor_ip():
+    # AM-4-R2 W-14 (R3.0-P23) internal-helper defense: direct httpx egress
+    # is deleted as an executable path. Fail-closed unless AUTHORIZED.
+    from orchestrator.auth import enforce_broker_mediation, WeldNotAuthorized
     try:
-        async with httpx.AsyncClient(proxies=TOR_PROXY, timeout=10) as client:
-            r = await client.get("https://httpbin.org/ip")
-            return r.json().get("origin")
-    except Exception:
-        try:
-            async with httpx.AsyncClient(proxies=TOR_PROXY, timeout=10) as client:
-                r = await client.get("https://api.ipify.org?format=json")
-                return r.json().get("ip")
-        except Exception:
-            return None
+        enforce_broker_mediation(
+            target="tor-egress",
+            action_type="cloak_execute",
+            capability="cloak",
+            method="get_tor_ip",
+            impact_estimate=7.0,
+            argv=("get_tor_ip",),
+            path_id="R3.0-P23",
+            weld_ticket="W-14",
+        )
+    except WeldNotAuthorized as exc:
+        raise HTTPException(status_code=403, detail=str(exc))
+    # AM-4-R2: legacy direct-egress branches (httpbin/ipify httpx calls)
+    # DELETED. No fallback path to external IP oracles remains.
+    raise WeldNotAuthorized(
+        "AM-4 W-14 R3.0-P23: Tor-egress branch deleted; "
+        "all execution routes through the broker-gated capability."
+    )
 
 
 def rotate_tor_identity():
-    if not TOR_AVAILABLE:
-        logger.warning("Tor (stem) not available — skipping identity rotation")
-        return False
+    # AM-4-R2 W-14 (R3.0-P23) internal-helper defense: Tor control-port
+    # signaling is deleted as an executable path. Fail-closed unless AUTHORIZED.
+    from orchestrator.auth import enforce_broker_mediation, WeldNotAuthorized
     try:
-        host, port_str = TOR_CONTROL.split(":")
-        port = int(port_str)
-        with Controller.from_port(address=host, port=port) as controller:
-            if TOR_PASSWORD:
-                controller.authenticate(password=TOR_PASSWORD)
-            else:
-                controller.authenticate()
-            controller.signal(Signal.NEWNYM)
-        return True
-    except Exception as e:
-        logger.error("Tor identity rotation failed: %s", e)
-        return False
+        enforce_broker_mediation(
+            target="tor-control",
+            action_type="cloak_execute",
+            capability="cloak",
+            method="rotate_tor_identity",
+            impact_estimate=7.0,
+            argv=("rotate_tor_identity",),
+            path_id="R3.0-P23",
+            weld_ticket="W-14",
+        )
+    except WeldNotAuthorized as exc:
+        raise HTTPException(status_code=403, detail=str(exc))
+    # AM-4-R2: legacy stem Controller signaling branch DELETED. No path to
+    # the Tor control port remains.
+    raise WeldNotAuthorized(
+        "AM-4 W-14 R3.0-P23: Tor-control branch deleted; "
+        "all execution routes through the broker-gated capability."
+    )
 
 
 @asynccontextmanager
@@ -237,6 +278,7 @@ async def log_requests(request, call_next):
 
 @app.post("/browse", response_model=BrowseResponse)
 async def browse(req: BrowseRequest):
+    _weld_gate(req.url, "browse", (req.url,))
     start = time.time()
     async with get_browser_page(req.viewport) as page:
         try:
@@ -265,6 +307,7 @@ async def browse(req: BrowseRequest):
 
 @app.post("/screenshot", response_model=ScreenshotResponse)
 async def screenshot(req: ScreenshotRequest):
+    _weld_gate(req.url, "screenshot", (req.url,))
     async with get_browser_page(req.viewport) as page:
         try:
             await page.goto(req.url, wait_until="networkidle", timeout=30000)
@@ -278,6 +321,7 @@ async def screenshot(req: ScreenshotRequest):
 
 @app.post("/interact", response_model=InteractResponse)
 async def interact(req: InteractRequest):
+    _weld_gate(req.url, "interact", (req.url,))
     async with get_browser_page() as page:
         try:
             await page.goto(req.url, wait_until="networkidle", timeout=30000)
@@ -291,6 +335,7 @@ async def interact(req: InteractRequest):
 
 @app.get("/identities", response_model=IdentityResponse)
 async def identities():
+    _weld_gate("tor-control", "identities", ("rotate",))
     old_ip = await get_tor_ip()
     success = rotate_tor_identity()
     if not success:
@@ -306,11 +351,13 @@ async def identities():
 
 @app.get("/health", response_model=HealthResponse)
 async def health():
-    tor_ip = await get_tor_ip()
+    # AM-4-R2 W-14 (R3.0-P23): the legacy branch that dialed Tor on every
+    # unauthenticated health scrape is DELETED. Liveness-only health: no
+    # governed effect remains on this route, so no gate is required.
     browser_ok = browser is not None
     return HealthResponse(
-        status="ok" if tor_ip and browser_ok else "degraded",
-        tor_ip=tor_ip,
+        status="ok" if browser_ok else "degraded",
+        tor_ip=None,
         browser_available=browser_ok,
     )
 

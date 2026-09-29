@@ -1,0 +1,15 @@
+PHASE_COUNT=13
+phase=harvest target=orchestrator.brain.phases.models._exec_harvest
+phase=recon target=orchestrator.brain.phases.models._exec_recon
+phase=scan target=orchestrator.brain.phases.models._exec_scan
+phase=exploit target=orchestrator.brain.phases.models._exec_exploit
+phase=postex target=orchestrator.brain.phases.models._exec_postex
+phase=lateral target=orchestrator.brain.phases.models._exec_lateral
+phase=credential target=orchestrator.brain.phases.models._exec_credential
+phase=exfil target=orchestrator.brain.phases.models._exec_exfil
+phase=phish target=orchestrator.brain.phases.models._exec_phish
+phase=cicd target=orchestrator.brain.phases.models._exec_cicd
+phase=ml_attack target=orchestrator.brain.phases.models._exec_ml_attack
+phase=cloud_abuse target=orchestrator.brain.phases.models._exec_cloud_abuse
+phase=container_escape target=orchestrator.brain.phases.models._exec_container_escape
+exit=0

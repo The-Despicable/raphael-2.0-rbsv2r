@@ -1,12 +1,35 @@
-..........................................                               [100%]
+........................................................................ [ 96%]
+...                                                                      [100%]
 =============================== warnings summary ===============================
-tests/test_p2_guardrail_deprecated_import.py: 1 warning
-tests/test_p2_guardrail_inv1.py: 6 warnings
-tests/test_p2_guardrail_no_production_bypass.py: 1 warning
-tests/test_p2_guardrail_runtime_no_seam.py: 1 warning
-tests/test_p2_guardrail_single_runtime.py: 2 warnings
+tests/test_p2_guardrail_inv1.py::test_inv1_canonical_perimeter_is_deterministic_and_machine_independent
+tests/test_p2_guardrail_inv1.py::test_inv1_canonical_perimeter_is_deterministic_and_machine_independent
+tests/test_p2_guardrail_inv1.py::test_inv1_runtime_tree_is_clean
+tests/test_p2_guardrail_inv1.py::test_inv1_exec_namespace_is_authorized
+tests/test_p2_guardrail_inv1.py::test_inv1_canonical_perimeter_zero_violations
+tests/test_p2_guardrail_inv1.py::test_no_unbrokered_execution
   <unknown>:141: SyntaxWarning: "\-" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\-"? A raw string is also an option.
 
+tests/test_am4_weld_gates.py::test_w09_kali_server_run_denies_403
+  /home/yaser/external-audits/raphael-2/src/kali-tools/server.py:15: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+tests/test_am4_weld_gates.py::test_w09_kali_server_run_denies_403
+  /home/yaser/.local/lib/python3.14/site-packages/fastapi/applications.py:4681: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    return self.router.on_event(event_type)  # ty: ignore[deprecated]
+
+tests/test_am4_weld_gates.py::test_r2_proxyguard_report_helpers_deny
+  /home/yaser/external-audits/raphael-2/src/sword/report.py:8: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    self.timestamp = datetime.utcnow().strftime("%Y-%m-%d_%H-%M-%S")
+
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-42 passed, 11 warnings in 5.51s
-exit=0
+75 passed, 9 warnings in 5.32s

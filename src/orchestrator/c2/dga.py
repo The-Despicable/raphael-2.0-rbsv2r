@@ -73,6 +73,19 @@ class DGAResolver:
         return results
 
     def resolve_domain(self, domain: str, check_dns: bool = False) -> Optional[str]:
+        # AM-4-R2 W-08 (R3.0-P11) internal-sink defense (§4): DNS resolution
+        # must not run outside Broker mediation. Fail-closed.
+        from orchestrator.auth import enforce_broker_mediation
+        enforce_broker_mediation(
+            target=domain,
+            action_type="c2_resolve",
+            capability="c2.dga",
+            method="resolve_domain",
+            impact_estimate=7.0,
+            argv=(domain,),
+            path_id="R3.0-P11",
+            weld_ticket="W-08",
+        )
         if domain in self._resolved:
             return self._resolved[domain]
         if check_dns:

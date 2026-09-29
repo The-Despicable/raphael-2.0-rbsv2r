@@ -60,61 +60,41 @@ async def _run_command(
     cwd: Optional[str] = None,
     env: Optional[dict] = None,
 ) -> ToolResult:
-    """Run a command asynchronously with timeout."""
+    """Broker-gated command entry (AM-4-R2: execution body deleted).
+
+    AM-4 W-01 (R3.0-P04) WELDED under Scope v0: direct unbrokered execution
+    (SUB-04) is removed as a reachable path. Execution requires a Broker
+    AUTHORIZED decision via enforce_broker_mediation (fail-closed
+    WeldNotAuthorized otherwise). No bypass flag, no opt-in.
+    """
+    from orchestrator.auth import enforce_broker_mediation
+
     start = time.time()
-    
-    try:
-        proc = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-            cwd=cwd,
-            env=env or os.environ.copy(),
-        )
-        
-        try:
-            stdout, stderr = await asyncio.wait_for(
-                proc.communicate(),
-                timeout=timeout,
-            )
-            exit_code = proc.returncode
-        except asyncio.TimeoutError:
-            proc.kill()
-            await proc.wait()
-            return ToolResult(
-                success=False,
-                stdout="",
-                stderr=f"Command timed out after {timeout}s",
-                exit_code=-1,
-                duration=time.time() - start,
-            )
-        
-        return ToolResult(
-            success=exit_code == 0,
-            stdout=stdout.decode(errors="replace"),
-            stderr=stderr.decode(errors="replace"),
-            exit_code=exit_code,
-            duration=time.time() - start,
-        )
-        
-    except FileNotFoundError:
-        return ToolResult(
-            success=False,
-            stdout="",
-            stderr=f"Command not found: {cmd[0]}",
-            exit_code=-1,
-            duration=time.time() - start,
-        )
-    except Exception as e:
-        return ToolResult(
-            success=False,
-            stdout="",
-            stderr=str(e),
-            exit_code=-1,
-            duration=time.time() - start,
-        )
+
+    # AM-4 weld gate (W-01): seam fixed ON — Broker decides, fail-closed.
+    # enforce_broker_mediation raises WeldNotAuthorized unless AUTHORIZED.
+    enforce_broker_mediation(
+        target="local-tools",
+        action_type="tool_execute",
+        capability="tool_registry",
+        method="_run_command",
+        impact_estimate=7.0,
+        argv=tuple(cmd),
+        path_id="R3.0-P04",
+        weld_ticket="W-01",
+    )
+    # AM-4-R2: legacy subprocess execution body DELETED (was
+    # asyncio.create_subprocess_exec + communicate/kill). No execution path
+    # remains past the gate.
+    from orchestrator.auth import WeldNotAuthorized
+    raise WeldNotAuthorized(
+        "AM-4 W-01 R3.0-P04: _run_command execution branch deleted; "
+        "all execution routes through the broker-gated capability."
+    )
 
 
+# ============================================================
+# NMAP Executor
 # ============================================================
 # NMAP Executor
 # ============================================================
@@ -538,4 +518,17 @@ registry = ToolRegistry()
 
 async def execute_tool(name: str, params: dict, execution_id: str = None) -> dict:
     """Execute a tool by name."""
+    # AM-4-R2 W-01 (R3.0-P04) dispatcher choke (§4): every builder fans out
+    # through here in addition to _run_command. Fail-closed.
+    from orchestrator.auth import enforce_broker_mediation
+    enforce_broker_mediation(
+        target=str(params.get("target", params.get("url", params.get("rhost", "local-tools")))),
+        action_type="tool_execute",
+        capability="tool_registry",
+        method="execute_tool",
+        impact_estimate=7.0,
+        argv=(name,),
+        path_id="R3.0-P04",
+        weld_ticket="W-01",
+    )
     return await registry.execute(name, params, execution_id)

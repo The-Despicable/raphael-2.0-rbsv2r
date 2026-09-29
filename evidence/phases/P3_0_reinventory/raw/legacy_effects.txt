@@ -1,0 +1,36 @@
+=== model_refiner effects ===
+=== ephemeral/try_llm callers ===
+src/raphael/cortex/hypothesizer.py:33:        result = await self._try_llm_api(state)
+src/raphael/cortex/hypothesizer.py:40:    async def _try_llm_api(self, state: EngagementState) -> Optional[dict]:
+=== hypothesizer defs ===
+23:    async def hypothesize(self, state: EngagementState) -> Optional[dict]:
+40:    async def _try_llm_api(self, state: EngagementState) -> Optional[dict]:
+83:    def _heuristic_fallback(self, state: EngagementState) -> Optional[dict]:
+161:    async def synthesize_ephemeral_technique(
+180:    async def _try_llm_ephemeral(
+224:    def _heuristic_ephemeral(
+=== episode_store defs + store body ===
+55:    def __init__(self, store_path: Optional[str] = None):
+61:    def _load(self):
+65:                with open(self._path) as f:
+73:    def _save(self):
+75:        with open(self._path, "w") as f:
+78:    def store(self, state: EngagementState, outcome: str = "interrupted",
+93:    def find_similar(self, state: EngagementState, min_similarity: float = 0.15) -> list[MatchResult]:
+128:    def _weighted_similarity(self, affs_a: set, cons_a: set,
+163:    def _find_next_technique(self, episode: Episode,
+182:    def get_recent_episodes(self, n: int = 5) -> list[Episode]:
+187:    def episode_count(self) -> int:
+194:def get_hippocampus() -> Hippocampus:
+=== kali_bridge run body (httpx use) ===
+15:    Falls back to subprocess if the API is unavailable.
+25:            import httpx
+26:            self._session = httpx.AsyncClient(
+27:                timeout=httpx.Timeout(600.0),
+28:                limits=httpx.Limits(max_keepalive_connections=5),
+47:        Tries /run endpoint first, falls back to subprocess.
+62:                        logger.debug(f"API returned error ({result['error']}), falling back to subprocess")
+65:                logger.debug(f"Kali bridge API call failed: {e}, falling back to subprocess")
+68:        # SUB-14 welded: subprocess fallback removed
+69:        raise RuntimeError(
+70:            "Executor._subprocess_fallback() is removed in WELD-SUB14. "

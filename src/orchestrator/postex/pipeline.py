@@ -32,6 +32,20 @@ class PostExploitPipeline:
                   username: str = None, password: str = None,
                   hash: str = None, network: str = None,
                   use_skills: bool = True, use_sandbox: bool = False) -> dict:
+        # AM-4 W-14 (R3.0-P23) WELDED under Scope v0: unbrokered post-ex
+        # pipeline execution (cai-service callers, incl. winrm/ladon network
+        # exec) is deleted as an executable path. Fail-closed unless AUTHORIZED.
+        from orchestrator.auth import enforce_broker_mediation
+        enforce_broker_mediation(
+            target=target_ip,
+            action_type="postex_execute",
+            capability="postex.pipeline",
+            method="run",
+            impact_estimate=9.0,
+            argv=(target_ip,),
+            path_id="R3.0-P23",
+            weld_ticket="W-14",
+        )
         results = {
             "target": target_ip,
             "domain": domain,

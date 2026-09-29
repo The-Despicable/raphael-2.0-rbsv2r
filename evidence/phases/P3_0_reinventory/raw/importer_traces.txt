@@ -1,0 +1,46 @@
+MODULES=460 ENTRIES=38 REACHABLE=312
+--- orchestrator.ad.planner: reachable=False importers=[]
+--- raphael.cortex.planner: reachable=True importers=['raphael.main']
+    trace=raphael.main <- raphael.cortex.planner
+--- raphael.cognitive: reachable=True importers=['raphael.cognitive.capability_acquisition', 'raphael.cognitive.episodic_memory', 'raphael.cognitive.hypothesizer', 'raphael.cognitive.model_refiner', 'raphael.cognitive.models', 'raphael.cognitive.negative_cache', 'raphael.cognitive.network_graph', 'raphael.cognitive.ontology_expander', 'raphael.cognitive.planner', 'raphael.cognitive.protocol_inference']
+    trace=raphael.main <- raphael.executor.executor <- raphael.cognitive.protocol_inference <- raphael.cognitive
+--- raphael.cognitive.reflection: reachable=True importers=['raphael.cognitive']
+    trace=raphael.main <- raphael.executor.executor <- raphael.cognitive.protocol_inference <- raphael.cognitive <- raphael.cognitive.reflection
+--- raphael.cognitive.hypothesizer: reachable=True importers=['raphael.cognitive']
+    trace=raphael.main <- raphael.executor.executor <- raphael.cognitive.protocol_inference <- raphael.cognitive <- raphael.cognitive.hypothesizer
+--- raphael.hippocampus.episode_store: reachable=True importers=['raphael.main']
+    trace=raphael.main <- raphael.hippocampus.episode_store
+--- raphael.limbic.parallel_recon: reachable=True importers=['raphael.main']
+    trace=raphael.main <- raphael.limbic.parallel_recon
+--- raphael.circulatory.spinal_reflex: reachable=True importers=['raphael.main']
+    trace=raphael.main <- raphael.circulatory.spinal_reflex
+--- raphael.executor.executor: reachable=True importers=['raphael.circulatory.spinal_reflex', 'raphael.limbic.parallel_recon', 'raphael.main']
+    trace=raphael.main <- raphael.executor.executor
+--- raphael.integration.harness: reachable=False importers=['raphael.integration', 'raphael.integration.test_pipeline']
+--- raphael.verifier.channels: reachable=True importers=['raphael.verifier', 'raphael.verifier.core']
+    trace=raphael.verifier.__main__ <- raphael.verifier.core <- raphael.verifier.channels
+--- raphael.verifier.core: reachable=True importers=['raphael.integration.harness', 'raphael.verifier', 'raphael.verifier.__main__']
+    trace=raphael.verifier.__main__ <- raphael.verifier.core
+--- raphael.verifier.__main__: reachable=True importers=[]
+    trace=raphael.verifier.__main__
+--- orchestrator.mesh.mesh_engine: reachable=False importers=[]
+--- orchestrator.nvidia_provider: reachable=False importers=[]
+--- orchestrator.tactics.anonymous_ttp: reachable=False importers=[]
+--- orchestrator.utils.retry: reachable=False importers=[]
+--- raphael.scripts.blind_probe_runner: reachable=False importers=[]
+--- orchestrator.brain.waf_detector: reachable=False importers=[]
+--- orchestrator.social.social_engine: reachable=False importers=['orchestrator.social']
+--- orchestrator.privesc.privesc_engine: reachable=False importers=['orchestrator.privesc']
+--- orchestrator.modes.postmortem: reachable=True importers=['orchestrator.modes']
+    trace=orchestrator.modes.scan <- orchestrator.modes <- orchestrator.modes.postmortem
+--- orchestrator.exfil.pipeline: reachable=False importers=[]
+--- orchestrator.phishing.pipeline: reachable=False importers=[]
+--- orchestrator.exfil.redcloud: reachable=False importers=['orchestrator.exfil.pipeline']
+--- mcp-hub.core.registry: reachable=True importers=['mcp-hub.core.server', 'mcp-hub.tools.c2.pupy', 'mcp-hub.tools.cloud.prowler', 'mcp-hub.tools.exploit.metasploit', 'mcp-hub.tools.forensics.volatility', 'mcp-hub.tools.phishing.gophish', 'mcp-hub.tools.recon.nmap', 'mcp-hub.tools.recon.subfinder', 'mcp-hub.tools.web.gobuster', 'mcp-hub.tools.web.nuclei']
+    trace=mcp-hub.core.server <- mcp-hub.core.registry
+--- mcp-hub.core.security: reachable=True importers=['mcp-hub.core.server']
+    trace=mcp-hub.core.server <- mcp-hub.core.security
+--- agent.modules.cleanup: reachable=False importers=[]
+--- agent.modules.executor: reachable=False importers=[]
+--- agent.audit: reachable=False importers=[]
+--- raphael.techniques.ad1_xor_sweep: reachable=False importers=[]

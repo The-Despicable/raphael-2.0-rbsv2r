@@ -51,16 +51,20 @@ def test_sub10_kali_client_fails_closed():
         "SUB-10: KaliToolsClient.authorize_local_bypass must be removed after WELD-SUB10"
     )
 
-    # 2. run() must raise the documented RuntimeError when the API is unavailable.
-    # Use a local unused port (127.0.0.1:1) to force remote failure quickly.
+    # 2. run() must fail closed. AM-4 W-07 welds the kali hop behind the
+    # Broker gate: without a Broker AUTHORIZED decision the call raises
+    # WeldNotAuthorized before any remote/local attempt (the SUB-10
+    # RuntimeError path is subsumed by the earlier broker denial).
+    # Use a local unused port (127.0.0.1:1); denial must precede any I/O.
+    from orchestrator.auth import WeldNotAuthorized
     client = KaliToolsClient(base_url="http://127.0.0.1:1")
-    with pytest.raises(RuntimeError) as exc_info:
+    with pytest.raises(WeldNotAuthorized) as exc_info:
         asyncio.run(client.run("echo", "test", 5))
 
     error_msg = str(exc_info.value)
-    assert "kali_tools_client._run_local is removed in WELD-SUB10" in error_msg, (
-        f"SUB-10: RuntimeError message must include the documented weld text. Got: {error_msg}"
+    assert "R3.0-P10" in error_msg and "W-07" in error_msg, (
+        f"SUB-10/AM-4: denial must carry path id + weld ticket. Got: {error_msg}"
     )
-    assert "All execution must go through the broker-gated capability" in error_msg, (
-        f"SUB-10: RuntimeError message must include broker-gated requirement. Got: {error_msg}"
+    assert "broker" in error_msg.lower(), (
+        f"SUB-10/AM-4: denial must name the Broker route. Got: {error_msg}"
     )

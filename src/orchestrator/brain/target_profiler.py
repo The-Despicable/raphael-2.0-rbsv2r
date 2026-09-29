@@ -11,6 +11,19 @@ _profile_cache: dict[str, dict] = {}
 
 
 def _nmap_scan(target: str) -> dict:
+    # AM-4-R2 W-13 (R3.0-P20) internal-helper defense (§4): direct nmap
+    # subprocess execution must not run outside Broker mediation. Fail-closed.
+    from orchestrator.auth import enforce_broker_mediation
+    enforce_broker_mediation(
+        target=target,
+        action_type="profile_execute",
+        capability="target_profiler",
+        method="_nmap_scan",
+        impact_estimate=7.0,
+        argv=(target,),
+        path_id="R3.0-P20",
+        weld_ticket="W-13",
+    )
     ports = []
     services = []
     os_guess = "unknown"
@@ -63,6 +76,20 @@ def _classify_target(ports: list[int], services: list[str], os_guess: str) -> di
 
 
 def profile_target(target: str) -> dict:
+    # AM-4 W-13/W-09 (R3.0-P20/P09) WELDED under Scope v0: unbrokered direct
+    # nmap subprocess profiling is deleted as an executable path. Fail-closed
+    # unless the canonical Broker AUTHORIZEs.
+    from orchestrator.auth import enforce_broker_mediation
+    enforce_broker_mediation(
+        target=target,
+        action_type="profile_execute",
+        capability="target_profiler",
+        method="profile_target",
+        impact_estimate=7.0,
+        argv=(target,),
+        path_id="R3.0-P20",
+        weld_ticket="W-13",
+    )
     if target in _profile_cache:
         return _profile_cache[target]
 

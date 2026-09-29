@@ -50,35 +50,26 @@ class KaliToolsClient:
             return False
 
     async def run(self, tool: str, args: str = "", timeout: int = 300) -> dict:
-        key = f"{tool}:{args[:60]}"
-        await self._limiter.wait(key)
-
-        use_remote = not self._use_local and await self._check_remote()
-
-        if use_remote:
-            try:
-                actual_timeout = self._guard.get_timeout(f"kali_{tool}")
-                effective_timeout = min(timeout, actual_timeout)
-                async def _call():
-                    async with httpx.AsyncClient() as c:
-                        resp = await c.post(
-                            f"{self.base_url}/run",
-                            params={"tool": tool, "args": args, "timeout": effective_timeout},
-                            timeout=effective_timeout + 10,
-                        )
-                    return resp.json()
-                return await self._guard.run(key, _call(), timeout=effective_timeout + 5)
-            except (GuardTimeout, httpx.ConnectError, Exception) as e:
-                logger.debug(f"Remote execution failed for {tool}, no local fallback (WELD-SUB10): {e}")
-                raise RuntimeError(
-                    "kali_tools_client._run_local is removed in WELD-SUB10. "
-                    "All execution must go through the broker-gated capability."
-                )
-
-        # SUB-10 welded: local subprocess fallback removed
-        raise RuntimeError(
-            "kali_tools_client._run_local is removed in WELD-SUB10. "
-            "All execution must go through the broker-gated capability."
+        # AM-4 W-07 (R3.0-P10) WELDED under Scope v0: the unbrokered kali hop
+        # is deleted as an executable path. Every call proposes to the
+        # canonical Broker (fail-closed WeldNotAuthorized unless AUTHORIZED).
+        from orchestrator.auth import enforce_broker_mediation
+        from orchestrator.auth import WeldNotAuthorized
+        enforce_broker_mediation(
+            target="kali-tools",
+            action_type="tool_execute",
+            capability="kali_tools_client",
+            method="run",
+            impact_estimate=8.0,
+            argv=(tool, args),
+            path_id="R3.0-P10",
+            weld_ticket="W-07",
+        )
+        # AM-4-R2: legacy remote-hop body DELETED (was httpx POST to
+        # kali-tools /run). No execution path remains past the gate.
+        raise WeldNotAuthorized(
+            "AM-4 W-07 R3.0-P10: kali-hop execution branch deleted; "
+            "all execution routes through the broker-gated capability."
         )
 
     async def run_impacket(self, script: str, args: str = "", timeout: int = 120) -> dict:

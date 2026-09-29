@@ -1,0 +1,26 @@
+=== AM-4 PRE-WELD BASELINE (recorded at task start, before any weld edit) ===
+Date: 2026-09-17 (AM-4 task start)
+HEAD: 3b2e22db3d952622150d271c12c41d9ed21e81fd (branch weld-sub10-evidence;
+001R4..001R6 changeset uncommitted on top, per Lead workflow)
+Command: PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3
+         evidence/phases/P3_0_reinventory/probe_reinventory.py
+Result: exit 0 — REINVENTORY-PROBE-OK
+
+Verbatim key lines (pre-weld probe run):
+PASS  A/census-count  (lexicon census=150)
+PASS  A/census-equals-doc  (only_live=[] only_doc=[])
+PASS  A/categories-match  (mismatched=[])
+PASS  B/dead-set-equals  (derived_dead=57 doc_dead=57)
+PASS  H/weld-equals-notyet  (weld=15 class=15)
+PASS  H/every-notyet-in-weld  (uncovered=[])
+SUMMARY  pass=84 fail=0 paths=27 mediated=3 not-yet-mediated=15 dead-groups=9
+census=150 bridge=40 routes=27 phases=13
+
+Pre-weld full suite: 573 passed / 0 failed / 0 skipped (2026-09-17, same HEAD).
+Pre-weld INV-1: 35 modules / 0 violations (probe T4/inv1-perimeter-clean PASS).
+Pre-weld census split: process 56 · network 78 · destructive-file 54 (150 files).
+Pre-weld dispositions: not-yet 78 files · mediated 6 · notes 4 · dead 62.
+
+Both-directions equality proof (pre-weld, machine-verified):
+  every not-yet path ∈ WELD_SET   : H/every-notyet-in-weld uncovered=[]  PASS
+  every WELD_SET path is not-yet  : H/weld-equals-notyet weld==class (15==15) PASS

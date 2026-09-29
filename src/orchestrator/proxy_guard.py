@@ -39,6 +39,19 @@ class ProxyGuard:
         })
 
     def verify(self):
+        # AM-4-R2 W-14 (R3.0-P23) shared-infra defense (§4): Tor verification
+        # egress must not run outside Broker mediation. Fail-closed. Single
+        # PDP (Broker) — no duplicate policy.
+        from orchestrator.auth import enforce_broker_mediation
+        enforce_broker_mediation(
+            target="tor-egress",
+            action_type="proxy_verify",
+            capability="proxy_guard",
+            method="verify",
+            impact_estimate=6.0,
+            path_id="R3.0-P23",
+            weld_ticket="W-14",
+        )
         try:
             r = self._session.get("https://check.torproject.org/api/ip", timeout=10)
             if r.status_code != 200:
@@ -52,6 +65,18 @@ class ProxyGuard:
             raise ProxyError(f"Proxy unreachable: {e}")
 
     def new_circuit(self, target_ip: Optional[str] = None) -> str:
+        # AM-4-R2 W-14 (R3.0-P23) shared-infra defense (§4): Tor control-port
+        # signaling must not run outside Broker mediation. Fail-closed.
+        from orchestrator.auth import enforce_broker_mediation
+        enforce_broker_mediation(
+            target="tor-control",
+            action_type="proxy_rotate",
+            capability="proxy_guard",
+            method="new_circuit",
+            impact_estimate=6.0,
+            path_id="R3.0-P23",
+            weld_ticket="W-14",
+        )
         try:
             import socket
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

@@ -1,0 +1,19 @@
+=== egress/router imports ===
+1:import os
+2:import sys
+3:import random
+4:import logging
+5:import time
+6:import threading
+7:from typing import Optional, Union
+9:from orchestrator.egress.strategies import (
+=== tls_manager internal use + who calls its functions ===
+src/orchestrator/egress/tls_manager.py:95:    def ssl_context_for_domain(self, domain: str, sni_hostname: str = None) -> ssl.SSLContext:
+src/orchestrator/egress/tls_manager.py:104:def create_tls_context(verify: bool = True, sni_hostname: str = None) -> ssl.SSLContext:
+=== phishing template/create auth ===
+200-
+201-
+202:@app.post("/template/create")
+203-def create_template(req: CreateTemplateRequest):
+204-    if not req.name.endswith(".html"):
+205-        req.name += ".html"

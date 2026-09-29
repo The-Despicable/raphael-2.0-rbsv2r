@@ -270,25 +270,29 @@ class ImplantBuilder:
 
     async def build(self, target_os: str = "linux", arch: str = "amd64",
                     format: str = "exe", name: str = "") -> ImplantBuildResult:
-        name = name or f"implant_{target_os}_{arch}_{uuid.uuid4().hex[:8]}"
-        build_methods = []
-
-        if target_os == "linux" and self._go_available:
-            build_methods.append(lambda: self._build_go(target_os, arch, name))
-        if target_os == "windows" and (self._go_available or self._mingw_available):
-            build_methods.append(lambda: self._build_go(target_os, arch, name))
-        if self._msfvenom_available:
-            build_methods.append(lambda: self._build_msfvenom(target_os, arch, format, name))
-        if target_os == "linux" and self._rust_available:
-            build_methods.append(lambda: self._build_rust(target_os, arch, name))
-
-        for build_method in build_methods:
-            result = await build_method()
-            if result and not result.error:
-                result.format = format
-                return result
-
-        return ImplantBuildResult(error="No compiler available")
+        # AM-4 W-08 (R3.0-P11) WELDED under Scope v0: unbrokered implant
+        # building (SUB-05…09 exec, :599 shell) is deleted as an executable
+        # path. Fail-closed unless the canonical Broker AUTHORIZEs.
+        from orchestrator.auth import enforce_broker_mediation, WeldNotAuthorized
+        enforce_broker_mediation(
+            target="c2-implant",
+            action_type="c2_build",
+            capability="c2.implant_builder",
+            method="build",
+            impact_estimate=9.0,
+            argv=(target_os, arch, format),
+            path_id="R3.0-P11",
+            weld_ticket="W-08",
+        )
+        # AM-4-R2: legacy builder dispatch DELETED (was SUB-05…09 exec fan-out
+        # into _build_go/_build_msfvenom/_build_rust). The _build_* leaves are
+        # retained as dead code for the owed P9 deletion (D-1); they are
+        # unreachable — every path here passes the gate first, and the gate
+        # denies under current policy.
+        raise WeldNotAuthorized(
+            "AM-4 W-08 R3.0-P11: implant-build dispatch branch deleted; "
+            "all execution routes through the broker-gated capability."
+        )
 
     async def _build_go(self, target_os: str, arch: str, name: str) -> ImplantBuildResult:
         """Build a Go implant using vendored dependencies (no network fetch)."""

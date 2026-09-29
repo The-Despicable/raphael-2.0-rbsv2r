@@ -1,100 +1,83 @@
-# P3.0 Re-inventory — Full Execution-Path Inventory (post-P2 Runtime, v4.1 AM-1)
+# P3.0 Re-inventory — Full Execution-Path Inventory (001R2 complete)
 
-**HEAD:** `ff602982aa9d81460a54162f1d417a56e9e3880c` (branch `weld-sub10-evidence`)
-**Schema:** same as P0 §11.3 (`evidence/phases/P0/02_execution_inventory/execution_paths.md` +
-`subprocess_sites.md`): entry point → import/call chain → primitive call site,
-with per-route authorization.
-**Method:** read-only static trace (AST import walk + source read). No legacy/offensive
-code executed, no network touched. Reproduced by `probe_reinventory.py` in this directory.
-**Scope:** every execution path reachable from **any** entry point in the post-P2/P3 tree
-(canonical + deployed service surface + standalone planes).
-
----
-
-## 1. Entry-point census (post-P2)
-
-| EP ID | Entry point | Type | Mounts / dispatches to |
-|---|---|---|---|
-| E-CANON | `src/orchestrator/runtime/loop.py` `RaphaelRuntime.run_episode` | canonical sequencer | `stages.py` 10 stages → `broker.propose_action` → `exec/` PEP |
-| E-CLI | `src/raphael/main.py` `main()` | production CLI caller | canonical `RaphaelRuntime` (default); legacy `RaphaelOrganism` iff `RAPHAEL_USE_LEGACY=1` |
-| E-API | `src/orchestrator/api/main.py` `app` | deployed FastAPI service | mounts `agent_router`, `tools_router`, `tools_bridge_router`, `session_router`; `GET /health`, `GET /api/personas` |
-| E-TOOLS | `src/orchestrator/api/tools.py` `POST /api/tools/{tool_name}` (+ `/nmap/scan`, `/sqlmap/scan`, `/crackmapexec/enum`) | deployed router | `chains/tool_registry.execute_*` |
-| E-BRIDGE-TOOLS | `src/orchestrator/api/tools_bridge.py` `POST /api/tools/nmap`, `POST /api/tools/recon` | deployed router (**no auth dependency**) | `httpx` POST `http://localhost:3800/run` (kali-tools server) |
-| E-AGENT | `src/orchestrator/api/agent.py` `POST /api/agent/execute`, `/execute-sync` | deployed router | `orchestrator.agents.engage.run_agent_engage` |
-| E-CI | `src/orchestrator/api/ci.py` `POST /v1/ci/engage`, `/scan`, `/agent-engage` | deployed router | `modes/autonomous.handle` (`/scan`), `agents/engage.run_agent_engage` (`/agent-engage`), `engagement_queue` (`/engage`) |
-| E-BRIDGE | `src/bridge/raphael_bridge.py` JSON-RPC `mode.*`, `kali.*`, `c2.*`, `agent.*`, `exploit.*` | deployed IPC bridge (`__main__` stdio loop) | `modes/*`, `agents/*`, `c2/*`, `kali_tools_client.kali`, `exploit/*`, `harvester/*` |
-| E-AUTO | `src/orchestrator/modes/autonomous.py` `handle()` | legacy orchestrator (library + reachable) | `brain/phases.PHASE_EXECUTORS`, `chains/credential_spray.spray`, `chains/ad_kill_chain.run_chain` |
-| E-KALI | `src/kali-tools/server.py` `POST /run` | deployed runner service (**no auth**) | `subprocess.run(cmd)` |
-| E-STANDALONE | `src/recon-pipeline/main.py`, `src/sword/phase_0_recon.py`, `src/agent/modules/executor.py`, `src/orchestrator/weaponizer/weaponizer_engine.py` | standalone planes | no deployed caller (see P14) |
-
-Auth notes (service surface, verified by source read):
-- `api/tools.py`, `api/agent.py`, `api/ci.py`, `api/session.py` use `Depends(require_scope(...))`.
-- `api/tools_bridge.py` (`run_nmap`, `run_recon`) declares **no** `Depends` — unauthenticated at the app layer.
-- `src/kali-tools/server.py` declares **no** auth on `/run`, `/tools`, `/health` — `subprocess.run(shlex.split(f"{tool} {args}"))`, unauthenticated.
-- `api/main.py` sets `CORSMiddleware allow_origins=["*"]` with `allow_credentials=True`.
-- `bridge/raphael_bridge.py` performs no authorization check before dispatch (`handle_request` → `self.methods[method](**params)`).
+**HEAD:** `3b2e22db3d952622150d271c12c41d9ed21e81fd` (branch `weld-sub10-evidence`)
+**Schema:** same as P0 §11.3: entry point → import/call chain → primitive site, with
+per-route authorization.
+**Lexicon (authoritative):** `src/orchestrator/exec/inv1_guard.py` `scan_source()` —
+process + network + destructive-file effects (NOT process-only).
+**Method:** read-only static trace (AST import graph over `src/**` incl. function-level
+imports + parent-package `__init__` edges, BFS from live + service entries; source reads
+for terminals). No legacy/offensive code executed, no network touched. Reproduced by
+`probe_reinventory.py`. Census: `CENSUS.md` + `raw/effect_census.txt` (150 files).
+**Scope:** every bridge dispatch method (40), every API route (27), every
+PHASE_EXECUTORS phase (13), every effect file (150).
 
 ---
 
-## 2. Path inventory (same schema as P0 §11.3)
+## 1. Entry-point census
 
-Columns: Path ID | Entry → chain → primitive site | Primitive | Broker gate? | Classification.
-
-### Broker-mediated (3)
-
-| Path | Entry → chain → primitive site | Primitive | Gate |
+| EP ID | Entry point | Type | Dispatches to |
 |---|---|---|---|
-| R3.0-P01 | E-CANON: `RaphaelRuntime.run_episode` → `stage_broker` (`broker.propose_action`) → `stage_pep` → `exec/safe_capability.SafeProvingCapability.inspect` or `exec/sandbox.SandboxedExecutor.execute` | `exec/` only (fixture read; sandbox `Popen` behind allow-decision + receipt re-verify) | YES — `CapabilityBroker.propose_action` (5-dim deny-by-default) + ScopeV0 conjunction + lifecycle `AUTHORIZED→STARTED→SUCCEEDED/FAILED` |
-| R3.0-P02 | E-CLI (default): `raphael/main.py:main()` → `_canonical_mission` (ScopeV0 bound) → `RaphaelRuntime(evidence_store=...)` → `run_episode(require_scope=True)` → P01 | same as P01 | YES — same broker; scope fail-closed pre-stage |
-| R3.0-P13 | SHELL: `CapabilityBroker.authorize_shell_session` → `SessionReceipt(authorized=True, authorized_by="capability_broker")` → `ReverseShellCapability.__init__` / `SSHShellCapability.__init__` / `ShellCapabilityFactory.create` / `create_from_listener` / `ListenerManager.*` via `require_shell_authorization()` | shell constructors (no direct subprocess; session/command auth in broker) | YES — construction requires valid broker-issued receipt (`ShellNotAuthorized` otherwise); WELD-SHELL welded at HEAD |
+| E-CANON | `orchestrator/runtime/loop.py` `RaphaelRuntime.run_episode` | canonical sequencer | 10 stages → broker → `exec/` PEP |
+| E-CLI | `raphael/main.py` `main()` | production CLI | canonical Runtime (default); legacy `RaphaelOrganism` iff `RAPHAEL_USE_LEGACY=1` (→ E-CLI-LEGACY) |
+| E-CLI-LEGACY | `raphael/main.py:387` `RAPHAEL_USE_LEGACY=1` branch | shipped runnable branch (NOT dead) | `RaphaelOrganism.run()` → planner → hypothesizer (network) / executor → kali_bridge (network attempt, fail-closed) / shutdown → hippocampus (file) |
+| E-API | `orchestrator/api/main.py` `app` | deployed FastAPI | mounts agent/tools/tools_bridge/session routers (NOT ci); `GET /health`, `/api/personas` |
+| E-TOOLS | `api/tools.py` 5 routes | deployed router | `chains/tool_registry` (4 exec) + list (pure) |
+| E-BRIDGE-TOOLS | `api/tools_bridge.py` 2 routes | deployed router, **no auth** | httpx → kali-tools `/run` |
+| E-AGENT | `api/agent.py` 4 routes | deployed router | `agents/engage` (2 exec) + 2 pure |
+| E-SESSION | `api/session.py` 8 routes | deployed router | `session_manager` sqlite CRUD (no lexicon hit) |
+| E-CI-DEF | `api/ci.py` 6 routes | defined, **never mounted** | handlers only (queue + autonomous + engage) |
+| E-BRIDGE | `bridge/raphael_bridge.py` 40 methods | deployed IPC bridge, **no dispatch auth** | modes(6)/agents(4)/c2(5)/exploit(5)/kali(6)/harvester(3)/conductor+brain(5)/model+persona(3)/target+scope(3) |
+| E-AUTO | `modes/autonomous.py` `handle()` | legacy orchestrator | 13 `PHASE_EXECUTORS`, spray, ad_kill_chain, harvester, profiler |
+| E-KALI | `kali-tools/server.py` `POST /run` | deployed runner, **no auth** | `subprocess.run` |
+| E-SVC-mhddos | `mhddos-service/main.py` (FastAPI+uvicorn) | standalone service | `/attack` → `Popen` / `/status` / `/stop` |
+| E-SVC-recon | `recon-pipeline/main.py` (FastAPI `:3503`) | standalone service | `/recon/*` → subfinder exec + scanners |
+| E-SVC-sword | `sword/api.py` (FastAPI) | standalone service | `/sword/run` → pipeline (all 6 phases) + report |
+| E-SVC-agent | `agent/agent.py` (`__main__` implant loop) | standalone implant | `exec`-task shell + 5 modules + audit + egress |
+| E-SVC-mcphub | `mcp-hub/main.py` + `core/server.py` | **dead-as-committed** (M-1) | nothing loads (`ModuleNotFoundError`) |
+| E-SVC-phish | `phishing/main.py` (FastAPI) | standalone service | evilginx/set/gophish instances + campaigns |
+| E-SVC-cai | `cai-service/main.py` | standalone service | postex+exploit pipelines (function-level) |
+| E-SVC-cloak | `cloak-service/main.py` (FastAPI+uvicorn) | standalone service | `/browse`/`/screenshot`/`/interact` → browser automation |
+| E-SVC-factory | `raphael/exploit_factory/__main__.py` | standalone CLI | payload generation + delivery + vhost-enum |
+| E-SVC-verifier | `raphael/verifier/__main__.py` | standalone CLI | verify exploit delivery (channels server + core) |
+| E-SVC-c2server | `c2-server/main.py` | standalone service, no lexicon hit (conduit) | postex modules at runtime (covered P23-adjacent) |
+| E-SVC-scan | `modes/scan.py` (`__main__`) | standalone CLI | ScanPipeline (see P19) |
 
-### Not-yet-mediated (9)
+Auth notes: `tools.py`/`agent.py`/`session.py` use `require_scope` (not the Broker PDP);
+`tools_bridge.py` (both routes), `kali-tools/server.py` (all routes), `bridge`
+(dispatch) declare none; `api/main.py` + `phishing/main.py` + `mcp-hub/core/server.py`
+set CORS `allow_origins=["*"]` (main.py with `allow_credentials=True`).
 
-| Path | Entry → chain → primitive site | Primitive | Why not mediated |
-|---|---|---|---|
-| R3.0-P04 | E-API → E-TOOLS: `POST /api/tools/{tool}` → `_execute_tool_by_name` → `chains/tool_registry.execute_{nmap,sqlmap,bloodhound,metasploit,crackmapexec,chisel}` → `_run_command` (`tool_registry.py:67`) | `asyncio.create_subprocess_exec(*cmd)` (SUB-04) | No `broker.propose_action` on path. Persona/approval/scope checks (`check_tool_permission`, `default_scope.check`) are not the Broker PDP. |
-| R3.0-P05 | E-API → E-BRIDGE-TOOLS: `POST /api/tools/nmap`, `/recon` → `_run_in_kali` → `httpx` POST `KALI_CONTAINER_URL (/run)` → E-KALI `subprocess.run` | network hop → `kali-tools/server.py:23 subprocess.run` | No broker on either hop; bridge-router hop itself unauthenticated. |
-| R3.0-P06 | E-API → E-AGENT: `POST /api/agent/execute[-sync]` → `agents/engage.run_agent_engage` → `Recon/Scan/ExploitAgent` → `scanners/*_wrapper`, `ad/*_wrapper` → `kali.run` → httpx → E-KALI `subprocess.run` | network hop → `subprocess.run` (via `kali.run`) | No broker; persona filtering + `default_scope.check` are not the Broker PDP. Prefix persona escalation (`Ghost `/`Stealth `/`Full `) is string parsing, not authorization. |
-| R3.0-P07 | E-CI: `POST /v1/ci/scan` → `modes/autonomous.handle` → `PHASE_EXECUTORS[target]` + `spray` + `run_ad_kill_chain` → `kali.run` / `c2/*` (see P09/P11 sinks) | `kali.run`→`subprocess.run`; `c2` subprocess sites | No broker; `default_scope.check` only. |
-| R3.0-P08 | E-CI: `POST /v1/ci/agent-engage` → `agents/engage.run_agent_engage` → same sink as P06 | same as P06 | No broker; same non-PDP checks as P06. (`POST /v1/ci/engage` queues the same `handle` work via `engagement_queue`.) |
-| R3.0-P09 | E-BRIDGE: `mode.autonomous` → `modes/autonomous.handle` → `chains/ad_kill_chain.run_chain`, `chains/credential_spray.spray` → `kali.run` (`kerbrute`, `bloodhound-python`, `netexec`, …) + `c2.manager.get_c2()` | `kali.run`→`subprocess.run`; `c2` sites | No broker; bridge performs zero authorization. Covers P0 SUB-04-adjacent `kali` fan-out. |
-| R3.0-P10 | E-BRIDGE: `kali.run`, `kali.nuclei/sqlmap/hashcat/impacket/list_tools` → `kali_tools_client.KaliToolsClient.run` → httpx → E-KALI `subprocess.run` (or fail-closed `RuntimeError` when remote unavailable — still no broker on the success branch) | network hop → `subprocess.run` | No broker; SUB-10 weld removed only the *local* fallback, not this remote→subprocess branch. |
-| R3.0-P11 | E-BRIDGE / P09 / spray: `c2.build_implant/deploy/list_beacons/task_beacon/sliver_connect`, `chains/*` → `c2.manager` → `sliver_backend` / `native_backend` → `implant_builder` | `sliver_backend.py:93,119 asyncio.create_subprocess_exec` (SUB-05/06); `implant_builder.py:342,477,529 asyncio.create_subprocess_exec` (SUB-07/08/09); `implant_builder.py:599 subprocess.run(shell=True)` | No broker on any of these constructions/executions. `C2Manager` rate-limit/session-cap is not the Broker PDP. |
-| R3.0-P12 | E-KALI: `POST /run?tool=&args=&timeout=` → `run_tool` (`server.py:19-33`) | `server.py:23 subprocess.run(shlex.split(f"{tool} {args}"))` | No auth, no broker. Shared primitive sink for P05/P06/P10 (and any HTTP client of `:3800/run`). |
+## 2. Path inventory (27 paths — full detail in CLASSIFICATION.md)
 
-### Dead / welded-closed (3 groups covering all remaining P0 sites)
+Broker-mediated (3): P01 canonical episode → `exec/` (evidence_store behind broker;
+artifact/receipt stores unused → P24) ·
+P02 CLI caller · P13 SHELL gated (live construction test S1–S4).
+Welded (AM-4; 15, all WELD_SET paths): P04 tools→registry · P05 bridge-tools hop · P06 agent→engage
+(+winrm/ladon/scanners) · P07 autonomous 13 phases (9 stubs→P26; cicd/ml/cloud/container
+real) · P08 ci→engage · P09 bridge→autonomous→chains · P10 bridge→kali ·
+P11 bridge/chains→c2 (+beacon/dga) · P12 kali `/run` sink · P16 agents→sandbox/relay/tools ·
+P18 bridge `exploit.*` · P19 bridge `mode.*` (+providers/research/proxy) ·
+P20 harvester/model/profile · P23 standalone services (+cloak/verifier/delivery/vhost/
+egress/tunnels) · P27 legacy CLI branch (deleted; residual effects confined to dead code).
+Seam fixed ON via `enforce_broker_mediation` (W-01…W-15); legacy branches deleted.
+Dead, traced (9 groups): P03 welded subprocess stubs (effects → P27) · P14 weaponizer SUB-01–03 ·
+P15 welded stubs · P17 reachable-no-effect notes · P21 session/sqlite ·
+P22 unmounted ci + write-only queue (+webhook dead) · P24 orphans/chains/legacy/test-plane
+(57 files) · P25 dead exfil/phishing pipelines + redcloud · P26 phase stubs (9).
 
-| Path | Entry → chain → primitive site | Primitive today | Basis |
-|---|---|---|---|
-| R3.0-P03 | E-CLI legacy branch (`RAPHAEL_USE_LEGACY=1`): `main()` → `RaphaelOrganism.run` → `Executor.execute` → `KaliBridge.run` | NONE reachable — `KaliBridge.run` raises fail-closed `RuntimeError` (WELD-SUB14); `Executor._subprocess_fallback` / `_subprocess_run` deleted | Welded-closed. P0 SUB-13/SUB-14 sites no longer exist in tree (verified by grep: zero `create_subprocess` under `src/raphael/`). |
-| R3.0-P14 | Standalone planes — no deployed caller: `weaponizer_engine.py:121,179,226` (SUB-01/02/03); `recon-pipeline/main.py:89` (SUB-11); `agent/modules/executor.py:7` (SUB-12); `sword/phase_0_recon.py:115,153,192` (SUB-15/16/17) | primitives exist but unreachable | Dead, re-confirmed: zero importers from any of E-CANON/E-CLI/E-API/E-BRIDGE/E-AUTO/E-KALI (importer search in `raw/`). P1 deprecation markers present on `weaponizer`, `tool_registry` header, `sliver_backend` header. |
-| R3.0-P15 | Welded stubs: ex-`SUB-10` (`kali_tools_client._run_local`, SUB-10), ex-`SUB-13/14` (above) | NONE — symbols deleted (`_run_local`, `KaliBypassNotAuthorized`, `_BYPASS_AUTHORIZED`, `authorize_local_bypass`, `_subprocess_fallback`, `_subprocess_run`, `authorize_bypass` all absent) | Welded-closed at HEAD (WELD-SUB10/SUB14 evidence in `evidence/phases/P3_0/`). `KaliToolsClient.run` local branch raises `RuntimeError`; `asyncio`/`subprocess` remain only as dead imports. |
+## 3. Canonical INV-1 perimeter (declared = P01/P02 + P13 gate)
 
-**Totals:** entry points 11 (10 live + 1 standalone group) · paths **15** · **Broker-mediated 3** · **not-yet-mediated 9** · **dead/welded-closed 3 groups** (covering 3 welded sites + 9 dead-standalone sites).
+Static import closure rooted at `orchestrator.runtime` restricted to
+`orchestrator.{runtime,brain,exec}` (`exec/inv1_guard`). Legacy/offensive packages outside
+by construction.
 
----
-
-## 3. Canonical INV-1 perimeter (declared, = Broker-mediated canonical set)
-
-```
-src/orchestrator/runtime/**          (RaphaelRuntime thin sequencer, stages, scope, policy, organs)
-+ canonical brain control-plane it loads (broker, action/planner, world, student-recording, contradiction, evidence)
-+ src/orchestrator/exec/**           (sole authorized primitive namespace: safe_capability, sandbox, guards, stores)
-```
-
- Computed deterministically as the static import closure rooted at `orchestrator.runtime`
- restricted to `orchestrator.{runtime,brain,exec}` (`exec/inv1_guard.canonical_perimeter_modules`).
- `verify_inv1_primitive_confinement` scans that perimeter; `exec/` is the authorized namespace and
- is never reported. Legacy/offensive packages (`api/`, `bridge/`, `chains/`, `c2/`, `exploit/`,
- `scanners/`, `kali-tools/`, …) are outside the declared perimeter by construction.
-
-## 4. How to reproduce
+## 4. Reproduction
 
 ```
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 evidence/phases/P3_0_reinventory/probe_reinventory.py
 ```
-
-Read-only: parses source (AST), never imports legacy/offensive modules, never touches the
-network, never executes a primitive. The one canonical import it performs (`inv1_guard`,
-`runtime` closure computation) is the same import the gate suite already performs.
-`raw/` holds verbatim command outputs referenced by `P0_DIFF.md` / `CLASSIFICATION.md`.
+Read-only (lexicon census via the real `scan_source`, AST graph, one canonical episode,
+SHELL construction negatives). `raw/` holds verbatim outputs;
+`raw/effect_census.txt` is the census verbatim; `raw/phase_executors.txt` the 13 phases;
+`raw/importer_tool.py` reproduces importer traces.

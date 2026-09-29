@@ -1,0 +1,196 @@
+=== 001R6 REDIS USAGE INVENTORY (src/**, *.py, non-pycache) ===
+
+--- files containing the token 'redis' ---
+src/agent/modules/credtheft.py
+src/arena/environment.py
+src/arena/templates/families.py
+src/orchestrator/agents/exploit.py
+src/orchestrator/api/types.py
+src/orchestrator/exec/__init__.py
+src/orchestrator/exec/inv1_guard.py
+src/orchestrator/exploit/ssrf_scanner.py
+src/orchestrator/postex/ladon_scanner.py
+src/orchestrator/scanners/nmap_scanner.py
+src/orchestrator/scanners/whatweb_scanner.py
+src/orchestrator/student/research_scheduler.py
+src/raphael/cognitive/protocol_inference.py
+src/raphael/eventbus/core.py
+src/raphael/executor/executor.py
+src/raphael/integration/harness.py
+src/raphael/integration/test_pipeline.py
+
+--- real import / construction / operation sites ---
+src/orchestrator/exec/__init__.py:34:- redis.from_url/Redis (+ redis.asyncio forms) construction + client operations
+src/orchestrator/exec/__init__.py:43:  `import redis.asyncio as redis`; file-global simplification, documented)
+src/orchestrator/exec/inv1_guard.py:134:    # raphael/eventbus/core.py): construction entry points. Bare `import redis`
+src/orchestrator/exec/inv1_guard.py:136:    "redis.from_url",
+src/orchestrator/exec/inv1_guard.py:137:    "redis.Redis",
+src/orchestrator/exec/inv1_guard.py:138:    "redis.asyncio.from_url",
+src/orchestrator/exec/inv1_guard.py:139:    "redis.asyncio.Redis",
+src/orchestrator/exec/inv1_guard.py:208:# forms (import aliases resolved before matching, so `import redis.asyncio
+src/orchestrator/exec/inv1_guard.py:209:# as redis` + `redis.from_url(...)` matches `redis.asyncio.from_url`).
+src/orchestrator/exec/inv1_guard.py:211:    "redis.from_url",
+src/orchestrator/exec/inv1_guard.py:212:    "redis.Redis",
+src/orchestrator/exec/inv1_guard.py:213:    "redis.asyncio.from_url",
+src/orchestrator/exec/inv1_guard.py:214:    "redis.asyncio.Redis",
+src/orchestrator/exec/inv1_guard.py:218:# `Redis(...)` call counts only when imported from redis/redis.asyncio
+src/orchestrator/exec/inv1_guard.py:373:    001R6: `import redis.asyncio as redis` + `redis.from_url` →
+src/orchestrator/exec/inv1_guard.py:374:    `redis.asyncio.from_url`; `import boto3 as b` + `b.client` → `boto3.client`;
+src/orchestrator/exec/inv1_guard.py:44:matching (``import redis.asyncio as redis``); file-global simplification,
+src/orchestrator/exec/inv1_guard.py:450:    aliases to canonical dotted roots (`import redis.asyncio as redis`,
+src/orchestrator/exec/inv1_guard.py:577:                    # `return self._redis`) let `self.redis.xadd(...)` resolve.
+src/orchestrator/exec/inv1_guard.py:613:    # 001R6: import aliases for canonical matching (`import redis.asyncio
+src/orchestrator/exec/inv1_guard.py:66:# at construction/call sites below. NOTE (001R6): same for redis/redis.asyncio.
+src/orchestrator/exec/inv1_guard.py:739:                                "primitive": f"redis.{attr}",
+src/raphael/eventbus/core.py:136:        self._redis: Optional[redis.Redis] = None
+src/raphael/eventbus/core.py:154:        self._redis = redis.from_url(
+src/raphael/eventbus/core.py:160:        await self._redis.ping()
+src/raphael/eventbus/core.py:16:import redis.asyncio as redis
+src/raphael/eventbus/core.py:176:            await self._redis.close()
+src/raphael/eventbus/core.py:17:from redis.asyncio.client import Pipeline
+src/raphael/eventbus/core.py:188:    def redis(self) -> redis.Redis:
+src/raphael/eventbus/core.py:302:            stream_id = await self.redis.xadd(
+src/raphael/eventbus/core.py:328:        pipe = pipeline or self.redis.pipeline()
+src/raphael/eventbus/core.py:351:            await self.redis.xinfo_stream(stream_key)
+src/raphael/eventbus/core.py:352:        except redis.ResponseError:
+src/raphael/eventbus/core.py:353:            await self.redis.xadd(stream_key, {"_init": "1"}, maxlen=1)
+src/raphael/eventbus/core.py:354:            await self.redis.xdel(stream_key, "0-0")
+src/raphael/eventbus/core.py:359:            await self.redis.xgroup_create(stream_key, self.config.consumer_group, id="0", mkstream=True)
+src/raphael/eventbus/core.py:360:        except redis.ResponseError as e:
+src/raphael/eventbus/core.py:420:                messages = await self.redis.xreadgroup(
+src/raphael/eventbus/core.py:438:            except redis.ConnectionError:
+src/raphael/eventbus/core.py:446:            pending = await self.redis.xpending_range(
+src/raphael/eventbus/core.py:455:                    claimed = await self.redis.xclaim(
+src/raphael/eventbus/core.py:481:                await self.redis.xack(stream_key, self.config.consumer_group, msg_id)
+src/raphael/eventbus/core.py:499:                await self.redis.xack(stream_key, self.config.consumer_group, msg_id)
+src/raphael/eventbus/core.py:528:                await self.redis.xack(stream_key, self.config.consumer_group, msg_id)
+src/raphael/eventbus/core.py:538:                await self.redis.xack(stream_key, self.config.consumer_group, msg_id)
+src/raphael/eventbus/core.py:565:            await self.redis.xadd(
+src/raphael/eventbus/core.py:584:        messages = await self.redis.xrange(stream_key, min=from_id, max=to_id, count=count or 1000)
+src/raphael/eventbus/core.py:627:        messages = await self.redis.xrange(
+src/raphael/eventbus/core.py:652:            await self.redis.xdel(self.config.dead_letter_stream, msg_id)
+src/raphael/eventbus/core.py:661:            await self.redis.ping()
+src/raphael/eventbus/core.py:662:            info = await self.redis.info("memory")
+src/raphael/eventbus/core.py:696:                info = await self.redis.xinfo_consumers(stream, self.config.consumer_group)
+src/raphael/eventbus/core.py:706:                pending = await self.redis.xpending(stream, self.config.consumer_group)
+src/raphael/eventbus/core.py:772:            await self.redis.xgroup_create(stream_key, group_name, id="0", mkstream=True)
+src/raphael/eventbus/core.py:774:        except redis.ResponseError as e:
+src/raphael/eventbus/core.py:782:            await self.redis.xgroup_destroy(stream_key, group_name)
+src/raphael/eventbus/core.py:784:        except redis.ResponseError:
+src/raphael/eventbus/core.py:790:        async for key in self.redis.scan_iter(match=pattern, count=100):
+src/raphael/eventbus/core.py:797:            info = await self.redis.xinfo_stream(stream_key)
+src/raphael/eventbus/core.py:798:            groups = await self.redis.xinfo_groups(stream_key)
+src/raphael/eventbus/core.py:808:        except redis.ResponseError:
+src/raphael/eventbus/core.py:813:        return await self.redis.xtrim(stream_key, maxlen=max_len, approximate=True)
+src/raphael/eventbus/core.py:821:        pending = await self.redis.xpending_range(
+src/raphael/integration/harness.py:107:        self._redis_client = fakeredis.FakeAsyncRedis(decode_responses=True)
+src/raphael/integration/harness.py:98:        self._redis_client: Optional[redis.Redis] = None
+src/raphael/integration/test_pipeline.py:28:    with patch('redis.asyncio.from_url') as mock_redis:
+src/raphael/integration/test_pipeline.py:32:        mock_redis.return_value = mock_client
+
+--- string-only / comment-only / port-map mentions (NOT governed) ---
+src/agent/modules/credtheft.py:653:                                    "redis://", "amqp://",
+src/arena/environment.py:305:                                "docker": 2375, "redis": 6379, "memcached": 11211,
+src/arena/environment.py:312:                                "docker": 2375, "redis": 6379, "memcached": 11211,
+src/arena/environment.py:372:                    "docker": 2375, "redis": 6379, "memcached": 11211,
+src/arena/environment.py:468:                                "docker": 2375, "redis": 6379, "memcached": 11211,
+src/arena/environment.py:475:                                "docker": 2375, "redis": 6379, "memcached": 11211,
+src/arena/environment.py:530:                    "docker": 2375, "redis": 6379, "memcached": 11211,
+src/arena/templates/families.py:129:                 "redis", "memcached", "ssh"]
+src/orchestrator/agents/exploit.py:523:                    "redis", "memcached", "mongodb", "elastic",
+src/orchestrator/api/types.py:633:- aiohttp, redis, fakeredis
+src/orchestrator/api/types.py:662:Add aiohttp, redis, fakeredis to requirements.txt. Remove unused deps.
+src/orchestrator/exec/__init__.py:36:  fakeredis never flags; arbitrary `.ping()` never flags)
+src/orchestrator/exec/inv1_guard.py:199:USAGE_GATED_ROOTS = NETWORK_NAMED_IMPORT_ROOTS | {"redis"}
+src/orchestrator/exec/inv1_guard.py:217:# 001R6: bare names constructible from the redis client libraries. A bare
+src/orchestrator/exec/inv1_guard.py:378:    imports already flag; only the new redis family changes verdicts).
+src/orchestrator/exec/inv1_guard.py:397:def _proven_redis(node: ast.AST, rbound: set, rself: set, clsname,
+src/orchestrator/exec/inv1_guard.py:404:    receiver (`return self._redis`), `.pipeline()` chaining on proven
+src/orchestrator/exec/inv1_guard.py:406:    `fakeredis` and friends are never constructors, so fakes stay clean.
+src/orchestrator/exec/inv1_guard.py:417:            return _proven_redis(func.value, rbound, rself, clsname, rprops,
+src/orchestrator/exec/inv1_guard.py:421:        return any(_proven_redis(v, rbound, rself, clsname, rprops, aliases)
+src/orchestrator/exec/inv1_guard.py:424:        return _proven_redis(node.body, rbound, rself, clsname, rprops,
+src/orchestrator/exec/inv1_guard.py:426:            _proven_redis(node.orelse, rbound, rself, clsname, rprops, aliases)
+src/orchestrator/exec/inv1_guard.py:439:    module_redis, redis_self).
+src/orchestrator/exec/inv1_guard.py:444:      "sessions": set, "redis": dict}.
+src/orchestrator/exec/inv1_guard.py:446:    `.client()`/`.resource()` network construction). `redis` holds Names bound
+src/orchestrator/exec/inv1_guard.py:447:    to REDIS_CTORS results (for REDIS_OPS receiver proof). module_redis and
+src/orchestrator/exec/inv1_guard.py:448:    redis_self/redis_props are the module/class-level counterparts.
+src/orchestrator/exec/inv1_guard.py:457:    module_redis: dict = {}
+src/orchestrator/exec/inv1_guard.py:458:    redis_self: set = set()
+src/orchestrator/exec/inv1_guard.py:459:    redis_props: set = set()
+src/orchestrator/exec/inv1_guard.py:512:                            if _proven_redis(value, rbound, redis_self, clsname,
+src/orchestrator/exec/inv1_guard.py:513:                                             redis_props, aliases):
+src/orchestrator/exec/inv1_guard.py:537:                   module_redis)
+src/orchestrator/exec/inv1_guard.py:544:            rbound = dict(module_redis)
+src/orchestrator/exec/inv1_guard.py:549:                                              "redis": rbound}
+src/orchestrator/exec/inv1_guard.py:565:                                probe_redis = dict(module_redis)
+src/orchestrator/exec/inv1_guard.py:569:                                if _proven_redis(sub.value, probe_redis, redis_self,
+src/orchestrator/exec/inv1_guard.py:570:                                                clsname, redis_props, aliases):
+src/orchestrator/exec/inv1_guard.py:571:                                    redis_self.add((clsname, target.attr))
+src/orchestrator/exec/inv1_guard.py:576:                    # 001R6: single-hop Redis properties (`def redis(self):
+src/orchestrator/exec/inv1_guard.py:580:                            if _proven_redis(sub.value, dict(module_redis),
+src/orchestrator/exec/inv1_guard.py:581:                                             redis_self, clsname, redis_props,
+src/orchestrator/exec/inv1_guard.py:583:                                redis_props.add((clsname, item.name))
+src/orchestrator/exec/inv1_guard.py:584:            redis_self.update(redis_props)
+src/orchestrator/exec/inv1_guard.py:592:                rbound = dict(module_redis)
+src/orchestrator/exec/inv1_guard.py:596:                                                     "redis": rbound}
+src/orchestrator/exec/inv1_guard.py:598:            module_redis, redis_self, aliases)
+src/orchestrator/exec/inv1_guard.py:614:    # as redis`, `from pathlib import Path as P`, `from boto3 import client`).
+src/orchestrator/exec/inv1_guard.py:618:        _module_redis, _redis_self, _aliases = _collect_proven(tree)
+src/orchestrator/exec/inv1_guard.py:636:                return clsname, info["bound"], info["sessions"], info["redis"]
+src/orchestrator/exec/inv1_guard.py:637:        return None, _module_bound, _module_sessions, _module_redis
+src/orchestrator/exec/inv1_guard.py:655:                # 001R6: usage-gated roots (smtplib/boto3/botocore/redis) never
+src/orchestrator/exec/inv1_guard.py:731:                        # `fakeredis` receivers are never proven (not a ctor),
+src/orchestrator/exec/inv1_guard.py:734:                        if _proven_redis(func.value, _rbound, _redis_self,
+src/orchestrator/exec/inv1_guard.py:741:                                "module": "redis",
+src/orchestrator/exploit/ssrf_scanner.py:12:    {"name": "internal_redis", "url": "http://127.0.0.1:6379", "check": "redis"},
+src/orchestrator/postex/ladon_scanner.py:10:    5985: "winrm-http", 5986: "winrm-https", 6379: "redis", 8443: "https-alt",
+src/orchestrator/scanners/nmap_scanner.py:17:    5986: "winrm-https", 6379: "redis", 6443: "https-alt", 7077: "mesos",
+src/orchestrator/scanners/whatweb_scanner.py:25:    "Redis": [r'redis'],
+src/orchestrator/student/research_scheduler.py:378:            "redis", "elasticsearch", "kubernetes", "docker", "aws", "azure",
+src/raphael/cognitive/protocol_inference.py:127:        "redis": ["redis_service"],
+src/raphael/cognitive/protocol_inference.py:148:        6379: "redis",
+src/raphael/cognitive/protocol_inference.py:88:            name="redis",
+src/raphael/eventbus/core.py:152:        if self._redis is not None:
+src/raphael/eventbus/core.py:155:            self.config.redis_url,
+src/raphael/eventbus/core.py:161:        logger.info(f"EventBus connected to Redis at {self.config.redis_url}")
+src/raphael/eventbus/core.py:175:        if self._redis:
+src/raphael/eventbus/core.py:177:            self._redis = None
+src/raphael/eventbus/core.py:189:        if self._redis is None:
+src/raphael/eventbus/core.py:191:        return self._redis
+src/raphael/eventbus/core.py:668:                "redis_connected": True,
+src/raphael/eventbus/core.py:680:                "redis_connected": False,
+src/raphael/eventbus/core.py:98:    redis_url: str = "redis://localhost:6379/0"
+src/raphael/executor/executor.py:1084:register_parser("redis_info", parse_redis_info)
+src/raphael/executor/executor.py:661:def parse_redis_info(stdout: str, target: str) -> ConstraintDelta:
+src/raphael/executor/executor.py:662:    """Parse redis-cli INFO output."""
+src/raphael/executor/executor.py:665:    if "# Server" in stdout or "redis_version" in stdout:
+src/raphael/executor/executor.py:666:        affordances.add("redis_no_auth")
+src/raphael/executor/executor.py:667:        affordances.add("redis_accessible")
+src/raphael/executor/executor.py:669:            if "redis_version" in line:
+src/raphael/executor/executor.py:672:                    affordances.add(f"redis_version:{ver}")
+src/raphael/executor/executor.py:674:        constraints.add("redis_auth_required")
+src/raphael/executor/executor.py:678:        resolved_unknowns={"redis_noauth_unknown"},
+src/raphael/integration/harness.py:106:        # Connect to Redis (use fakeredis for testing)
+src/raphael/integration/harness.py:108:        await self._redis_client.ping()
+src/raphael/integration/harness.py:111:        # Initialize EventBus with fakeredis
+src/raphael/integration/harness.py:112:        self.eventbus = EventBus(EventBusConfig(redis_url="redis://fake"))
+src/raphael/integration/harness.py:113:        self.eventbus._redis = self._redis_client
+src/raphael/integration/harness.py:19:    import fakeredis
+src/raphael/integration/harness.py:414:        if self._redis_client:
+src/raphael/integration/harness.py:415:            await self._redis_client.close()
+src/raphael/integration/harness.py:441:        redis_url="redis://fake",  # Use fake redis for testing
+src/raphael/integration/harness.py:50:    redis_url: str = "redis://localhost:6379/0"
+src/raphael/integration/test_pipeline.py:22:        redis_url="redis://localhost:6379/0",
+
+=== fakeredis ===
+src/orchestrator/api/types.py:633:- aiohttp, redis, fakeredis
+src/orchestrator/api/types.py:662:Add aiohttp, redis, fakeredis to requirements.txt. Remove unused deps.
+src/orchestrator/exec/__init__.py:36:  fakeredis never flags; arbitrary `.ping()` never flags)
+src/orchestrator/exec/inv1_guard.py:406:    `fakeredis` and friends are never constructors, so fakes stay clean.
+src/orchestrator/exec/inv1_guard.py:731:                        # `fakeredis` receivers are never proven (not a ctor),
+src/raphael/integration/harness.py:106:        # Connect to Redis (use fakeredis for testing)
+src/raphael/integration/harness.py:107:        self._redis_client = fakeredis.FakeAsyncRedis(decode_responses=True)
+src/raphael/integration/harness.py:111:        # Initialize EventBus with fakeredis
+src/raphael/integration/harness.py:19:    import fakeredis

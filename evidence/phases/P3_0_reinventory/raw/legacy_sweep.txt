@@ -1,0 +1,20 @@
+=== synthesize_ephemeral callers ===
+src/raphael/cortex/hypothesizer.py:161:    async def synthesize_ephemeral_technique(
+=== cognitive episodic/hypothesizer invokers (calls, not imports) ===
+src/raphael/cortex/planner.py:217:        hyp_task = hypothesizer.hypothesize(state)
+src/raphael/cortex/planner.py:272:        result = await hypothesizer.hypothesize(state)
+src/raphael/main.py:315:        self.hippocampus.store(self.state, outcome=self.state.status,
+=== legacy branch guard (exact) ===
+    # v4 L1: one canonical cognitive loop. v4 §13.5: CLI -> Runtime ->
+    # observe -> ... -> receipt -> trace -> termination. The Runtime is the
+    # canonical path. The legacy Head-1 organism loop is preserved behind
+    # RAPHAEL_USE_LEGACY=1 as a separately documented migration path.
+    if os.environ.get('RAPHAEL_USE_LEGACY', '0') == '1':
+        organism = RaphaelOrganism(config)
+        await organism.initialize()
+        await organism.run()
+        return
+
+    # Canonical path: RaphaelRuntime one-iteration walking skeleton.
+    from orchestrator.runtime import RaphaelRuntime
+    from orchestrator.exec.evidence_store import EvidenceStore

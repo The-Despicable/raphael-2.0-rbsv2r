@@ -1,5 +1,90 @@
  M evidence/g3_remediation/F2_PERIMETER_RECORD.md
+ M evidence/phases/P3_0_reinventory/CLASSIFICATION.md
+ M evidence/phases/P3_0_reinventory/INVENTORY.md
+ M evidence/phases/P3_0_reinventory/P0_DIFF.md
+ M evidence/phases/P3_0_reinventory/WELD_SET.md
+ M evidence/phases/P3_0_reinventory/probe_reinventory.py
+ D evidence/phases/P3_0_reinventory/raw/b1a_probe.txt
+ M evidence/phases/P3_0_reinventory/raw/full_suite.txt
+ M evidence/phases/P3_0_reinventory/raw/git_diff_check.txt
+ M evidence/phases/P3_0_reinventory/raw/git_head.txt
+ M evidence/phases/P3_0_reinventory/raw/git_status.txt
+ M evidence/phases/P3_0_reinventory/raw/guardrails.txt
+ D evidence/phases/P3_0_reinventory/raw/legacy_importers.txt
+ M evidence/phases/P3_0_reinventory/raw/probe_reinventory.txt
+ D evidence/phases/P3_0_reinventory/raw/service_surface.txt
+ D evidence/phases/P3_0_reinventory/raw/shell_gate.txt
+ D evidence/phases/P3_0_reinventory/raw/subprocess_sites_postp2.txt
+ D evidence/phases/P3_0_reinventory/raw/welded_symbols.txt
+ M src/agent/agent.py
+ M src/bridge/raphael_bridge.py
+ M src/cloak-service/main.py
+ M src/kali-tools/server.py
+ M src/mhddos-service/main.py
+ M src/orchestrator/agents/engage.py
+ M src/orchestrator/agents/exploit.py
+ M src/orchestrator/api/agent.py
+ M src/orchestrator/api/ci.py
+ M src/orchestrator/api/tools.py
+ M src/orchestrator/api/tools_bridge.py
+ M src/orchestrator/auth.py
+ M src/orchestrator/brain/target_profiler.py
+ M src/orchestrator/c2/beacon.py
+ M src/orchestrator/c2/dga.py
+ M src/orchestrator/c2/implant_builder.py
+ M src/orchestrator/c2/sliver_backend.py
+ M src/orchestrator/chains/tool_registry.py
+ M src/orchestrator/exec/__init__.py
+ M src/orchestrator/exec/inv1_guard.py
+ M src/orchestrator/exploit/mcp_bridge.py
+ M src/orchestrator/exploit/pipeline.py
+ M src/orchestrator/exploit/relay_chain.py
+ M src/orchestrator/harvester/harvester_engine.py
+ M src/orchestrator/kali_tools_client.py
+ M src/orchestrator/modes/autonomous.py
+ M src/orchestrator/modes/scan.py
+ M src/orchestrator/modes/student.py
+ M src/orchestrator/postex/pipeline.py
+ M src/orchestrator/providers.py
+ M src/orchestrator/proxy_guard.py
+ M src/orchestrator/sandbox.py
+ M src/orchestrator/scanners/nmap_scanner.py
+ M src/orchestrator/scanners/nuclei_scanner.py
+ M src/orchestrator/scanners/whatweb_scanner.py
+ M src/phishing/main.py
+ M src/raphael/executor/kali_bridge.py
+ M src/raphael/exploit_factory/__main__.py
+ M src/raphael/main.py
+ M src/raphael/techniques/fast_port_scan.py
+ M src/raphael/verifier/__main__.py
+ M src/recon-pipeline/main.py
+ M src/sword/api.py
+ M src/sword/pipeline.py
+ M src/sword/report.py
+ M tests/test_p2_guardrail_sub10_closed.py
+ M tests/test_p2_guardrail_sub13_closed.py
+ M tests/test_p3_0_reinventory_consistency.py
 ?? RAPHAEL_HANDOFF_v4.1.md
 ?? claude.md.txt
-?? evidence/phases/P3_0_reinventory/
-?? tests/test_p3_0_reinventory_consistency.py
+?? evidence/phases/P3_0_reinventory/CENSUS.md
+?? evidence/phases/P3_0_reinventory/EFFECT_SCOPE_RULING_REQUEST.md
+?? evidence/phases/P3_0_reinventory/raw/am4_pre_weld_baseline.txt
+?? evidence/phases/P3_0_reinventory/raw/bounded_fn_results.txt
+?? evidence/phases/P3_0_reinventory/raw/bridge_dispatch_grep.txt
+?? evidence/phases/P3_0_reinventory/raw/consistency.txt
+?? evidence/phases/P3_0_reinventory/raw/effect_census.txt
+?? evidence/phases/P3_0_reinventory/raw/family_named_files.txt
+?? evidence/phases/P3_0_reinventory/raw/family_round2.txt
+?? evidence/phases/P3_0_reinventory/raw/family_round3.txt
+?? evidence/phases/P3_0_reinventory/raw/importer_tool.py
+?? evidence/phases/P3_0_reinventory/raw/importer_traces.txt
+?? evidence/phases/P3_0_reinventory/raw/legacy_cli_trace.txt
+?? evidence/phases/P3_0_reinventory/raw/legacy_effects.txt
+?? evidence/phases/P3_0_reinventory/raw/legacy_planner_map.txt
+?? evidence/phases/P3_0_reinventory/raw/legacy_sweep.txt
+?? evidence/phases/P3_0_reinventory/raw/phase_executors.txt
+?? evidence/phases/P3_0_reinventory/raw/redis_inventory.txt
+?? evidence/phases/P3_0_reinventory/raw/scanner_dryrun_tool.py
+?? evidence/phases/P3_0_reinventory/raw/standalone_entries.txt
+?? tests/test_am4_weld_gates.py
+?? tests/test_inv1_effect_lexicon_fixtures.py

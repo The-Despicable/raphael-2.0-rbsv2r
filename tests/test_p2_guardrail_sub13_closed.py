@@ -38,16 +38,20 @@ def test_sub13_kali_bridge_fails_closed():
         "SUB-13: KaliBridge._subprocess_run must be removed after WELD-SUB13"
     )
 
-    # 2. run() must raise the documented RuntimeError when the API is unavailable.
+    # 2. run() must fail closed. AM-4 W-15 welds the KaliBridge network
+    # attempt behind the Broker gate: without a Broker AUTHORIZED decision
+    # the call raises WeldNotAuthorized before any I/O (the SUB-13/14
+    # RuntimeError path is subsumed by the earlier broker denial).
     # Use a local unused port (127.0.0.1:1) to force API failure quickly.
+    from orchestrator.auth import WeldNotAuthorized
     bridge = KaliBridge(api_url="http://127.0.0.1:1")
-    with pytest.raises(RuntimeError) as exc_info:
+    with pytest.raises(WeldNotAuthorized) as exc_info:
         asyncio.run(bridge.run("echo", "test", 5))
 
     error_msg = str(exc_info.value)
-    assert "Executor._subprocess_fallback() is removed in WELD-SUB14" in error_msg, (
-        f"SUB-13: RuntimeError message must include the documented weld text. Got: {error_msg}"
+    assert "R3.0-P27" in error_msg and "W-15" in error_msg, (
+        f"SUB-13/AM-4: denial must carry path id + weld ticket. Got: {error_msg}"
     )
-    assert "All execution must go through the broker-gated capability" in error_msg, (
-        f"SUB-13: RuntimeError message must include broker-gated requirement. Got: {error_msg}"
+    assert "broker" in error_msg.lower(), (
+        f"SUB-13/AM-4: denial must name the Broker route. Got: {error_msg}"
     )

@@ -19,6 +19,7 @@ from orchestrator.api.types import (
     check_tool_permission,
 )
 from orchestrator.auth import require_scope
+from orchestrator.auth import require_broker_mediation
 from orchestrator.chains.tool_registry import (
     execute_nmap,
     execute_sqlmap,
@@ -161,8 +162,23 @@ async def execute_tool(
     tool_name: str,
     req: ToolExecuteRequest,
     auth=Depends(require_scope("tools:execute")),
+    mediated=Depends(require_broker_mediation(
+        target="api-tools",
+        action_type="tool_execute",
+        capability="api.tools",
+        method="execute_tool",
+        impact_estimate=7.0,
+        path_id="R3.0-P04",
+        weld_ticket="W-01",
+    )),
 ):
-    """Execute a pentest tool with given parameters."""
+    """Execute a pentest tool with given parameters.
+
+    AM-4 W-01 (R3.0-P04) WELDED under Scope v0: the route requires a Broker
+    AUTHORIZED decision (fail-closed 403 otherwise). The legacy unbrokered
+    execution branch is deleted; the sink (tool_registry._run_command) is
+    independently gated.
+    """
     execution_id = str(uuid.uuid4())
     
     # Validate tool exists

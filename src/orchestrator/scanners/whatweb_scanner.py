@@ -34,6 +34,19 @@ class WhatwebScanner:
         return True
 
     def scan(self, target: str, aggression: int = 1, _retries: int = 0) -> dict:
+        # AM-4 W-14/W-06 (R3.0-P23/P06) WELDED under Scope v0 (same gate as
+        # nmap scan_ports).
+        from orchestrator.auth import enforce_broker_mediation
+        enforce_broker_mediation(
+            target=target,
+            action_type="scan_execute",
+            capability="scanners.whatweb",
+            method="scan",
+            impact_estimate=7.0,
+            argv=(target,),
+            path_id="R3.0-P23",
+            weld_ticket="W-14",
+        )
         if _retries > 2:
             return {"error": f"Connection failed: {target}", "target": target}
         if not target.startswith(("http://", "https://")):

@@ -1,0 +1,50 @@
+=== checkpoint package? ===
+ls: cannot access 'src/orchestrator/checkpoint': No such file or directory
+src/orchestrator/checkpoint.py
+=== llm_exploit_engine checkpoint import context ===
+
+from orchestrator.kali_tools_client import kali
+from orchestrator.providers import call_model
+
+try:
+    from orchestrator.checkpoint.checkpoint_manager import CheckpointManager
+    _checkpoint_mgr = CheckpointManager(namespace="llm_exploit")
+except ImportError:
+    _checkpoint_mgr = None
+
+logger = logging.getLogger("llm_exploit_engine")
+=== tls_manager importers ===
+=== phishing main write_text context ===
+
+
+@app.post("/template/create")
+def create_template(req: CreateTemplateRequest):
+    if not req.name.endswith(".html"):
+        req.name += ".html"
+
+    path = TEMPLATE_DIR / req.name
+    path.write_text(req.content)
+    logger.info("Template created: %s", path)
+    return {"status": "created", "name": req.name, "path": str(path)}
+
+
+@app.get("/templates")
+def list_templates():
+    files = sorted(TEMPLATE_DIR.glob("*.html"))
+=== phase_5 write_text context ===
+            return result
+        except Exception as e:
+            logger.warning("SET email failed: %s", e)
+            return {"status": "error", "detail": str(e)}
+
+    def _create_template(self, name: str, content: str) -> list:
+        try:
+            if not name.endswith(".html"):
+                name += ".html"
+            path = TEMPLATE_DIR / name
+            path.write_text(content)
+            self.templates_created.append(str(path))
+            logger.info("Template created: %s", path)
+            return [{"name": name, "path": str(path), "size": len(content)}]
+        except Exception as e:
+            logger.warning("Template creation failed: %s", e)

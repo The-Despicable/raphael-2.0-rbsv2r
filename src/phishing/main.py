@@ -8,6 +8,29 @@ from pathlib import Path
 
 sys.path.insert(0, "/raphael")
 
+# AM-4 W-14 (R3.0-P23) weld dependency: broker mediation lives in the
+# canonical tree. Hard import (no fallback): the service fails closed at
+# startup when the canonical tree is absent.
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+from orchestrator.auth import enforce_broker_mediation, WeldNotAuthorized
+
+
+def _weld_gate(target: str, method: str, argv: tuple = ()) -> None:
+    """AM-4 W-14 (R3.0-P23) shared entry gate: fail-closed 403 unless AUTHORIZED."""
+    try:
+        enforce_broker_mediation(
+            target=target,
+            action_type="phish_execute",
+            capability="phishing",
+            method=method,
+            impact_estimate=8.0,
+            argv=argv,
+            path_id="R3.0-P23",
+            weld_ticket="W-14",
+        )
+    except WeldNotAuthorized as exc:
+        raise HTTPException(status_code=403, detail=str(exc))
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -78,6 +101,11 @@ class CreateTemplateRequest(BaseModel):
 
 @app.get("/")
 def list_tools():
+    # AM-4-R2 W-14 (R3.0-P23): the tool `.status()` probes below perform
+    # governed effects (evilginx subprocess.run, gophish urllib API call,
+    # setoolkit subprocess.run). The ungated status branch is deleted as an
+    # executable path. Fail-closed 403 unless AUTHORIZED.
+    _weld_gate("phishing-tools", "list_tools", ("status",))
     return {
         "tools": [
             {
@@ -101,6 +129,7 @@ def list_tools():
 
 @app.post("/campaign/create")
 def create_campaign(req: CreateCampaignRequest):
+    _weld_gate(req.phishing_url, "create_campaign", (req.phishing_url,))
     logger.info("Creating campaign: %s -> %s", req.name, req.target_email)
 
     template_path = TEMPLATE_DIR / req.template
@@ -141,6 +170,7 @@ def create_campaign(req: CreateCampaignRequest):
 
 @app.post("/campaign/launch")
 def launch_campaign(req: LaunchCampaignRequest):
+    _weld_gate(req.campaign_id, "launch_campaign", (req.campaign_id,))
     campaign = campaigns.get(req.campaign_id)
     if not campaign:
         raise HTTPException(404, f"Campaign '{req.campaign_id}' not found")
@@ -174,6 +204,7 @@ def get_campaign_results(campaign_id: str):
 
 @app.post("/evilginx/deploy")
 def deploy_evilginx(req: DeployEvilGinxRequest):
+    _weld_gate(req.domain, "deploy_evilginx", (req.domain,))
     logger.info("Deploying EvilGinx: %s -> %s", req.domain, req.target_url)
     result = evilginx.deploy_proxy(req.domain, req.phishing_url, req.target_url)
     return result
@@ -181,6 +212,7 @@ def deploy_evilginx(req: DeployEvilGinxRequest):
 
 @app.post("/set/credential_harvester")
 def set_credential_harvester(req: CredentialHarvesterRequest):
+    _weld_gate(req.site, "set_credential_harvester", (req.site,))
     logger.info("SET credential harvester for: %s", req.site)
     result = set_tool.credential_harvester(req.site, req.email, req.password)
     return result
@@ -188,6 +220,7 @@ def set_credential_harvester(req: CredentialHarvesterRequest):
 
 @app.post("/set/send_email")
 def set_send_email(req: SendEmailRequest):
+    _weld_gate(req.target_email, "set_send_email", (req.target_email,))
     logger.info("SET send email: %s -> %s", req.sender_email, req.target_email)
     result = set_tool.send_email(
         target_email=req.target_email,
@@ -201,6 +234,7 @@ def set_send_email(req: SendEmailRequest):
 
 @app.post("/template/create")
 def create_template(req: CreateTemplateRequest):
+    _weld_gate(req.name, "create_template", (req.name,))
     if not req.name.endswith(".html"):
         req.name += ".html"
 
@@ -223,6 +257,9 @@ def list_templates():
 
 @app.get("/health")
 def health():
+    # AM-4-R2 W-14 (R3.0-P23): same governed `.status()` probes as `/`
+    # (see above). Fail-closed 403 unless AUTHORIZED.
+    _weld_gate("phishing-tools", "health", ("status",))
     return {
         "status": "ok",
         "tools": {

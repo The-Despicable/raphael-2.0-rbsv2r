@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from orchestrator.auth import require_scope
+from orchestrator.auth import require_broker_mediation
 from orchestrator.audit_trail import record_event
 from orchestrator.engagement_queue import get_queue
 from orchestrator.engagement_queue import EngagementQueue
@@ -147,6 +148,15 @@ async def get_report(
 async def quick_scan(
     req: ScanRequest,
     auth=Depends(require_scope("engagements:rw")),
+    mediated=Depends(require_broker_mediation(
+        target="ci-scan",
+        action_type="autonomous_handle",
+        capability="api.ci",
+        method="quick_scan",
+        impact_estimate=8.0,
+        path_id="R3.0-P07",
+        weld_ticket="W-04",
+    )),
 ):
     if not default_scope.check(req.target):
         raise HTTPException(
@@ -182,6 +192,15 @@ class AgentEngageRequest(BaseModel):
 async def agent_engage(
     req: AgentEngageRequest,
     auth=Depends(require_scope("engagements:rw")),
+    mediated=Depends(require_broker_mediation(
+        target="ci-agent-engage",
+        action_type="agent_engage",
+        capability="api.ci",
+        method="agent_engage",
+        impact_estimate=8.0,
+        path_id="R3.0-P08",
+        weld_ticket="W-05",
+    )),
 ):
     if not default_scope.check(req.target):
         raise HTTPException(

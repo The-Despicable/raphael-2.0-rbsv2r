@@ -84,6 +84,20 @@ class HarvesterEngine:
             """)
 
     async def run_full_cycle(self, target: str = "") -> HarvestCycle:
+        # AM-4 W-13 (R3.0-P20) WELDED under Scope v0: unbrokered feed
+        # ingestion is deleted as an executable path. Fail-closed unless
+        # the canonical Broker AUTHORIZEs.
+        from orchestrator.auth import enforce_broker_mediation
+        enforce_broker_mediation(
+            target=target or "global",
+            action_type="harvest_execute",
+            capability="harvester",
+            method="run_full_cycle",
+            impact_estimate=6.0,
+            argv=(target,),
+            path_id="R3.0-P20",
+            weld_ticket="W-13",
+        )
         cycle = HarvestCycle(
             cycle_id=str(uuid.uuid4())[:12],
             target=target or "global",
@@ -243,6 +257,18 @@ class HarvesterEngine:
             )
 
     def search(self, query: str, source: str = "all") -> list[dict]:
+        # AM-4 W-13 (R3.0-P20) WELDED under Scope v0 (same gate as run_full_cycle).
+        from orchestrator.auth import enforce_broker_mediation
+        enforce_broker_mediation(
+            target="harvester",
+            action_type="harvest_execute",
+            capability="harvester",
+            method="search",
+            impact_estimate=6.0,
+            argv=(query,),
+            path_id="R3.0-P20",
+            weld_ticket="W-13",
+        )
         results = []
         if source in ("all", "cve", "technique"):
             cves = self.cve_ingester.search_cves(query)
@@ -317,6 +343,18 @@ class HarvesterEngine:
         return {"harvester": harvester}
 
     async def run_continuous(self, interval: int = 3600, target: str = ""):
+        # AM-4 W-13 (R3.0-P20) WELDED under Scope v0 (same gate as run_full_cycle).
+        from orchestrator.auth import enforce_broker_mediation
+        enforce_broker_mediation(
+            target=target or "global",
+            action_type="harvest_execute",
+            capability="harvester",
+            method="run_continuous",
+            impact_estimate=6.0,
+            argv=(target,),
+            path_id="R3.0-P20",
+            weld_ticket="W-13",
+        )
         logger.info(f"  [Harvester] Continuous mode — interval={interval}s")
         while True:
             try:

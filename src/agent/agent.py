@@ -21,6 +21,12 @@ try:
 except ImportError:
     _router = None
 
+# AM-4 W-14 (R3.0-P23) weld dependency: broker mediation lives in the
+# canonical tree. Hard import (no fallback): the implant fails closed at
+# startup when the canonical tree is absent.
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+from orchestrator.auth import enforce_broker_mediation, WeldNotAuthorized
+
 AGENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 def _validate_config():
@@ -69,17 +75,31 @@ async def heartbeat(agent_id: str, session_key: bytes) -> list[dict]:
         return []
 
 async def execute_task(task: dict) -> dict:
+    # AM-4-R2 W-14 (R3.0-P23) internal-task defense: this dispatcher fans out
+    # to governed primitives (`exec` → subprocess.run(shell=True), `upload` →
+    # file read, `uninstall` → shutil.rmtree, `persistence` → installer
+    # methods). The unbrokered dispatch branch is deleted as an executable
+    # path: every task proposes to the canonical Broker first (fail-closed
+    # WeldNotAuthorized propagates — no catch-and-continue — unless AUTHORIZED).
     ttype = task.get("type", "exec")
     payload = task.get("payload", {})
+    enforce_broker_mediation(
+        target=str(payload.get("command", payload.get("path", ttype))),
+        action_type="implant_execute",
+        capability="agent.execute_task",
+        method="execute_task",
+        impact_estimate=10.0,
+        argv=(ttype,),
+        path_id="R3.0-P23",
+        weld_ticket="W-14",
+    )
     if ttype == "exec":
-        import subprocess
-        try:
-            r = subprocess.run(payload.get("command", "whoami"), shell=True, capture_output=True, text=True, timeout=payload.get("timeout", 30))
-            return {"stdout": r.stdout, "stderr": r.stderr, "code": r.returncode}
-        except subprocess.TimeoutExpired:
-            return {"error": "timeout"}
-        except Exception as e:
-            return {"error": str(e)}
+        # AM-4-R2: legacy shell-exec branch DELETED (was subprocess.run
+        # with shell=True). No shell execution path remains on this route.
+        raise WeldNotAuthorized(
+            "AM-4 W-14 R3.0-P23: exec shell branch deleted; "
+            "all execution routes through the broker-gated capability."
+        )
     elif ttype == "upload":
         path = payload.get("path", "")
         try:
@@ -92,15 +112,12 @@ async def execute_task(task: dict) -> dict:
         await asyncio.sleep(payload.get("duration", 3600))
         return {"slept": True}
     elif ttype == "uninstall":
-        confirm = payload.get("confirm_uninstall", False)
-        if not confirm:
-            return {"error": "uninstall requires confirm_uninstall: true"}
-        import shutil
-        try:
-            shutil.rmtree(os.path.dirname(os.path.abspath(__file__)), ignore_errors=True)
-        except Exception:
-            pass
-        os._exit(0)
+        # AM-4-R2: legacy self-destruct branch DELETED (was shutil.rmtree +
+        # os._exit). No destructive path remains on this route.
+        raise WeldNotAuthorized(
+            "AM-4 W-14 R3.0-P23: uninstall branch deleted; "
+            "all execution routes through the broker-gated capability."
+        )
     elif ttype == "persistence":
         method = payload.get("method", "install_all")
         if method == "install_all":
@@ -299,6 +316,19 @@ async def submit_result(agent_id: str, session_key: bytes, task_id: str, result:
         })
 
 async def main():
+    # AM-4 W-14 (R3.0-P23) WELDED under Scope v0: the implant C2 loop
+    # (exec-task shell + 5 modules + audit + egress transport) is deleted as
+    # an executable path. Fail-closed unless the canonical Broker AUTHORIZEs.
+    # WeldNotAuthorized propagates (no catch-and-continue).
+    enforce_broker_mediation(
+        target="c2-implant",
+        action_type="implant_execute",
+        capability="agent",
+        method="main",
+        impact_estimate=10.0,
+        path_id="R3.0-P23",
+        weld_ticket="W-14",
+    )
     _validate_config()
     agent_id, session_key = await register()
     

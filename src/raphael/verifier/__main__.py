@@ -28,6 +28,22 @@ async def main():
     parser.add_argument("--timeout", type=float, default=60.0, help="Verification timeout")
     args = parser.parse_args()
 
+    # AM-4 W-14 (R3.0-P23) WELDED under Scope v0: the verifier CLI (channels
+    # server + core unlink effects) is deleted as an unbrokered executable
+    # path. Fail-closed unless the canonical Broker AUTHORIZEs.
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+    from orchestrator.auth import enforce_broker_mediation
+    enforce_broker_mediation(
+        target=args.target_ip,
+        action_type="verifier_execute",
+        capability="verifier",
+        method="main",
+        impact_estimate=8.0,
+        argv=(args.target_ip,),
+        path_id="R3.0-P23",
+        weld_ticket="W-14",
+    )
+
     config = RaphaelConfig.from_env()
     blackboard = Blackboard(config.db_path)
     blackboard.connect()

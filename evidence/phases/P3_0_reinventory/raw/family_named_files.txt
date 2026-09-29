@@ -1,0 +1,42 @@
+=== phishing/main.py effect sites ===
+22:TEMPLATE_DIR.mkdir(parents=True, exist_ok=True)
+208:    path.write_text(req.content)
+=== sword/phase_5_phish.py effect sites ===
+14:TEMPLATE_DIR.mkdir(parents=True, exist_ok=True)
+56:                host=os.environ.get("SMTP_HOST", "smtp.example.com"),
+57:                port=int(os.environ.get("SMTP_PORT", "587")),
+58:                username=os.environ.get("SMTP_USER", ""),
+59:                password=os.environ.get("SMTP_PASS", ""),
+125:                smtp_server=os.environ.get("SMTP_HOST", "smtp.example.com"),
+140:            path.write_text(content)
+=== egress/tls_manager.py effect sites ===
+2:import ssl
+16:        self.cert_dir.mkdir(parents=True, exist_ok=True)
+47:        key_path.write_bytes(key.private_bytes(
+52:        cert_path.write_bytes(cert.public_bytes(serialization.Encoding.PEM))
+66:        with open(ca_key_path, "rb") as f:
+68:        with open(ca_cert_path, "rb") as f:
+86:        key_path.write_bytes(key.private_bytes(
+91:        cert_path.write_bytes(cert.public_bytes(serialization.Encoding.PEM))
+95:    def ssl_context_for_domain(self, domain: str, sni_hostname: str = None) -> ssl.SSLContext:
+97:        ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+104:def create_tls_context(verify: bool = True, sni_hostname: str = None) -> ssl.SSLContext:
+107:        ctx = ssl.create_default_context()
+109:        ctx.verify_mode = ssl.CERT_NONE
+111:    ctx = ssl.create_default_context()
+=== checkpoint importers ===
+src/orchestrator/exploit/llm_exploit_engine.py:15:    from orchestrator.checkpoint.checkpoint_manager import CheckpointManager
+src/orchestrator/exploit/llm_exploit_engine.py:16:    _checkpoint_mgr = CheckpointManager(namespace="llm_exploit")
+src/orchestrator/exploit/llm_exploit_engine.py:18:    _checkpoint_mgr = None
+src/orchestrator/exploit/llm_exploit_engine.py:171:        if _checkpoint_mgr and (iteration % 5 == 0 or iteration == 1):
+src/orchestrator/exploit/llm_exploit_engine.py:172:            _checkpoint_mgr.save(op_id, {
+src/orchestrator/exploit/llm_exploit_engine.py:371:        if _checkpoint_mgr:
+src/orchestrator/exploit/llm_exploit_engine.py:372:            _checkpoint_mgr.save(op_id, {
+src/arena/d7_r1_gemma_retest.py:339:    """Save intermediate results checkpoint."""
+src/raphael/models/engagement_state.py:13:    """Full state snapshot. Serializable for checkpoint/restore."""
+=== poisoner exact sites ===
+434:                full_path.write_text(new_content, encoding="utf-8")
+494:                full_path.write_bytes(new_bytes)
+562:        backup_path.write_bytes(content)
+606:            full_path.write_bytes(backup_content)
+610:            backup_path.unlink()  # Remove backup after restore

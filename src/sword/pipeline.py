@@ -112,6 +112,19 @@ class SwordPipeline:
         return "; ".join(summary_parts)
 
 async def run_sword(target: str, api_keys: dict = None, config: dict = None, phases: list = None):
+    # AM-4-R2 W-14 (R3.0-P23) pipeline choke (§4): reachable from the gated
+    # sword/api entry AND this module's own __main__ CLI. Fail-closed.
+    from orchestrator.auth import enforce_broker_mediation
+    enforce_broker_mediation(
+        target=target,
+        action_type="sword_execute",
+        capability="sword.pipeline",
+        method="run_sword",
+        impact_estimate=8.0,
+        argv=(target,),
+        path_id="R3.0-P23",
+        weld_ticket="W-14",
+    )
     sword = SwordPipeline(target, api_keys, config)
     return await sword.run(phases)
 

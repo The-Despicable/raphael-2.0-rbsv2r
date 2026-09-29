@@ -11,8 +11,80 @@ and what the gate evidence must scope honestly.
 **Supersedes:** the "approximate" legacy graph and the P9-deferral disposition previously
 recorded here. Per operator ruling 2026-09-16, AM-4 governs: G3 does not pass while any
 P3.0-confirmed legacy site remains un-welded. The authoritative weld set is
-`evidence/phases/P3_0_reinventory/WELD_SET.md` (9 paths). Nothing in this record claims
-AM-4 weld completion, G3 PASS, or production readiness.
+`evidence/phases/P3_0_reinventory/WELD_SET.md` (14 paths after 001R completion).
+Nothing in this record claims AM-4 weld completion, G3 PASS, or production readiness.
+
+**001R6 completion (HEAD `3b2e22db3` + working tree):** the N-8 Redis gap is closed.
+(a) Redis governed network: `redis` (incl. `redis.asyncio`) added to the usage-gated
+NETWORK lexicon — bare imports never flag; construction (`redis.from_url`, `redis.Redis`
+and async forms) + client operations on PROVEN Redis-derived receivers only
+(construction-bound names, same-class Redis attrs, single-hop properties, `.pipeline()`
+chaining); `fakeredis` and arbitrary `.ping()`/`.get()` receivers stay clean.
+(b) Bounded FNs closed: dotted import-alias canonicalization (`import redis.asyncio as
+redis`, `import boto3 as b`, `from pathlib import Path as P`), module-level
+`for f in Path().glob()` binding, comprehension targets, inline `boto3.Session().client()`.
+(c) De-dup: `from boto3 import client` / `from smtplib import SMTP` now emit exactly ONE
+finding at the use site (import-site finding suppressed for usage-gated roots).
+Census re-derived 149 → **150 files** (`eventbus/core.py` → P24 dead: sole live-real
+constructor is harness with pre-seeded fakeredis; mocks elsewhere). WELD_SET stays 15
+paths. INV-1 35/0 with the extended rules. 42 scanner fixtures pin the semantics;
+full suite 552 green.
+
+**001R5 completion (HEAD `3b2e22db3` + working tree):** the N-8/N-9 scanner gaps are
+closed. (a) Correctness: pathlib method-form detection is now receiver-proven
+(`_proven_path`: Path ctors, `/`-joins, pure ops, Path-annotated args, module constants,
+self-attrs, glob/rglob/iterdir targets; fixpoint alias chains) — `write_text`/`write_bytes`
+stay proof-gated (negative control: `arbitrary_object.write_text()` clean); common-name
+methods (`unlink`/`rename`/`rmdir`/`chmod`) never match by bare name. 21 positive+negative
+AST fixtures (`tests/test_inv1_effect_lexicon_fixtures.py`) pin the semantics. (b) Network:
+`boto3.client/resource/Session` + chained `session.client()` + `botocore.*` construction +
+`asyncio.open_connection/start_server` (bare imports never flag alone — usage-gated).
+Census re-derived 147 → **149 files** (2 new rows: `iam_pathfinder`→P07 boto3 cloud-enum via
+live `cloud_executor`; `fast_port_scan`→P23 asyncio port-scan CLI with own `__main__`).
+INV-1 perimeter re-verified 35/0 with the extended rules. WELD_SET stays 15 paths
+(new files map into P07/P23). WELD_SET §U-3 counts synced (149 · 78/6/4/61);
+`exec/__init__.py` lexicon docstring synced. Residual boundary (reads/`mkdir`/mime/ssl/
+sqlite/which/tempfile) + the N-12 open-vs-closed-lexicon question are recorded verbatim
+with a bounded ruling request (`EFFECT_SCOPE_RULING_REQUEST.md`); no scope invented.
+(001R6 supersedes: census 149 → 150, WELD_SET §U-3 → 150 · 78/6/4/62.)
+
+**001R4 completion (HEAD `3b2e22db3` + working tree):** the N-5 lexicon gap is closed.
+Per-effect-family governance analysis (INV-1 §24 "process/network/file primitives",
+AM-7 "only importable from exec/", AM-13.1 "all other file access ... Broker-mediated
+exactly like process or network access") puts every suspected family IN SCOPE
+(Outcome A): `Path.write_text/write_bytes/unlink/rename`, `os.rename/chmod`,
+`shutil.copy/copy2/copytree/move`, `smtplib` (+ `Path.rmdir` as the exact equivalent of
+governed `os.rmdir`). Minimal named AST-only scanner extension in
+`exec/inv1_guard.py` (new roots/calls + pathlib/os-gated method forms; no regex,
+no filenames, no hardcoded paths). Census re-derived 140 → **147 files** (7 new rows:
+poisoner→P07; smtp_tunnel/phishing-main/phase_5/templates→P23; tls_manager/checkpoint→P24
+dead with importer proof). INV-1 perimeter re-verified 35/0 with the extended rules.
+WELD_SET stays 15 paths (new files map into P07/P23/P24); file→path mapping grows.
+Corrections to prior provisional records, all probe-reproduced:
+- `bridge.agent.recon/exploit/postex/engage` do NOT reach agent code — `agents/*` modules
+  define no module-level `handle`, so all four fail closed with `AttributeError`
+  (CLASSIFICATION P17). The `orchestrator/sandbox.py:25` arbitrary-code sink is real but
+  reachable via E-AGENT/E-CI-DEF (`ExploitAgent.execute: custom_payload`), not via the
+  bridge (P16).
+- `api/ci.py`'s router is never mounted (`ci_router` imported nowhere); its 6 routes are
+  entry-dead and `POST /v1/ci/engage` is write-only (sole consumers `handle_queue_loop` /
+  `handle_multi` have zero callers) — P22. Live handlers remain P07/P08/P16.
+- `bridge.target.set/scope.set` fail closed with `ImportError` (3-line shims to absent
+  `/home/yaser/raphael-2.0`); `conductor.*` are pure stubs; `brain.memory_*` is in-memory
+  only; `persona.*` is env-local — P17 (no effect, traced per method).
+- `mcp-hub/*` is dead-as-committed: hyphen dir vs `mcp_hub.*` imports
+  (`ModuleNotFoundError` reproduced), unresolvable absolute `tools.*` dynamic load,
+  nonexistent `config.paths` import, no `__main__` in tool files — 12 files P24
+  (resurrect into W-14 if repaired).
+- SHELL (P13) is Broker-mediated by live construction test, not strings: `None`, forged
+  receipt, and factory-without-auth all raise `ShellNotAuthorized` before any socket/PTY
+  use (`probe_reinventory.py` S0–S4).
+- Census (001R2): 140 files — 68 not-yet-mediated files · 6 mediated · 5 reachable notes ·
+  61 dead (P14:1 · P24:59 · P25:1). Five doc-dead-but-reachable modules (postmortem,
+  episodic_memory, both hypothesizers, hippocampus) are dead-effect confined: their effects
+  are invoked only from legacy/dead/test code (probe `B/dead-effect-confined`, per-file
+  DEAD-EFFECT-OK lines). P0 corrections extended: SUB-11/15/16/17 dead→not-yet via own
+  service entries; SUB-12 re-confirmed dead with corrected trace (orphaned file).
 
 ---
 
@@ -110,7 +182,9 @@ C2 subtree (reached via E-BRIDGE / E-AUTO / spray):
 Welded stubs (dead, NOT in the graph above — symbols deleted at HEAD):
 `kali_tools_client._run_local` (ex-SUB-10), `raphael/executor` `_subprocess_fallback`
 (ex-SUB-14) / `_subprocess_run` (ex-SUB-13) and their opt-in flags now raise fail-closed
-`RuntimeError` before any primitive (R3.0-P03/P15). Gated (Broker-mediated, in-perimeter):
+`RuntimeError` before any primitive (R3.0-P03/P15). E-CLI-LEGACY is a LIVE entry surface
+(R3.0-P27): the welded stubs above are dead, but the branch's hypothesizer-LLM,
+kali_bridge-httpx, and hippocampus-file effects execute without Broker mediation. Gated (Broker-mediated, in-perimeter):
 interactive-shell constructors via `require_shell_authorization` (R3.0-P13, WELD-SHELL).
 Dead standalone (no live-entry importer): `weaponizer` (SUB-01…03), `recon-pipeline`
 (SUB-11), `agent/modules/executor` (SUB-12), `sword/phase_0_recon` (SUB-15…17) (R3.0-P14).
@@ -193,6 +267,8 @@ ticket; this record only enumerates the prerequisites. **Ordering note (AM-4):**
 the 9 live legacy paths (§2.1, `WELD_SET.md`) must first be welded (Broker/PEP route +
 legacy-branch deletion under a named policy artifact) by the follow-on AM-4 task;
 P9 then deletes what remains (dead standalone R3.0-P14) after the proofs above.
+(AM-4 status: DONE 15/15 — see WELD_SET.md post-weld statuses; P9 prerequisites
+1,2,3 unchanged, P9 itself still not performed.)
 
 ---
 
@@ -203,16 +279,21 @@ The corrected gate evidence language is:
 > G3 acceptance is scoped to the canonical `RaphaelRuntime.run_episode`
 > path rooted at `src/orchestrator/runtime/loop.py` and the PDP at
 > `src/orchestrator/brain/capability_broker.py`. The
-> `api/*`, `bridge/raphael_bridge.py`, `modes/autonomous.py`,
-> `chains/*`, `kali_tools_client`, `c2/*`, and `kali-tools/server.py`
-> plane is a PROVEN noncanonical execution plane that is OUT OF PERIMETER
-> pending AM-4 welds. The 9 `not-yet-mediated` paths are enumerated in
-> `evidence/phases/P3_0_reinventory/WELD_SET.md`; G3 does not pass while any
-> remains un-welded (AM-4 §3). Welded stubs (ex-SUB-10/13/14) and gated SHELL
-> are verified closed; dead standalone planes (R3.0-P14) are P9 deletion
-> candidates after zero-reference proof, deployment verification, and a W-?
-> evidence record per the GLM W-A through W-D convention. F2 PERIMETER RECORD
-> IMPLEMENTED+CORRECTED; AM-4 NOT WELDED; P9 NOT DELETED in this revision.
+> `api/*`, `bridge/raphael_bridge.py` (40 methods), `modes/*`,
+> `chains/*`, `kali_tools_client`, `c2/*`, `kali-tools/server.py`, and the standalone
+> services (`mhddos`, `recon-pipeline`, `sword/api`, `agent/agent`, `phishing/main`,
+> `cai-service`, `exploit_factory` CLI) form a PROVEN noncanonical execution plane.
+> AM-4 STATUS (updated post-weld): all 15 WELD_SET paths are WELDED under Scope v0
+> (uniform fail-closed Broker gate `enforce_broker_mediation`; legacy unconditional
+> branches deleted; enumerated with per-item evidence in
+> `evidence/phases/P3_0_reinventory/WELD_SET.md`; effect census: 150 files in
+> `CENSUS.md`). Under the current bootstrap-v0-derived policy every weld class DENIES
+> (verified live); the canonical fixture capability still AUTHORIZEs. Welded stubs
+> (ex-SUB-10/13/14) and gated SHELL (live-test proven) are verified closed; dead
+> standalone planes (P14/P24/P25) are P9 deletion candidates after zero-reference proof,
+> deployment verification, and a W-? evidence record per the GLM W-A through W-D
+> convention. F2 PERIMETER RECORD IMPLEMENTED+CORRECTED; AM-4 WELDED 15/15 (G3
+> adjudication pending — NOT claimed); P9 NOT DELETED in this revision.
 
 ---
 
@@ -225,9 +306,16 @@ The corrected gate evidence language is:
 * P9 prerequisite numbering: **fixed** (1,2,3)
 * Legacy plane DELETED: **NO** (P9 prerequisite work; out of scope here)
 * Legacy plane REFACTORED: **NO**
-* Legacy plane WELDED: **NO** — except the three pre-existing welds carried at HEAD (ex-SUB-10/13/14) and the SHELL gate, all verified in `P0_DIFF.md`; the 9-path AM-4 weld is a separate follow-on task
+* Legacy plane WELDED: **YES (AM-4 task, 15/15 WELD_SET paths)** — seam fixed ON
+  via `enforce_broker_mediation` (canonical Broker PDP, bootstrap-v0/Scope-v0
+  artifact) + legacy unconditional branches deleted; per-item evidence in
+  `WELD_SET.md` post-weld statuses + `tests/test_am4_weld_gates.py` (26 tests).
+  Pre-existing SUB-10/13/14 + SHELL gate unchanged. W-14 code preserved under
+  gate (P9 delete ruling still owed per D-1).
 * Related modules modified: **NONE** (records-only)
-* F2 acceptance status: **NOT ACCEPTED as G3 closure** (requires the AM-4 weld task + G3 review of `evidence/phases/P3_0_reinventory/`)
+* F2 acceptance status: **NOT ACCEPTED as G3 closure** (requires G3 review of the
+  AM-4 weld + `evidence/phases/P3_0_reinventory/`)
+* Governance Q1/Q2/Q3: **CLOSED by GLM** (`GLM_GOVERNANCE_VERDICT.md`, 2026-09-17) — reads OUT, mkdir OUT, dual-layer bounded lexicon model; census/WELD_SET/scanner delta 0, integrated in AM-4 task
 
 ---
 
@@ -248,6 +336,6 @@ The corrected gate evidence language is:
    consistent with forensic findings L-1/L-5. SUB-01/02/03, SUB-11, SUB-12, SUB-15/16/17 remain
    dead (re-confirmed); SUB-10/13/14 are welded-closed (symbols deleted).
 5. STRUCK: the records-only / P9-deferral disposition as satisfying G3. Per operator ruling
-   adopting AM-4, the records-only perimeter does NOT satisfy G3; the 9-path weld set
+   adopting AM-4, the records-only perimeter does NOT satisfy G3; the 14-path weld set
    (`WELD_SET.md`) must be welded before G3 can pass. This record is ground truth for that
    task, not a substitute for it.

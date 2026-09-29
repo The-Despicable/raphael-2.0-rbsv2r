@@ -18,25 +18,26 @@ class PatchSandbox:
             return False, str(e)
 
     async def run_code(self, code: str, timeout: int = 30) -> dict:
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
-            f.write(code)
-            tmppath = f.name
-        try:
-            r = subprocess.run(
-                ["python3", tmppath],
-                capture_output=True, timeout=timeout, text=True,
-            )
-            return {
-                "stdout": r.stdout,
-                "stderr": r.stderr,
-                "exit_code": r.returncode,
-            }
-        except subprocess.TimeoutExpired:
-            return {"stdout": "", "stderr": "timeout", "exit_code": -1}
-        except FileNotFoundError:
-            return {"stdout": "", "stderr": "python3 not found", "exit_code": -1}
-        finally:
-            Path(tmppath).unlink(missing_ok=True)
+        # AM-4 W-10 (R3.0-P16) WELDED under Scope v0: arbitrary-code execution
+        # requires a Broker AUTHORIZED decision (fail-closed WeldNotAuthorized
+        # otherwise). The legacy unconditional run branch is deleted.
+        from orchestrator.auth import enforce_broker_mediation, WeldNotAuthorized
+        enforce_broker_mediation(
+            target="local-sandbox",
+            action_type="exploit_execute",
+            capability="sandbox.run_code",
+            method="run_code",
+            impact_estimate=9.0,
+            path_id="R3.0-P16",
+            weld_ticket="W-10",
+        )
+        # AM-4-R2: legacy arbitrary-code execution body DELETED (was
+        # NamedTemporaryFile write + subprocess.run + cleanup unlink). No
+        # execution path remains past the gate.
+        raise WeldNotAuthorized(
+            "AM-4 W-10 R3.0-P16: run_code execution branch deleted; "
+            "all execution routes through the broker-gated capability."
+        )
 
 
 sandbox = PatchSandbox()

@@ -1,0 +1,18 @@
+STANDALONE_ENTRIES
+--- src/mhddos-service/main.py: ['@app.get', '@app.post', 'FastAPI(', '__main__ guard', 'uvicorn.run']
+--- src/recon-pipeline/main.py: ['@app.get', '@app.post', 'FastAPI(', '__main__ guard', 'uvicorn.run']
+--- src/sword/api.py: ['@app.get', '@app.post', 'FastAPI(']
+--- src/agent/agent.py: ['__main__ guard', 'asyncio.run']
+--- src/mcp-hub/main.py: ['__main__ guard', 'argparse.ArgumentParser', 'asyncio.run', 'uvicorn.run']
+--- src/mcp-hub/core/server.py: ['FastAPI(']
+--- src/phishing/main.py: ['@app.get', '@app.post', 'FastAPI(']
+--- src/cai-service/main.py: ['@app.post', 'FastAPI(']
+--- src/c2-server/main.py: ['@app.get', '@app.post', 'FastAPI(', '__main__ guard', 'uvicorn.run']
+--- src/cloak-service/main.py: ['@app.get', '@app.post', 'FastAPI(', '__main__ guard', 'uvicorn.run']
+--- src/kali-tools/server.py: ['@app.get', '@app.post', 'FastAPI(']
+--- src/raphael/exploit_factory/__main__.py: ['__main__ guard', 'argparse.ArgumentParser', 'asyncio.run']
+--- src/raphael/verifier/__main__.py: ['__main__ guard', 'argparse.ArgumentParser', 'asyncio.run']
+--- src/orchestrator/modes/scan.py: ['__main__ guard', 'asyncio.run']
+--- src/sword/pipeline.py: ['__main__ guard', 'asyncio.run']
+--- src/orchestrator/modes/postmortem.py: []
+exit=0

@@ -1,0 +1,41 @@
+=== who calls cognitive/episodic/hypothesizer/parallel_recon/blackboard/thermo ===
+src/raphael/verifier/__main__.py:15:from raphael.blackboard import Blackboard
+src/raphael/verifier/__main__.py:32:    blackboard = Blackboard(config.db_path)
+src/raphael/verifier/__main__.py:33:    blackboard.connect()
+src/raphael/verifier/__main__.py:83:    blackboard.close()
+src/raphael/main.py:17:thermoregulator, and inline memory prior.
+src/raphael/main.py:33:from raphael.circulatory.blackboard import Blackboard
+src/raphael/main.py:34:from raphael.circulatory.event_bus import EventBus
+src/raphael/main.py:35:from raphael.circulatory.spinal_reflex import SpinalReflex
+src/raphael/main.py:43:from raphael.limbic.parallel_recon import ParallelRecon
+src/raphael/main.py:60:                 blackboard: Blackboard, event_bus: EventBus,
+src/raphael/main.py:61:                 spinal_reflex: SpinalReflex):
+src/raphael/main.py:64:        self._blackboard = blackboard
+src/raphael/main.py:65:        self._event_bus = event_bus
+src/raphael/main.py:66:        self._spinal_reflex = spinal_reflex
+src/raphael/main.py:75:        """Start the thermoregulator tick loop."""
+src/raphael/main.py:77:        interval = 1.0 / self._config.thermoregulator_hz
+src/raphael/main.py:78:        logger.info(f"Thermoregulator started ({self._config.thermoregulator_hz} Hz)")
+src/raphael/main.py:101:        await self._blackboard.write_risk_score(
+src/raphael/main.py:102:            "raphael_active", self._current_risk, "thermoregulator"
+src/raphael/main.py:107:            self._spinal_reflex.inhibit(f"risk threshold exceeded: {self._current_risk:.2f}")
+src/raphael/main.py:108:            await self._event_bus.publish("detection_risk_spike", {
+src/raphael/main.py:114:            self._spinal_reflex.release()
+src/raphael/main.py:115:            await self._event_bus.publish("operations_resumed", {
+src/raphael/main.py:127:        self.blackboard = Blackboard(config.db_path)
+src/raphael/main.py:128:        self.event_bus = EventBus()
+src/raphael/main.py:130:        self.executor = Executor(self.event_bus, self.blackboard)
+src/raphael/main.py:131:        self.spinal_reflex = SpinalReflex(self.executor)
+src/raphael/main.py:133:        self.parallel_recon = ParallelRecon(self.executor)
+src/raphael/main.py:134:        self.thermoregulator = Thermoregulator(
+src/raphael/main.py:135:            config, self.executor, self.blackboard,
+src/raphael/main.py:136:            self.event_bus, self.spinal_reflex
+src/raphael/main.py:142:        """Connect blackboard and create engagement state."""
+src/raphael/main.py:143:        self.blackboard.connect()
+src/raphael/main.py:144:        logger.info("Blackboard connected")
+src/raphael/main.py:149:        existing = await self.blackboard.get_engagement_state(eid)
+src/raphael/main.py:162:            await self.blackboard.save_engagement_state(
+src/raphael/main.py:185:        # Start thermoregulator in background
+src/raphael/main.py:186:        thermo_task = asyncio.create_task(self.thermoregulator.start())
+src/raphael/main.py:188:        # ParallelRecon batch — fire all available recon techniques concurrently
+src/raphael/main.py:190:            batch_delta = await self.parallel_recon.run_batch(self.state)

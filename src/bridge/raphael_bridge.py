@@ -28,6 +28,49 @@ logging.basicConfig(level=logging.INFO, stream=sys.stderr)
 logger = logging.getLogger("raphael_bridge")
 
 
+# AM-4 weld dispatch table: bridge methods on WELD_SET paths (method name ->
+# WELD_SET path id). P17 dead-end / pure-reader methods are NOT listed and
+# keep their exact behavior (probe asserts their AttributeError/ImportError).
+_WELD_BRIDGE_METHODS = {
+    "mode.autonomous": "R3.0-P09",
+    "kali.run": "R3.0-P10",
+    "kali.nuclei": "R3.0-P10",
+    "kali.sqlmap": "R3.0-P10",
+    "kali.hashcat": "R3.0-P10",
+    "kali.impacket": "R3.0-P10",
+    "kali.list_tools": "R3.0-P10",
+    "c2.build_implant": "R3.0-P11",
+    "c2.deploy": "R3.0-P11",
+    "c2.list_beacons": "R3.0-P11",
+    "c2.task_beacon": "R3.0-P11",
+    "c2.sliver_connect": "R3.0-P11",
+    "exploit.generate": "R3.0-P18",
+    "exploit.relay_chain": "R3.0-P18",
+    "exploit.mcp_start": "R3.0-P18",
+    "exploit.mcp_exploit": "R3.0-P18",
+    "mode.community": "R3.0-P19",
+    "mode.debate": "R3.0-P19",
+    "mode.deep_research": "R3.0-P19",
+    "mode.scan": "R3.0-P19",
+    "mode.student": "R3.0-P19",
+    "harvester.run_cycle": "R3.0-P20",
+    "harvester.search_techniques": "R3.0-P20",
+    "harvester.get_cves": "R3.0-P20",
+    "model.call": "R3.0-P20",
+    "target.profile": "R3.0-P20",
+}
+
+# WELD_SET path id -> weld item ticket (WELD_SET.md authoritative).
+_WELD_PATH_TICKETS = {
+    "R3.0-P09": "W-06",
+    "R3.0-P10": "W-07",
+    "R3.0-P11": "W-08",
+    "R3.0-P18": "W-11",
+    "R3.0-P19": "W-12",
+    "R3.0-P20": "W-13",
+}
+
+
 @dataclass
 class BridgeRequest:
     id: str
@@ -108,6 +151,27 @@ class RaphaelBridge:
         method = self.methods.get(request.method)
         if not method:
             return BridgeResponse(id=request.id, error=f"Unknown method: {request.method}")
+        # AM-4 W-06/W-07/W-08/W-11/W-12/W-13 (R3.0-P09/P10/P11/P18/P19/P20)
+        # WELDED under Scope v0: dispatch methods on weld paths propose to the
+        # canonical Broker before dispatch (fail-closed WeldNotAuthorized
+        # unless AUTHORIZED, reported as a bridge error). Methods outside the
+        # weld set (P17 dead-ends, pure readers) keep their exact behavior.
+        if request.method in _WELD_BRIDGE_METHODS:
+            try:
+                from orchestrator.auth import enforce_broker_mediation
+                params = request.params if isinstance(request.params, dict) else {}
+                _path_id = _WELD_BRIDGE_METHODS[request.method]
+                enforce_broker_mediation(
+                    target=str(params.get("target", params.get("url", "bridge"))),
+                    action_type="bridge_execute",
+                    capability=f"bridge.{request.method}",
+                    method=request.method,
+                    impact_estimate=8.0,
+                    path_id=_path_id,
+                    weld_ticket=_WELD_PATH_TICKETS[_path_id],
+                )
+            except Exception as exc:
+                return BridgeResponse(id=request.id, error=str(exc))
         try:
             result = await method(**request.params)
             return BridgeResponse(id=request.id, result=result)

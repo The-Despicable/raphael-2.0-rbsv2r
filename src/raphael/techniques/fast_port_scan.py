@@ -50,6 +50,23 @@ def main():
     a.add_argument("--output", choices=["json", "text"], default="json")
     args = a.parse_args()
 
+    # AM-4 W-14 (R3.0-P23) WELDED under Scope v0: the asyncio port-scan CLI
+    # is deleted as an unbrokered executable path. Fail-closed unless the
+    # canonical Broker AUTHORIZEs.
+    import os
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
+    from orchestrator.auth import enforce_broker_mediation
+    enforce_broker_mediation(
+        target=args.target,
+        action_type="scan_execute",
+        capability="fast_port_scan",
+        method="main",
+        impact_estimate=7.0,
+        argv=(args.target,),
+        path_id="R3.0-P23",
+        weld_ticket="W-14",
+    )
+
     ports = [int(p.strip()) for p in args.ports.split(",")] if args.ports else COMMON_PORTS
     log.info(f"Scanning {args.target} for {len(ports)} ports (c={args.concurrency})")
     t0 = time.time()

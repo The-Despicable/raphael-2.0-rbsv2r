@@ -19,6 +19,7 @@ import uuid
 
 from datetime import datetime
 from typing import Optional
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -27,6 +28,12 @@ from pydantic import BaseModel
 from .case_api import router as case_router
 
 sys.path.insert(0, "/home/yaser/raphael-2.0/raphael")
+
+# AM-4 W-14 (R3.0-P23) weld dependency: broker mediation lives in the
+# canonical tree. Hard import (no fallback): the service fails closed at
+# startup when the canonical tree is absent.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from orchestrator.auth import enforce_broker_mediation, WeldNotAuthorized
 
 from orchestrator.scanners.nmap_scanner import NmapScanner
 from orchestrator.scanners.nuclei_scanner import NucleiScanner
@@ -85,6 +92,19 @@ async def health():
 
 
 async def run_subfinder(target: str) -> list:
+    # AM-4-R2 W-14 (R3.0-P23) internal-helper defense (§4): direct
+    # subprocess exec must not run outside Broker mediation. Fail-closed.
+    from orchestrator.auth import enforce_broker_mediation
+    enforce_broker_mediation(
+        target=target,
+        action_type="recon_execute",
+        capability="recon_pipeline",
+        method="run_subfinder",
+        impact_estimate=7.0,
+        argv=(target,),
+        path_id="R3.0-P23",
+        weld_ticket="W-14",
+    )
     try:
         proc = await asyncio.create_subprocess_exec(
             "subfinder", "-d", target, "-silent",
@@ -136,6 +156,21 @@ def run_spiderfoot(target: str, modules: str) -> dict:
 
 
 async def run_recon_chain(request: ReconRequest) -> dict:
+    # AM-4 W-14 (R3.0-P23) sink choke: direct callers inherit the gate.
+    from orchestrator.auth import enforce_broker_mediation, WeldNotAuthorized
+    try:
+        enforce_broker_mediation(
+            target=request.target,
+            action_type="recon_execute",
+            capability="recon_pipeline",
+            method="run_recon_chain",
+            impact_estimate=8.0,
+            argv=(request.target,),
+            path_id="R3.0-P23",
+            weld_ticket="W-14",
+        )
+    except WeldNotAuthorized:
+        return {"error": "denied", "target": request.target}
     target = request.target
     ports = request.ports
     severity = request.severity
@@ -190,6 +225,21 @@ async def run_recon_chain(request: ReconRequest) -> dict:
 
 
 async def run_deep_recon(request: DeepReconRequest) -> dict:
+    # AM-4 W-14 (R3.0-P23) sink choke (same gate as run_recon_chain).
+    from orchestrator.auth import enforce_broker_mediation, WeldNotAuthorized
+    try:
+        enforce_broker_mediation(
+            target=request.target,
+            action_type="recon_execute",
+            capability="recon_pipeline",
+            method="run_deep_recon",
+            impact_estimate=8.0,
+            argv=(request.target,),
+            path_id="R3.0-P23",
+            weld_ticket="W-14",
+        )
+    except WeldNotAuthorized:
+        return {"error": "denied", "target": request.target}
     target = request.target
     modules = request.modules
 
@@ -211,6 +261,22 @@ async def run_deep_recon(request: DeepReconRequest) -> dict:
 
 @app.post("/recon/run")
 async def recon_run(request: ReconRequest):
+    # AM-4 W-14 (R3.0-P23) WELDED under Scope v0: unauthenticated recon
+    # launch is deleted as an executable path (fail-closed 403).
+    from fastapi import HTTPException as _HTTPException
+    try:
+        enforce_broker_mediation(
+            target=request.target,
+            action_type="recon_execute",
+            capability="recon_pipeline",
+            method="recon_run",
+            impact_estimate=8.0,
+            argv=(request.target,),
+            path_id="R3.0-P23",
+            weld_ticket="W-14",
+        )
+    except WeldNotAuthorized as exc:
+        raise _HTTPException(status_code=403, detail=str(exc))
     task_id = str(uuid.uuid4())
     tasks[task_id] = {"status": "running", "progress": "starting", "result": None}
 
@@ -229,6 +295,21 @@ async def recon_run(request: ReconRequest):
 
 @app.post("/recon/deep")
 async def recon_deep(request: DeepReconRequest):
+    # AM-4 W-14 (R3.0-P23) WELDED under Scope v0 (same gate as recon_run).
+    from fastapi import HTTPException as _HTTPException
+    try:
+        enforce_broker_mediation(
+            target=request.target,
+            action_type="recon_execute",
+            capability="recon_pipeline",
+            method="recon_deep",
+            impact_estimate=8.0,
+            argv=(request.target,),
+            path_id="R3.0-P23",
+            weld_ticket="W-14",
+        )
+    except WeldNotAuthorized as exc:
+        raise _HTTPException(status_code=403, detail=str(exc))
     task_id = str(uuid.uuid4())
     tasks[task_id] = {"status": "running", "progress": "starting", "result": None}
 

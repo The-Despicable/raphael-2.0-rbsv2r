@@ -1,4 +1,4 @@
-# P3.0 Re-inventory — P0 Diff (post-P2 inventory vs P0 inventory)
+# P3.0 Re-inventory — P0 Diff (post-P2 inventory vs P0 inventory, 001R2 final)
 
 **P0 baseline:** `evidence/phases/P0/02_execution_inventory/execution_paths.md` (157 lines) +
 `subprocess_sites.md` (48 lines) at canonical `7272880f7e4320f5d36ac3b645ff7fc68ea5d0e0`
@@ -8,6 +8,12 @@
 **Canonical change since P0:** `RaphaelRuntime` now exists (`runtime/loop.py`, `stages.py`,
 10 stages); production CLI (`raphael/main.py`) calls it by default with a bound ScopeV0;
 `exec/` owns primitives behind Broker/PEP; SUB-10/SUB-13/SUB-14 welded away; SHELL gated.
+
+**AM-4 update (post-weld):** every "corrected → not-yet-mediated" row below now reads
+WELDED under Scope v0 (uniform gate `enforce_broker_mediation`, fail-closed, legacy
+branches deleted; per-item tickets W-01…W-15 in `WELD_SET.md`; denial proofs in
+`tests/test_am4_weld_gates.py`). The rows are preserved verbatim as the historical
+P0→P3.0 correction record.
 
 ## 1. Added (present post-P2, absent from P0 inventory)
 
@@ -19,6 +25,7 @@
 | A4 | Network-hop execution branch `kali.run → httpx POST :3800/run → subprocess.run` (R3.0-P05/P06/P10) | P0 `_run_local` model was direct-subprocess; post-weld the live branch is remote-HTTP-to-subprocess | `src/orchestrator/kali_tools_client.py:52-82`, `src/kali-tools/server.py` |
 | A5 | `implant_builder.py:599 subprocess.run(shell=True)` (inside test/utility path of the builder) | P0 listed only the three `create_subprocess_exec` sites (SUB-07/08/09) in that file | `src/orchestrator/c2/implant_builder.py:599` |
 | A6 | SHELL gating (`require_shell_authorization`, `ShellNotAuthorized`) — new Broker-mediated control (R3.0-P13) | P0/SEAM_SITES recorded SHELL as deferred/ungated | `src/orchestrator/capabilities/interactive_shell/capability.py:19-85`, WELD-SHELL evidence |
+| A7 | Effect-lexicon expansion (001R2/001R4/001R5/001R6): 150 files under process+network+destructive-file vs P0's 17 asyncio sites — network-only sinks (`kali-tools` hop, scanners, C2 beacon, LLM APIs, OSINT feeds, SMTP, boto3 cloud-enum, Redis eventbus, asyncio port-scan streams), destructive-file sinks (poisoner/pathlib writes, pickle artifacts, session/audit persistence), 13-phase fan-out (9 stubs P26 + 4 real), standalone services (mhddos/recon/sword/implant/phishing/cloak/cai/factory/verifier + `fast_port_scan` CLI) | P0 counted `asyncio.create_subprocess_*` only | `CENSUS.md`, `raw/effect_census.txt` |
 
 ## 2. Removed (in P0, absent post-P2)
 
@@ -47,7 +54,23 @@
 
 **P0 classifications corrected (dead → not-yet-mediated): SUB-04, SUB-05, SUB-06, SUB-07, SUB-08, SUB-09 (6 sites).**
 Reclassified by weld (reachable/direct → welded-closed): SUB-10, SUB-13, SUB-14 (3 sites).
-Re-confirmed dead: SUB-01, SUB-02, SUB-03, SUB-11, SUB-12, SUB-15, SUB-16, SUB-17 (8 sites).
+Re-confirmed dead: SUB-01, SUB-02, SUB-03 (weaponizer, P14).
+
+## 3b. 001R corrections (standalone-service entries — AM-1 completeness)
+
+Task 001 left the primul standalone planes as dead (P14). The 001R whole-tree census
+(CENSUS.md) traces each file to its entries:
+
+| P0 Path ID | 001 label | 001R verdict |
+|---|---|---|
+| SUB-11 (`recon-pipeline/main.py:89`) | dead (P14) | **corrected → not-yet-mediated (P23):** own FastAPI+uvicorn `:3503` service, `/recon/*` → subfinder `create_subprocess_exec` |
+| SUB-12 (`agent/modules/executor.py:16`) | dead (P14) | **dead re-confirmed with corrected trace (P24):** zero importers, no `__main__`, and the `agent/agent.py` implant loop never imports it (it imports persistence/lateral/credtheft/exfil/stealth/inject/audit → P23). Orphaned file in a live plane. |
+| SUB-15/16/17 (`sword/phase_0_recon.py`) | dead (P14) | **corrected → not-yet-mediated (P23):** `sword/pipeline.py` ← `sword/api.py` FastAPI service |
+
+**Final P0 correction list (dead → not-yet-mediated): SUB-04, SUB-05, SUB-06, SUB-07,
+SUB-08, SUB-09, SUB-11, SUB-15, SUB-16, SUB-17 (10 sites).**
+Re-confirmed dead (corrected traces): SUB-01, SUB-02, SUB-03 (P14, no entry at all),
+SUB-12 (P24, orphaned file). Reclassified by weld: SUB-10, SUB-13, SUB-14 (P15/P03).
 
 Line drift note (no semantic change): P1 deprecation-marker headers shifted some P0 line
 numbers at HEAD — SUB-01/02/03 `94/152/199→121/179/226`, SUB-12 `:7→:16`,
@@ -61,7 +84,12 @@ SUB-15/16/17 `88/126/165→115/153/192` (verbatim post-P2 sites in
   collision noted in the deletion inventory is resolved in favor of the Runtime (Caido/Docker/session
   files are gone from the package listing at HEAD).
 - `raphael/main.py` at P0 was the unbrokered Head-1 loop; at HEAD its default path is the canonical
-  Broker-mediated Runtime episode, with Head-1 preserved only as a `RAPHAEL_USE_LEGACY=1` dead branch.
+  Broker-mediated Runtime episode, with Head-1 preserved as a `RAPHAEL_USE_LEGACY=1` branch.
+  001R3 correction: that branch is NOT dead — it is explicit entry surface E-CLI-LEGACY.
+  Its welded subprocess stubs stay P03, but its executing effects are newly classified P27
+  (`cortex/hypothesizer` LLM post, `KaliBridge` httpx attempt, `hippocampus.store` file write).
+  P0's "LEGACY_REACHABLE" label for SUB-13/14 is thus split: primitives welded (P03),
+  network/file effects live (P27).
 - `kali_tools_client.py` at P0/SEAM_SITES was a quarantined bypass (opt-in flag); at HEAD the bypass
   is deleted and the live remote branch is an HTTP hop to an unauthenticated subprocess runner.
 - `Planner.decide allowed=True` (P0 "misleading comment") is unchanged as selection-only semantics,

@@ -1,0 +1,44 @@
+=== 001R6 BOUNDED FALSE-NEGATIVE CLOSURE — scan_source behaviour ===
+
+--- FN1 pathlib import alias (CLOSE)
+    findings: [(2, 'Path.write_text', 'call')]
+
+--- FN2 module-level for-glob target (CLOSE)
+    findings: [(3, 'f.write_text', 'call')]
+
+--- FN3 comprehension target (CLOSE)
+    findings: [(2, 'f.write_text', 'call')]
+
+--- FN4a inline boto3.Session().client (CLOSE)
+    findings: [(2, 'boto3.Session', 'call'), (2, 'boto3.Session.client', 'call')]
+
+--- FN4b aliased import boto3 as b (CLOSE)
+    findings: [(2, 'boto3.client', 'call')]
+
+--- DEDUP from boto3 import client (CLOSE)
+    findings: [(2, 'boto3.client', 'call')]
+
+--- DEDUP from smtplib import SMTP (CLOSE)
+    findings: [(2, 'smtplib.SMTP', 'call')]
+
+--- NEG arbitrary glob comprehension (clean)
+    findings: NONE (clean)
+
+--- NEG arbitrary .ping/.get (clean)
+    findings: NONE (clean)
+
+--- NEG fakeredis (clean)
+    findings: NONE (clean)
+
+--- NEG bare redis import (clean)
+    findings: NONE (clean)
+
+--- REDIS from_url (flag)
+    findings: [(2, 'redis.from_url', 'call')]
+
+--- REDIS async alias + ops (flag)
+    findings: [(3, 'redis.from_url', 'call'), (4, 'redis.xreadgroup', 'call')]
+
+--- REDIS self-attr + property (flag)
+    findings: [(4, 'redis.from_url', 'call'), (9, 'redis.ping', 'call'), (10, 'redis.xadd', 'call')]
+

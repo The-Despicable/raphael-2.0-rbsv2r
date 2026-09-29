@@ -133,6 +133,18 @@ pre {{ background: #111; padding: 10px; border-left: 3px solid #00ff00; }}
         return html
 
     def save(self, directory: str = "/tmp/sword_reports"):
+        # AM-4-R2 W-14 (R3.0-P23) shared-sink defense (§4): report artifact
+        # writes must not run outside Broker mediation. Fail-closed.
+        from orchestrator.auth import enforce_broker_mediation
+        enforce_broker_mediation(
+            target="sword-report",
+            action_type="sword_execute",
+            capability="sword.report",
+            method="save",
+            impact_estimate=5.0,
+            path_id="R3.0-P23",
+            weld_ticket="W-14",
+        )
         os.makedirs(directory, exist_ok=True)
         safe_target = self.target.replace("://", "_").replace("/", "_").replace(":", "_")
         base = os.path.join(directory, f"sword_{safe_target}_{self.timestamp}")

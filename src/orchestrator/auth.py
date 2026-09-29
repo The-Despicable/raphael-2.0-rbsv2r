@@ -1,10 +1,13 @@
 """API key authentication with scope-based access control."""
 import hashlib
+import logging
 import os
 import secrets
 import time
 from fastapi import Header, HTTPException
 from typing import Optional
+
+logger = logging.getLogger("orchestrator.auth")
 
 API_KEYS: dict[str, dict] = {}
 
@@ -125,3 +128,90 @@ def generate_key(role: str = "operator") -> tuple[str, str]:
         "created": time.time(),
     }
     return key, f"{role}|{','.join(API_KEYS[kh]['scopes'])}|{key}"
+
+
+class WeldNotAuthorized(Exception):
+    """Fail-closed denial for AM-4 welded paths (v4.1 AM-4 / ADR-012).
+
+    Raised when a welded legacy execution site is invoked without a valid
+    Broker-issued authorization. The message carries the WELD_SET path id and
+    the weld ticket. Callers must NOT catch-and-continue past this exception;
+    HTTP handlers map it to 403 via require_broker_mediation.
+    """
+
+
+def enforce_broker_mediation(
+    *,
+    target: str,
+    action_type: str,
+    capability: str,
+    method: str,
+    impact_estimate: float,
+    argv: tuple = (),
+    broker=None,
+    path_id: str = "",
+    weld_ticket: str = "WELD-AM4",
+):
+    """AM-4 weld gate: propose to the canonical Broker PDP and enforce.
+
+    Builds the canonical broker via the bootstrap-v0/Scope-v0 factory when no
+    broker is supplied, proposes the action with the caller's exact dimensions,
+    and returns the receipt iff the decision is AUTHORIZED. Any other outcome
+    (DENIED, error, missing broker) raises WeldNotAuthorized (fail-closed).
+
+    This is the single shared enforcement point for all AM-4 welds (ADR-012
+    weld semantics: seam fixed ON = permanently routed through Broker/PEP).
+    No bypass flag, no unsafe mode. Imports are lazy so importing this module
+    never pulls the brain/runtime graph at import time.
+    """
+    from orchestrator.runtime.policy import make_broker_from_bootstrap
+    from orchestrator.hardening.action_receipt import ActionProposalStatus
+
+    if broker is None:
+        broker = make_broker_from_bootstrap()
+    receipt = broker.propose_action(
+        target=target,
+        action_type=action_type,
+        capability=capability,
+        method=method,
+        impact_estimate=impact_estimate,
+        authorized_argv=tuple(argv),
+    )
+    if receipt.status is not ActionProposalStatus.AUTHORIZED:
+        raise WeldNotAuthorized(
+            f"AM-4 welded path denied by Broker "
+            f"(path={path_id or 'unknown'} ticket={weld_ticket} "
+            f"action={action_type} capability={capability} status={receipt.status}): "
+            f"legacy unbrokered execution is removed; all execution must go "
+            f"through the broker-gated capability."
+        )
+    return receipt
+
+
+def require_broker_mediation(
+    *,
+    target: str,
+    action_type: str,
+    capability: str,
+    method: str,
+    impact_estimate: float,
+    argv: tuple = (),
+    path_id: str = "",
+    weld_ticket: str = "WELD-AM4",
+):
+    """FastAPI dependency: AM-4 broker mediation with 403 fail-closed mapping."""
+    async def dependency():
+        try:
+            return enforce_broker_mediation(
+                target=target,
+                action_type=action_type,
+                capability=capability,
+                method=method,
+                impact_estimate=impact_estimate,
+                argv=tuple(argv),
+                path_id=path_id,
+                weld_ticket=weld_ticket,
+            )
+        except WeldNotAuthorized as exc:
+            raise HTTPException(status_code=403, detail=str(exc))
+    return dependency

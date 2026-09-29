@@ -115,6 +115,22 @@ async def handle(
     Returns:
         Dict with findings, chains, novel techniques, and report
     """
+    # AM-4 W-12 (R3.0-P19) WELDED under Scope v0: the unbrokered student
+    # lifecycle (proposal_only + unbrokered profile/research emission) is
+    # deleted as an executable path. Every call proposes to the canonical
+    # Broker (fail-closed WeldNotAuthorized unless AUTHORIZED). A caller-
+    # supplied capability_broker is additionally honored downstream.
+    from orchestrator.auth import enforce_broker_mediation
+    enforce_broker_mediation(
+        target=target,
+        action_type="student_execute",
+        capability="modes.student",
+        method="handle",
+        impact_estimate=8.0,
+        argv=(target, target_type),
+        path_id="R3.0-P19",
+        weld_ticket="W-12",
+    )
     logger.info("🎓 [Student] Engaging target: %s (type=%s, deep=%s, research=%s)",
                  target, target_type, deep, do_research)
 

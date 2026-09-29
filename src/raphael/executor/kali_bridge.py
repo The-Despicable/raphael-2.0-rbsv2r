@@ -45,7 +45,21 @@ class KaliBridge:
         """
         Run a tool via the Kali bridge.
         Tries /run endpoint first, falls back to subprocess.
+        AM-4 W-15 (R3.0-P27) WELDED under Scope v0: the unbrokered network
+        attempt is deleted as an executable path. Every call proposes to the
+        canonical Broker (fail-closed WeldNotAuthorized unless AUTHORIZED).
         """
+        from orchestrator.auth import enforce_broker_mediation
+        enforce_broker_mediation(
+            target="kali-bridge",
+            action_type="tool_execute",
+            capability="kali_bridge",
+            method="run",
+            impact_estimate=8.0,
+            argv=(tool, args),
+            path_id="R3.0-P27",
+            weld_ticket="W-15",
+        )
         await self._ensure_session()
 
         # Try API first
