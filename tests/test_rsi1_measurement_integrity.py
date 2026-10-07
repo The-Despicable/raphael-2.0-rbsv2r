@@ -87,6 +87,27 @@ def build_fixture_repo(tmp_path: Path, *, rows=None, n_rows=3,
                         holdout_anchor_sha256=_sha(anchor_path.read_bytes()),
                         holdout_required_row_keys=("run_id",))
 
+    # SYNTHETIC-AUTHORITY: an adoption registry for the configs this suite
+    # exercises, so Phase 2's adoption gate does not mask the Phase 1
+    # containment controls under test. Lives only under tmp_path.
+    adopted_configs = [
+        GateConfig(config_id="adopted", campaign_id="c",
+                   min_runs_per_arm=20, min_effect_size=0.05),
+        GateConfig(config_id="with-alpha", campaign_id="with-alpha-campaign",
+                   min_runs_per_arm=20, significance_level=0.05),
+    ]
+    adopt_rel = "evaluations/campaign/fixture_adopted_configs.json"
+    adopt_path = root / adopt_rel
+    adopt_path.parent.mkdir(parents=True, exist_ok=True)
+    adopt_path.write_text(json.dumps({
+        "schema_version": 1,
+        "entries": [{"adoption_id": f"fixture-adopted-{i}",
+                     "campaign_id": cfg.campaign_id, "version": 1,
+                     "status": "ACTIVE", "config_digest": cfg.config_digest,
+                     "config": cfg.to_dict()}
+                    for i, cfg in enumerate(adopted_configs)],
+    }, sort_keys=True), encoding="utf-8")
+
     if include_evidence:
         artefacts = {}
         for kind in eg.ATTESTATION_KINDS:
@@ -105,9 +126,35 @@ def build_fixture_repo(tmp_path: Path, *, rows=None, n_rows=3,
             holdout_anchor_sha256=_sha(anchor_path.read_bytes()),
             holdout_required_row_keys=("run_id",),
             evidence_index_file=idx_rel,
-            evidence_index_sha256=_sha(idx_path.read_bytes()))
+            evidence_index_sha256=_sha(idx_path.read_bytes()),
+            adopted_config_registry_file=adopt_rel,
+            adopted_config_registry_sha256=_sha(adopt_path.read_bytes()))
 
     return root, anchors, anchor_rel
+
+
+def _anchor_without_evidence(anchors):
+    """Drop ONLY the evidence-index anchor, keeping holdout + adoption pinned.
+
+    Used to show that withdrawing the evidence index blocks the GLM-contract
+    gates, independently of the adoption gate.
+    """
+    return AnchorSet(
+        holdout_anchor_file=anchors.holdout_anchor_file,
+        holdout_anchor_sha256=anchors.holdout_anchor_sha256,
+        holdout_required_row_keys=anchors.holdout_required_row_keys,
+        adopted_config_registry_file=anchors.adopted_config_registry_file,
+        adopted_config_registry_sha256=anchors.adopted_config_registry_sha256)
+
+
+def _anchor_without_adoption(anchors):
+    """Drop ONLY the adoption anchor."""
+    return AnchorSet(
+        holdout_anchor_file=anchors.holdout_anchor_file,
+        holdout_anchor_sha256=anchors.holdout_anchor_sha256,
+        holdout_required_row_keys=anchors.holdout_required_row_keys,
+        evidence_index_file=anchors.evidence_index_file,
+        evidence_index_sha256=anchors.evidence_index_sha256)
 
 
 @pytest.fixture
@@ -118,10 +165,22 @@ def fixture(tmp_path, monkeypatch):
     return root, anchors
 
 
-def _record(cfg, *, root=None, anchors=None, **overrides):
-    """Mint a record whose claims match the DERIVED authority (legitimate shape)."""
+def _record(cfg, *, root=None, anchors=None, finalize=True, **overrides):
+    """Mint a record whose claims match the DERIVED authority.
+
+    ``finalize=True`` (the default) produces an ADMISSIBLE draft: the input
+    binding, gate outcomes and final state are all derived, so the record is
+    consistent with current authority and the ledger will accept it.
+
+    ``finalize=False`` keeps the deliberately inconsistent draft shape used by
+    the negative tests, so a mismatch can be introduced explicitly rather than
+    by accident.
+    """
     identity = EvaluatorIdentity.compute_current(cfg).identity
-    auth = build_authority(cfg, runs_candidate=40, runs_baseline=40, effect=0.2)
+    runs = overrides.get("runs_candidate", 40)
+    runs_b = overrides.get("runs_baseline", 40)
+    auth = build_authority(cfg, runs_candidate=runs, runs_baseline=runs_b,
+                           effect=overrides.get("effect", 0.2))
     base = dict(
         decision_id="d1", campaign_id=cfg.campaign_id, evaluator_identity=identity,
         evaluator_label="fixture", gate_config_digest=cfg.config_digest,
@@ -130,7 +189,7 @@ def _record(cfg, *, root=None, anchors=None, **overrides):
         holdout_sha256=auth.holdout.expected_sha256,
         holdout_row_count=auth.holdout.measured_rows or 3,
         holdout_evaluation_refs=("ref-holdout",), replay_evaluation_refs=("ref-replay",),
-        metrics=(("verified_rate", 0.9),), gate_outcomes=(("g", "PASS"),),
+        metrics=(("verified_rate", 0.9),), gate_outcomes=(),
         selection_history_refs=(), evidence_refs=("ref-ev",),
         parent_lineage=("parent",), rollback_target="parent",
         baseline_policy_hash="b" * 64, candidate_policy_hash="c" * 64,
@@ -138,9 +197,19 @@ def _record(cfg, *, root=None, anchors=None, **overrides):
         reviewer_authority="independent-reviewer",
         runs_candidate=40, runs_baseline=40, exclusions=0, effect=0.2,
         replay_evidence_complete=True, safety_passed=True,
-        final_state="PENDING")
+        final_state=STATE_INDEPENDENT_HOLDOUT)
     base.update(overrides)
-    return EvaluationDecisionRecord.mint(**base)
+    record = EvaluationDecisionRecord.mint(**base)
+    if not finalize:
+        return record
+
+    # Derive the authoritative fields exactly as admission will.
+    derived = classify_promotion_eligibility(record, cfg)
+    payload = {k: v for k, v in record.to_dict().items() if k != "content_hash"}
+    payload["gate_outcomes"] = [list(g) for g in derived.gates]
+    payload["final_state"] = derived.state
+    payload["inputs_digest"] = eg.derive_record_inputs_digest(record, auth)
+    return EvaluationDecisionRecord.mint(**payload)
 
 
 def _fabricated_record(cfg, **overrides):
@@ -586,33 +655,295 @@ def test_d6_idempotent_re_ingest(fixture, tmp_path):
     assert len(ledger.all()) == 1
 
 
-def test_d7_pass_after_blocked_on_same_inputs_refused(fixture, tmp_path):
-    """A blocked decision cannot be superseded by re-labelling the same run."""
+def test_d7_local_replay_cannot_be_stored_as_eligible(fixture, tmp_path):
+    """THE decisive containment exploit.
+
+    derived LOCAL_REPLAY, submitted PROMOTION_ELIGIBLE -> REFUSE, and nothing is
+    written. This is a containment test only: it does not assert that any real
+    evaluation authority exists.
+    """
+    path = tmp_path / "ledger.jsonl"
+    rec = _record(ADOPTED, finalize=False, holdout_evaluation_refs=(),
+                  final_state=STATE_PROMOTION_ELIGIBLE)
+    derived = classify_promotion_eligibility(rec, ADOPTED)
+    assert derived.state == STATE_LOCAL_REPLAY
+    assert not derived.hard_failures()
+    with pytest.raises(EvaluationGateError, match="final_state mismatch"):
+        DecisionLedger(path).append(rec, ADOPTED)
+    assert not path.exists()
+
+
+def test_d8_first_candidate_does_not_bypass_state_check(fixture, tmp_path):
+    """derived BLOCKED/INADEQUATE, submitted ELIGIBLE -> REFUSE."""
+    rec = _record(ADOPTED, finalize=False, runs_candidate=1, runs_baseline=1,
+                  final_state=STATE_PROMOTION_ELIGIBLE)
+    derived = classify_promotion_eligibility(rec, ADOPTED)
+    assert derived.state == STATE_STATISTICALLY_INADEQUATE
+    with pytest.raises(EvaluationGateError, match="final_state mismatch"):
+        DecisionLedger(tmp_path / "ledger.jsonl").append(rec, ADOPTED)
+
+
+def test_d9_refusal_still_blocks_false_eligible_state(fixture, tmp_path):
+    """derived REFUSE, submitted ELIGIBLE -> REFUSE at the refusal gate."""
+    rec = _record(ADOPTED, finalize=False, evaluator_identity="a" * 64,
+                  final_state=STATE_PROMOTION_ELIGIBLE)
+    with pytest.raises(EvaluationGateError, match="refused at admission"):
+        DecisionLedger(tmp_path / "ledger.jsonl").append(rec, ADOPTED)
+
+
+def test_d10_gate_outcomes_mismatch_refused(fixture, tmp_path):
+    rec = _record(ADOPTED)
+    payload = {k: v for k, v in rec.to_dict().items() if k != "content_hash"}
+    payload["gate_outcomes"] = [["g", "PASS"]]
+    forged = EvaluationDecisionRecord.mint(**payload)
+    with pytest.raises(EvaluationGateError, match="gate_outcomes mismatch"):
+        DecisionLedger(tmp_path / "l.jsonl").append(forged, ADOPTED)
+
+
+def test_d11_inputs_digest_mismatch_refused(fixture, tmp_path):
+    rec = _record(ADOPTED)
+    payload = {k: v for k, v in rec.to_dict().items() if k != "content_hash"}
+    payload["inputs_digest"] = "0" * 64
+    forged = EvaluationDecisionRecord.mint(**payload)
+    with pytest.raises(EvaluationGateError, match="inputs_digest mismatch"):
+        DecisionLedger(tmp_path / "l.jsonl").append(forged, ADOPTED)
+
+
+def test_d12_stale_config_append_refused(fixture, tmp_path):
+    rec = _record(ADOPTED)
+    other = GateConfig(config_id="adopted", campaign_id="c", min_runs_per_arm=21,
+                       min_effect_size=0.05)
+    with pytest.raises(EvaluationGateError, match="refused at admission"):
+        DecisionLedger(tmp_path / "l.jsonl").append(rec, other)
+
+
+def test_d13_stale_evaluator_append_refused(fixture, tmp_path):
+    rec = _record(ADOPTED)
+    victim = eg._REPO_ROOT / eg.EVALUATOR_COMPONENT_MODULES[2]
+    victim.write_text(victim.read_text(encoding="utf-8") + "\n# stale\n",
+                      encoding="utf-8")
+    with pytest.raises(EvaluationGateError, match="refused at admission"):
+        DecisionLedger(tmp_path / "l.jsonl").append(rec, ADOPTED)
+
+
+def test_d14_valid_matching_state_is_accepted(fixture, tmp_path):
     ledger = DecisionLedger(tmp_path / "l.jsonl")
-    blocked = _record(ADOPTED, decision_id="d-blocked", final_state=STATE_UNVERIFIABLE_INPUTS,
-                      evaluator_identity="a" * 64)
-    with pytest.raises(EvaluationGateError):
-        ledger.append(blocked, ADOPTED)
-    # simulate a prior blocked decision landing in the ledger
-    ledger._index[blocked.decision_id] = blocked
-    ledger._lineage[blocked.candidate_policy_hash] = blocked.final_state
-    supersede = _record(ADOPTED, decision_id="d-pass",
-                        final_state=STATE_PROMOTION_ELIGIBLE, inputs_digest="a" * 64,
-                        parent_lineage=("d-blocked",))
+    rec = _record(ADOPTED)
+    assert classify_promotion_eligibility(rec, ADOPTED).state == rec.final_state
+    ledger.append(rec, ADOPTED)
+    assert ledger.get(rec.decision_id) is not None
+    assert path_exists(tmp_path / "l.jsonl")
+
+
+def path_exists(p):
+    return p.exists()
+
+
+def test_d15_duplicate_reingest_is_revalidated(fixture, tmp_path):
+    """An identical stored record must NOT bypass fresh authority checks."""
+    path = tmp_path / "l.jsonl"
+    rec = _record(ADOPTED)
+    ledger = DecisionLedger(path)
+    ledger.append(rec, ADOPTED)
+    # evaluator changes AFTER a legitimate admission: re-ingest must now fail,
+    # where the old code returned early on identical content.
+    victim = eg._REPO_ROOT / eg.EVALUATOR_COMPONENT_MODULES[3]
+    victim.write_text(victim.read_text(encoding="utf-8") + "\n# drift\n",
+                      encoding="utf-8")
+    reloaded = DecisionLedger(path)
+    with pytest.raises(EvaluationGateError, match="refused at admission"):
+        reloaded.append(rec, ADOPTED)
+
+
+def test_d16_record_altered_after_minting_refused(fixture, tmp_path):
+    rec = _record(ADOPTED)
+    assert rec.is_intact()
+    object.__setattr__(rec, "rollback_target", "attacker-policy")
+    assert not rec.is_intact()
+    with pytest.raises(EvaluationGateError, match="changed after minting"):
+        DecisionLedger(tmp_path / "l.jsonl").append(rec, ADOPTED)
+
+
+def test_d17_non_state_final_string_refused(fixture, tmp_path):
+    """BLOCKED/REFUSE are gate statuses, never final states."""
+    rec = _record(ADOPTED, finalize=False, final_state="BLOCKED")
+    with pytest.raises(EvaluationGateError, match="not an evaluation state"):
+        DecisionLedger(tmp_path / "l.jsonl").append(rec, ADOPTED)
+
+
+def test_d18_historical_record_remains_readable(fixture, tmp_path):
+    """A record admitted legitimately stays readable after it stops being
+    current authority. Historical information is never destroyed."""
+    path = tmp_path / "l.jsonl"
+    rec = _record(ADOPTED)
+    DecisionLedger(path).append(rec, ADOPTED)
+    victim = eg._REPO_ROOT / eg.EVALUATOR_COMPONENT_MODULES[4]
+    victim.write_text(victim.read_text(encoding="utf-8") + "\n# drift\n",
+                      encoding="utf-8")
+    stale = DecisionLedger(path)
+    stored = stale.get(rec.decision_id)
+    assert stored is not None                      # readable
+    assert stored.final_state == rec.final_state   # history preserved verbatim
+    assert stale.historical_states()[stored.candidate_policy_hash] == rec.final_state
+    assert stale.current_authority(rec.decision_id, ADOPTED) is None   # not authority
+    assert rec.final_state not in stale.final_states(ADOPTED).values()
+
+
+def test_d19_final_states_requires_config(fixture, tmp_path):
+    ledger = DecisionLedger(tmp_path / "l.jsonl")
+    with pytest.raises(EvaluationGateError, match="historical claims"):
+        ledger.final_states()
+
+
+def test_d20_forged_eligibility_not_exposed_as_authority(fixture, tmp_path):
+    """A hand-forged ledger file claiming eligibility must not surface it."""
+    path = tmp_path / "l.jsonl"
+    forged = _record(ADOPTED, finalize=False,
+                     final_state=STATE_PROMOTION_ELIGIBLE)
+    path.write_text(json.dumps(forged.to_dict(), sort_keys=True) + "\n",
+                    encoding="utf-8")
+    ledger = DecisionLedger(path)                 # readable
+    stored = ledger.get(forged.decision_id)
+    assert stored is not None
+    assert stored.final_state == STATE_PROMOTION_ELIGIBLE   # the historical claim
+    # ...but it is NOT current authority:
+    assert ledger.current_authority(forged.decision_id, ADOPTED) is None
+    assert STATE_PROMOTION_ELIGIBLE not in ledger.final_states(ADOPTED).values()
+
+
+def test_d21_insertion_order_not_lexical_for_lineage(fixture, tmp_path):
+    """Lineage must follow insertion order, not lexical decision_id order."""
+    ledger = DecisionLedger(tmp_path / "l.jsonl")
+    first = _record(ADOPTED, decision_id="z-first")
+    second = _record(ADOPTED, decision_id="a-second")
+    ledger.append(first, ADOPTED)
+    ledger.append(second, ADOPTED)
+    assert ledger.insertion_order() == ("z-first", "a-second")
+    assert ledger._latest_for_candidate("c" * 64).decision_id == "a-second"
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# D-1. Lineage supersession controls (restored coverage)
+#
+# These three behaviours are enforced by
+# ``DecisionLedger._check_lineage`` (roadmap INV-21, L26). They were exercised
+# indirectly before; this section asserts each control explicitly so a future
+# refactor cannot silently weaken lineage monotonicity.
+#
+# They run against the SYNTHETIC-AUTHORITY fixture (an adopted config under
+# tmp_path) so that the Phase 2 adoption gate does not mask the lineage
+# behaviour. No production adoption artifact is created.
+# ══════════════════════════════════════════════════════════════════════════
+
+def _superseding(cfg, decision_id, parent_lineage, **overrides):
+    """A record that is fully FINALISED and therefore admissible on its own."""
+    return _record(cfg, decision_id=decision_id,
+                   parent_lineage=parent_lineage, **overrides)
+
+
+def test_legitimate_supersession_is_accepted(fixture, tmp_path):
+    """POSITIVE CONTROL: a replay decision is superseded by a genuinely new,
+    independently derived evaluation that names its predecessor.
+
+    Proves the lineage controls do not simply refuse everything.
+    """
+    path = tmp_path / "l.jsonl"
+    ledger = DecisionLedger(path)
+    replay = _record(ADOPTED, decision_id="A-replay", holdout_evaluation_refs=())
+    assert replay.final_state == STATE_LOCAL_REPLAY
+    ledger.append(replay, ADOPTED)
+
+    successor = _superseding(ADOPTED, "B-eligible", ("A-replay",))
+    assert successor.final_state == STATE_PROMOTION_ELIGIBLE
+    assert successor.inputs_digest != replay.inputs_digest   # genuinely new inputs
+
+    assert ledger.append(successor, ADOPTED) == "B-eligible"
+    assert ledger.final_states(ADOPTED) == {
+        successor.candidate_policy_hash: STATE_PROMOTION_ELIGIBLE}
+    # the predecessor remains readable history
+    assert ledger.get("A-replay") is not None
+    assert ledger.insertion_order() == ("A-replay", "B-eligible")
+
+
+def test_supersession_without_predecessor_is_refused(fixture, tmp_path):
+    """A superseding decision that does not NAME its predecessor is refused.
+
+    Reached through the ordinary admission path: the successor is otherwise
+    fully consistent and carries genuinely distinct derived inputs, so only the
+    lineage rule can refuse it.
+    """
+    ledger = DecisionLedger(tmp_path / "l.jsonl")
+    replay = _record(ADOPTED, decision_id="A-replay", holdout_evaluation_refs=())
+    ledger.append(replay, ADOPTED)
+
+    successor = _superseding(ADOPTED, "B-unlinked", ("some-other-parent",))
+    assert successor.final_state == STATE_PROMOTION_ELIGIBLE
     with pytest.raises(EvaluationGateError, match="lineage violation"):
-        ledger.append(supersede, ADOPTED)
+        ledger.append(successor, ADOPTED)
+    assert len(ledger.all()) == 1                     # nothing was written
 
 
-def test_d8_superseding_requires_distinct_inputs_and_lineage(fixture, tmp_path):
+def test_same_inputs_supersession_is_refused(fixture, tmp_path):
+    """ISOLATED-UNIT: a blocked decision cannot be re-labelled on the SAME
+    evaluation inputs.
+
+    The predecessor is seeded directly into the ledger indexes to represent a
+    historical record written under the pre-Phase-1 digest regime, which did not
+    bind ``decision_id`` into ``inputs_digest``. Seeding is required because the
+    duplicate-id guard would otherwise fire first for a same-digest record; the
+    superseding record itself is ordinary, self-consistent, and admitted only if
+    the lineage rule allows it.
+    """
     ledger = DecisionLedger(tmp_path / "l.jsonl")
-    blocked = _record(ADOPTED, decision_id="d-blocked",
-                      final_state=STATE_STATISTICALLY_INADEQUATE)
-    ledger._index[blocked.decision_id] = blocked
-    ledger._lineage[blocked.candidate_policy_hash] = blocked.final_state
-    good = _record(ADOPTED, decision_id="d-pass", final_state=STATE_PROMOTION_ELIGIBLE,
-                   inputs_digest="e" * 64, parent_lineage=("d-blocked",))
-    ledger.append(good, ADOPTED)          # legitimate supersession is allowed
-    assert ledger.final_states()[good.candidate_policy_hash] == STATE_PROMOTION_ELIGIBLE
+    replay = _record(ADOPTED, decision_id="A-replay", holdout_evaluation_refs=())
+    ledger.append(replay, ADOPTED)
+
+    successor = _superseding(ADOPTED, "B-same-inputs", ("A-replay",))
+    assert successor.final_state == STATE_PROMOTION_ELIGIBLE
+
+    legacy_payload = {k: v for k, v in replay.to_dict().items()
+                      if k != "content_hash"}
+    legacy_payload["decision_id"] = "HIST-legacy"
+    legacy_payload["final_state"] = STATE_STATISTICALLY_INADEQUATE
+    legacy_payload["gate_outcomes"] = [["statistical_adequacy", "BLOCKED"]]
+    legacy_payload["inputs_digest"] = successor.inputs_digest   # SAME derived inputs
+    legacy = EvaluationDecisionRecord.mint(**legacy_payload)
+
+    ledger._index[legacy.decision_id] = legacy
+    ledger._order.append(legacy.decision_id)
+    ledger._lineage[legacy.candidate_policy_hash] = legacy.final_state
+    assert ledger._latest_for_candidate(legacy.candidate_policy_hash) is legacy
+
+    with pytest.raises(EvaluationGateError, match="lineage violation"):
+        ledger.append(successor, ADOPTED)
+    assert len(ledger.all()) == 2                     # only the seeded + replay
+
+
+def test_superseding_record_with_duplicate_decision_id_is_refused(fixture,
+                                                                  tmp_path):
+    """Reusing an existing decision_id with different content hits the
+    append-only guard, which runs BEFORE the lineage rules."""
+    ledger = DecisionLedger(tmp_path / "l.jsonl")
+    first = _record(ADOPTED, decision_id="B-eligible")
+    ledger.append(first, ADOPTED)
+    clash = _record(ADOPTED, decision_id="B-eligible", effect=0.9)
+    with pytest.raises(EvaluationGateError, match="append-only"):
+        ledger.append(clash, ADOPTED)
+
+
+def test_lineage_predecessor_follows_insertion_order_not_lexical_id(fixture,
+                                                                   tmp_path):
+    """The predecessor is the most recently INSERTED decision for the candidate,
+    even when a lexically LATER id exists earlier in the ledger."""
+    ledger = DecisionLedger(tmp_path / "l.jsonl")
+    zzz = _record(ADOPTED, decision_id="zzz-first")     # lexically LAST, inserted FIRST
+    aaa = _record(ADOPTED, decision_id="aaa-second")    # lexically FIRST, inserted LAST
+    ledger.append(zzz, ADOPTED)
+    ledger.append(aaa, ADOPTED)
+    latest = ledger._latest_for_candidate("c" * 64)
+    assert latest.decision_id == "aaa-second"           # insertion, not lexical
+    assert max(["zzz-first", "aaa-second"]) == "zzz-first"   # lexical would differ
+    assert latest.decision_id != "zzz-first"
 
 
 def test_d9_tampered_ledger_line_is_detected(fixture, tmp_path):
@@ -671,33 +1002,46 @@ def test_e2_full_authority_reaches_eligible_then_evidence_index_withdrawal_block
     root, anchors, _ = build_fixture_repo(tmp_path, include_evidence=True)
     monkeypatch.setattr(eg, "_REPO_ROOT", root)
     monkeypatch.setattr(eg, "AUTHORITATIVE_ANCHORS", anchors)
-    cfg = GateConfig(config_id="f", campaign_id="c", min_runs_per_arm=20,
-                     min_effect_size=0.05)
+    # ADOPTED is the SYNTHETIC-AUTHORITY config pinned by build_fixture_repo, so
+    # the Phase 2 adoption gate passes here and the evidence-index withdrawal is
+    # what actually blocks the second half of this test.
+    cfg = ADOPTED
     rec = _record(cfg)
     a = classify_promotion_eligibility(rec, cfg)
     assert a.state == STATE_PROMOTION_ELIGIBLE, a.reasons
+    assert a.gate("configuration_adopted") == STATUS_PASS
     for gate in ("safety", "replay_evidence_complete", "retention_result",
                  "transfer_result", "stability_result", "resource_budget",
                  "protocol_preregistered", "metrics_frozen", "reviewer_authority"):
         assert a.gate(gate) == STATUS_PASS, gate
 
-    # a fresh record in a repo with NO adopted evidence index
-    root2, anchors2, _ = build_fixture_repo(tmp_path / "second", include_evidence=False)
-    monkeypatch.setattr(eg, "_REPO_ROOT", root2)
-    monkeypatch.setattr(eg, "AUTHORITATIVE_ANCHORS", anchors2)
+    # Same synthetic repo, with ONLY the evidence-index anchor withdrawn.
+    # Adoption stays pinned, so the GLM-contract gates are what block.
+    monkeypatch.setattr(eg, "AUTHORITATIVE_ANCHORS", _anchor_without_evidence(anchors))
     rec2 = _record(cfg)
     b = classify_promotion_eligibility(rec2, cfg)
     assert b.state == STATE_INDEPENDENT_HOLDOUT, b.reasons
-    assert b.gate("safety") == STATUS_BLOCKED
+    assert b.gate("configuration_adopted") == STATUS_PASS      # adoption held
+    assert b.gate("safety") == STATUS_BLOCKED                  # index withdrawn
     assert b.gate("retention_result") == STATUS_BLOCKED
     assert b.gate("independent_holdout") == STATUS_PASS
+
+    # And with ONLY the adoption anchor withdrawn, the authoritative path refuses.
+    monkeypatch.setattr(eg, "AUTHORITATIVE_ANCHORS", _anchor_without_adoption(anchors))
+    c = classify_promotion_eligibility(_record(cfg), cfg)
+    assert c.gate("configuration_adopted") == STATUS_REFUSE
+    assert c.state == STATE_UNVERIFIABLE_INPUTS
 
 
 def test_e3_legitimate_path_is_not_vacuously_blocked(fixture):
     """The remediation must not simply break everything."""
     a = classify_promotion_eligibility(_record(ADOPTED), ADOPTED)
     assert a.state == STATE_PROMOTION_ELIGIBLE, a.reasons
-    assert all(s == STATUS_PASS for _, s in a.gates)
+    # configuration_adoption_status is an informational gate reporting the
+    # resolved adoption status, so it is not a PASS/REFUSE verdict.
+    verdicts = [s for n, s in a.gates if n != "configuration_adoption_status"]
+    assert all(s == STATUS_PASS for s in verdicts), a.gates
+    assert a.gate("configuration_adoption_status") == "ADOPTED"
 
 
 def test_e4_blocking_conditions_can_only_add_blocks(fixture):

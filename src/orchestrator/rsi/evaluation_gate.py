@@ -133,9 +133,39 @@ class AnchorSet:
     holdout_required_row_keys: Tuple[str, ...] = ("run_id",)
     evidence_index_file: Optional[str] = None
     evidence_index_sha256: Optional[str] = None
+    #: Source-pinned location of the ADOPTED evaluation-configuration registry.
+    #: Both remain ``None`` in this repository: no production evaluation
+    #: configuration has been adopted, so ``resolve_config_adoption`` reports
+    #: ``UNADOPTED_CONFIG``. This is the correct production state, not a gap to
+    #: be filled by inventing a registry.
+    adopted_config_registry_file: Optional[str] = None
+    adopted_config_registry_sha256: Optional[str] = None
 
     def evidence_index_adopted(self) -> bool:
         return bool(self.evidence_index_file and self.evidence_index_sha256)
+
+    def config_registry_adopted(self) -> bool:
+        return bool(self.adopted_config_registry_file
+                    and self.adopted_config_registry_sha256)
+
+    def anchor_identity(self) -> Dict[str, Any]:
+        """FULL anchor identity, bound into :attr:`EvaluatorIdentity.anchors_digest`.
+
+        The previous implementation recorded only whether an evidence index was
+        adopted, not which one, so two different pinned index identities produced
+        the same evaluator identity. The full identity of every anchor is now
+        bound, which is what makes "same evaluator code + different adopted
+        config" distinguishable from "same evaluator code + same adopted config".
+        """
+        return {
+            "adopted_config_registry_file": self.adopted_config_registry_file,
+            "adopted_config_registry_sha256": self.adopted_config_registry_sha256,
+            "evidence_index_file": self.evidence_index_file,
+            "evidence_index_sha256": self.evidence_index_sha256,
+            "holdout_anchor_file": self.holdout_anchor_file,
+            "holdout_anchor_sha256": self.holdout_anchor_sha256,
+            "holdout_required_row_keys": list(self.holdout_required_row_keys),
+        }
 
 
 #: Pinned to the bytes of evaluations/campaign/rbs_v4_reproducibility_manifest.json
@@ -189,7 +219,14 @@ EVALUATOR_COMPONENT_MODULES: Tuple[str, ...] = (
     "src/orchestrator/exec/capability_governance.py",
     "src/orchestrator/brain/action.py",
     "src/arena/ablation.py",
-    "src/arena/manifests.py",
+    # NOTE: "src/arena/manifests.py" was previously listed here. It has never
+    # existed in any commit on any branch (verified with `git log --all` and
+    # `git rev-list --all --objects`), so the entry made identity.complete
+    # permanently False and every real decision record REFUSE. It was removed
+    # rather than replaced or satisfied: a directory of JSON specs is not an
+    # evaluator module, and `src/arena/d6_manifest.py` is NOT a substitute
+    # merely because its name resembles it. Do not re-add a component without
+    # dependency tracing that shows it materially affects evaluation semantics.
 )
 
 PLACEHOLDER_EVALUATOR_IDENTITIES = ("id", "0" * 64, "unknown", "none", "n/a", "")
@@ -236,15 +273,9 @@ class EvaluatorIdentity:
                 digests[rel] = _sha256_file(target)
             except OSError:
                 missing.append(rel)
-        anchors_payload = {
-            "evidence_index_adopted": anchors.evidence_index_adopted(),
-            "holdout_anchor_file": anchors.holdout_anchor_file,
-            "holdout_anchor_sha256": anchors.holdout_anchor_sha256,
-            "holdout_required_row_keys": list(anchors.holdout_required_row_keys),
-        }
         return cls(component_digests=digests, gate_config_digest=config.config_digest,
                    missing_components=tuple(missing),
-                   anchors_digest=_sha256_bytes(_stable(anchors_payload).encode()))
+                   anchors_digest=_sha256_bytes(_stable(anchors.anchor_identity()).encode()))
 
     @staticmethod
     def is_placeholder(identity: str) -> bool:
@@ -262,6 +293,244 @@ class EvaluatorIdentity:
                 "identity": self.identity,
                 "missing_components": list(self.missing_components),
                 "schema_version": self.schema_version}
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# 2b. Configuration adoption — experimental config != adopted authority
+# ══════════════════════════════════════════════════════════════════════════
+#
+# A caller-created GateConfig is a perfectly valid RESEARCH configuration. It
+# becomes promotion-authoritative only when an INDEPENDENTLY resolved,
+# source-pinned adoption registry says so. Nothing the caller supplies can
+# stand in for adoption: not a boolean, an adoption id, a registry path, or a
+# registry digest.
+
+ADOPTION_ADOPTED = "ADOPTED"
+ADOPTION_UNADOPTED = "UNADOPTED_CONFIG"
+ADOPTION_REGISTRY_UNAVAILABLE = "CONFIG_REGISTRY_UNAVAILABLE"
+ADOPTION_REGISTRY_TAMPERED = "CONFIG_REGISTRY_TAMPERED"
+ADOPTION_REGISTRY_MALFORMED = "CONFIG_REGISTRY_MALFORMED"
+ADOPTION_STALE = "STALE_ADOPTION"
+ADOPTION_BINDING_MISMATCH = "CONFIG_BINDING_MISMATCH"
+
+ADOPTION_FAILURE_STATUSES = (
+    ADOPTION_UNADOPTED, ADOPTION_REGISTRY_UNAVAILABLE, ADOPTION_REGISTRY_TAMPERED,
+    ADOPTION_REGISTRY_MALFORMED, ADOPTION_STALE, ADOPTION_BINDING_MISMATCH,
+)
+
+#: Registry entry lifecycle. Only ACTIVE confers authority; the others stay
+#: readable for history but are never authoritative.
+ADOPTION_ACTIVE = "ACTIVE"
+ADOPTION_SUPERSEDED = "SUPERSEDED"
+ADOPTION_REVOKED = "REVOKED"
+ADOPTION_ENTRY_STATUSES = (ADOPTION_ACTIVE, ADOPTION_SUPERSEDED, ADOPTION_REVOKED)
+
+ADOPTION_REGISTRY_SCHEMA_VERSION = 1
+_ADOPTION_ENTRY_KEYS = frozenset({
+    "adoption_id", "campaign_id", "version", "status", "config_digest", "config"})
+
+#: Roadmap s18.3 P7.10 promotion-lock controls. A config that disables one of
+#: these may still be used experimentally, but it can never be adopted as a
+#: promotion-authoritative configuration, so toggling a flag cannot manufacture
+#: authority.
+PROMOTION_REQUIREMENTS = (
+    "require_independent_holdout",
+    "require_parent_lineage",
+    "require_replay_integrity",
+    "require_safety_pass",
+    "require_rollback_target",
+    "require_glm_contract",
+)
+
+#: Bounded read for a pinned anchor. A resource bound, not a statistical
+#: threshold.
+_MAX_PINNED_BYTES = 8 * 1024 * 1024
+
+
+@dataclass(frozen=True)
+class ConfigAdoption:
+    """Result of resolving whether ``config`` is an ADOPTED authority.
+
+    ``status == ADOPTION_ADOPTED`` is the only value that confers promotion
+    authority, and it is reachable only from pinned, digest-verified registry
+    bytes. Every other status is an explicit fail-closed outcome.
+    """
+    status: str
+    adoption_id: str = ""
+    campaign_id: str = ""
+    version: Optional[int] = None
+    config_digest: str = ""
+    registry_digest: str = ""
+    detail: str = ""
+
+    @property
+    def adopted(self) -> bool:
+        return self.status == ADOPTION_ADOPTED
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {"adoption_id": self.adoption_id, "campaign_id": self.campaign_id,
+                "config_digest": self.config_digest, "detail": self.detail,
+                "registry_digest": self.registry_digest, "status": self.status,
+                "version": self.version}
+
+
+def _read_pinned_json(relpath: str, expected_sha256: str) -> Any:
+    """Read a repository-relative pinned JSON anchor, verifying its digest.
+
+    No basename searching, no sibling substitution, no absolute paths, and no
+    escape from the repository root: the pinned path is the ONLY path consulted.
+    """
+    if not isinstance(relpath, str) or not relpath:
+        raise EvaluationGateError("pinned anchor path is missing")
+    if not _is_hex_sha256(expected_sha256):
+        raise EvaluationGateError("pinned anchor digest is malformed")
+    root = _REPO_ROOT.resolve()
+    declared = Path(relpath)
+    if declared.is_absolute():
+        raise EvaluationGateError("pinned anchor path must be repository-relative")
+    target = (root / declared).resolve()
+    if root != target and root not in target.parents:
+        raise EvaluationGateError("pinned anchor path escapes the repository")
+    if not target.is_file():
+        raise FileNotFoundError(relpath)
+    size = target.stat().st_size
+    if size > _MAX_PINNED_BYTES:
+        raise EvaluationGateError("pinned anchor exceeds the bounded-read limit")
+    raw = target.read_bytes()
+    if _sha256_bytes(raw) != expected_sha256:
+        raise EvaluationGateError("pinned anchor digest mismatch")
+
+    def unique_object(pairs: List[Tuple[str, Any]]) -> Dict[str, Any]:
+        result: Dict[str, Any] = {}
+        for key, value in pairs:
+            if key in result:
+                raise EvaluationGateError(f"duplicate JSON key in pinned anchor: {key!r}")
+            result[key] = value
+        return result
+
+    return json.loads(raw.decode("utf-8"), object_pairs_hook=unique_object)
+
+
+def resolve_config_adoption(config: GateConfig,
+                            anchors: Optional[AnchorSet] = None) -> ConfigAdoption:
+    """Resolve whether ``config`` is an independently adopted authority.
+
+    Fail-closed at every step. No caller-supplied adoption value is consulted.
+    """
+    anchors = anchors or AUTHORITATIVE_ANCHORS
+    path = anchors.adopted_config_registry_file
+    digest = anchors.adopted_config_registry_sha256
+
+    # No registry has been adopted by this repository revision.
+    if path is None or digest is None:
+        return ConfigAdoption(
+            status=ADOPTION_UNADOPTED,
+            detail=("no evaluation-configuration adoption registry is pinned by "
+                    "this repository revision; a caller-created GateConfig is a "
+                    "valid EXPERIMENTAL configuration but is not promotion-authoritative"))
+
+    try:
+        payload = _read_pinned_json(path, digest)
+    except FileNotFoundError:
+        return ConfigAdoption(status=ADOPTION_REGISTRY_UNAVAILABLE,
+                              detail=f"pinned adoption registry is absent: {path}")
+    except EvaluationGateError as exc:
+        text = str(exc)
+        # Digest/shape/path failures from _read_pinned_json are tampering or
+        # malformed CONTENT; a JSON syntax error is likewise malformed content,
+        # not an unavailable file.
+        status = (ADOPTION_REGISTRY_MALFORMED
+                  if "duplicate JSON key" in text else ADOPTION_REGISTRY_TAMPERED)
+        return ConfigAdoption(status=status, detail=text)
+    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+        # The bytes were pinned and digest-verified, so undecodable content is a
+        # malformed registry rather than an unavailable one.
+        return ConfigAdoption(status=ADOPTION_REGISTRY_MALFORMED, detail=str(exc))
+    except OSError as exc:
+        return ConfigAdoption(status=ADOPTION_REGISTRY_UNAVAILABLE, detail=str(exc))
+
+    if not isinstance(payload, dict) or set(payload) != {"schema_version", "entries"}:
+        return ConfigAdoption(status=ADOPTION_REGISTRY_MALFORMED,
+                              detail="registry must contain exactly schema_version and entries")
+    version = payload["schema_version"]
+    if type(version) is not int or version != ADOPTION_REGISTRY_SCHEMA_VERSION:
+        return ConfigAdoption(
+            status=ADOPTION_REGISTRY_MALFORMED,
+            detail=f"registry schema_version must be the int "
+                   f"{ADOPTION_REGISTRY_SCHEMA_VERSION}")
+    entries = payload["entries"]
+    if not isinstance(entries, list):
+        return ConfigAdoption(status=ADOPTION_REGISTRY_MALFORMED,
+                              detail="registry entries must be a list")
+
+    seen_keys = set()
+    active: Dict[str, Dict[str, Any]] = {}
+    for entry in entries:
+        if not isinstance(entry, dict) or set(entry) != _ADOPTION_ENTRY_KEYS:
+            return ConfigAdoption(status=ADOPTION_REGISTRY_MALFORMED,
+                                  detail="entry keys do not match the required schema")
+        for name in ("adoption_id", "campaign_id"):
+            if not isinstance(entry[name], str) or not entry[name]:
+                return ConfigAdoption(
+                    status=ADOPTION_REGISTRY_MALFORMED,
+                    detail=f"entry {name} must be a non-empty string")
+        if type(entry["version"]) is not int or entry["version"] < 1:
+            return ConfigAdoption(
+                status=ADOPTION_REGISTRY_MALFORMED,
+                detail="entry version must be a positive non-boolean integer")
+        if entry["status"] not in ADOPTION_ENTRY_STATUSES:
+            return ConfigAdoption(status=ADOPTION_REGISTRY_MALFORMED,
+                                  detail=f"entry status must be one of "
+                                         f"{list(ADOPTION_ENTRY_STATUSES)}")
+        if not _is_hex_sha256(entry["config_digest"]):
+            return ConfigAdoption(status=ADOPTION_REGISTRY_MALFORMED,
+                                  detail="entry config_digest is not a SHA-256")
+        if not isinstance(entry["config"], dict):
+            return ConfigAdoption(status=ADOPTION_REGISTRY_MALFORMED,
+                                  detail="entry config must be an object")
+
+        key = (entry["campaign_id"], entry["version"])
+        if key in seen_keys:
+            return ConfigAdoption(
+                status=ADOPTION_REGISTRY_MALFORMED,
+                detail=f"duplicate campaign/version entry: {key}")
+        seen_keys.add(key)
+
+        if entry["status"] == ADOPTION_ACTIVE:
+            campaign = entry["campaign_id"]
+            if campaign in active:
+                return ConfigAdoption(
+                    status=ADOPTION_REGISTRY_MALFORMED,
+                    detail=f"more than one ACTIVE adoption for campaign {campaign!r}")
+            active[campaign] = entry
+
+    entry = active.get(config.campaign_id)
+    if entry is None:
+        return ConfigAdoption(status=ADOPTION_UNADOPTED,
+                              detail=f"no ACTIVE adoption for campaign "
+                                     f"{config.campaign_id!r}",
+                              campaign_id=config.campaign_id)
+
+    # Exact canonical payload AND digest must both match.
+    if (entry["config_digest"] != config.config_digest
+            or _stable(entry["config"]) != _stable(config.to_dict())):
+        return ConfigAdoption(
+            status=ADOPTION_BINDING_MISMATCH,
+            campaign_id=config.campaign_id,
+            detail="supplied config does not match the adopted canonical payload")
+
+    disabled = [name for name in PROMOTION_REQUIREMENTS
+                if getattr(config, name) is not True]
+    if disabled:
+        return ConfigAdoption(
+            status=ADOPTION_BINDING_MISMATCH, campaign_id=config.campaign_id,
+            detail=f"adopted config disables promotion-lock requirement(s) {disabled}; "
+                   "toggling a requirement flag cannot manufacture authority")
+
+    return ConfigAdoption(
+        status=ADOPTION_ADOPTED, adoption_id=entry["adoption_id"],
+        campaign_id=entry["campaign_id"], version=entry["version"],
+        config_digest=config.config_digest, registry_digest=digest)
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -299,6 +568,14 @@ class GateConfig:
                 raise EvaluationGateError(f"{name} must be numeric or None, got {value!r}")
             if not math.isfinite(float(value)):
                 raise EvaluationGateError(f"{name} must be finite, got {value!r}")
+        # Requirement flags must be genuine booleans. Accepting 1 / "true" would
+        # let a truthy non-bool smuggle authority-flag state past the promotion
+        # lock, so this is an explicit type requirement, not coercion.
+        for name in PROMOTION_REQUIREMENTS:
+            if type(getattr(self, name)) is not bool:
+                raise EvaluationGateError(
+                    f"{name} must be a bool, got "
+                    f"{type(getattr(self, name)).__name__}")
 
     @property
     def config_digest(self) -> str:
@@ -925,10 +1202,14 @@ class EvaluationAuthority:
     anchor_status: str
     adequacy: AdequacyReport
     evidence: EvidenceIndex
+    #: INDEPENDENTLY RESOLVED adoption status. Never caller-supplied.
+    config_adoption: "ConfigAdoption" = None  # type: ignore[assignment]
 
     def to_dict(self) -> Dict[str, Any]:
         return {"adequacy": self.adequacy.to_dict(),
                 "anchor_status": self.anchor_status,
+                "config_adoption": (self.config_adoption.to_dict()
+                                    if self.config_adoption is not None else None),
                 "config_digest": self.config.config_digest,
                 "evaluator_identity": self.evaluator_identity.to_dict(),
                 "evidence_index": self.evidence.to_dict(),
@@ -952,13 +1233,18 @@ def build_authority(config: GateConfig,
         holdout = HoldoutVerification(holdout_id="unknown", status=anchor.status,
                                       detail=anchor.detail)
     evidence = load_evidence_index()
+    # Adoption is resolved INTERNALLY from pinned anchors. This function takes
+    # no adoption boolean, adoption id, registry path, or registry digest, so a
+    # caller cannot assert authority into existence.
+    adoption = resolve_config_adoption(config)
     adequacy = assess_statistical_adequacy(
         runs_candidate=0 if runs_candidate is None else runs_candidate,
         runs_baseline=0 if runs_baseline is None else runs_baseline,
         exclusions=exclusions, effect=effect, config=config)
     return EvaluationAuthority(config=config, evaluator_identity=identity,
                                holdout=holdout, anchor_status=anchor.status,
-                               adequacy=adequacy, evidence=evidence)
+                               adequacy=adequacy, evidence=evidence,
+                               config_adoption=adoption)
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -1053,6 +1339,15 @@ class EvaluationDecisionRecord:
         payload = self.to_dict()
         payload.pop("content_hash", None)
         return _sha256_bytes(_stable(payload).encode())
+
+    def is_intact(self) -> bool:
+        """True when no field changed after minting.
+
+        The dataclass is frozen, but ``object.__setattr__`` can still mutate it.
+        Admission re-checks this so a record altered in-process is refused rather
+        than trusted because it once hashed correctly.
+        """
+        return self._content_hash == self.content_hash()
 
     def __post_init__(self) -> None:
         computed = self.content_hash()
@@ -1185,6 +1480,23 @@ def classify_promotion_eligibility(
                        f"evaluator modules for this config")
     else:
         gates.append(("evaluator_identity_current", STATUS_PASS))
+
+    # ── B0. configuration adoption, INTERNALLY resolved ────────────────────
+    # A caller-created config that is internally self-consistent, whose digest
+    # matches, and whose evaluator identity matches is still NOT authoritative.
+    # Only an independently resolved, source-pinned adoption registry confers
+    # authority. Experimental use of the same config is unaffected.
+    adoption = authority.config_adoption
+    adopted = adoption is not None and adoption.adopted
+    gates.append(("configuration_adopted", STATUS_PASS if adopted else STATUS_REFUSE))
+    # The resolved status is always reported, adopted or not, so the precise
+    # adoption condition is observable rather than inferable.
+    gates.append(("configuration_adoption_status",
+                  adoption.status if adoption is not None else ADOPTION_UNADOPTED))
+    if not adopted:
+        reasons.append(f"configuration adoption: "
+                       f"{adoption.status if adoption is not None else ADOPTION_UNADOPTED}: "
+                       f"{adoption.detail if adoption is not None else 'not resolved'}")
 
     # ── B. gate config identity, derived and compared ──────────────────────
     if record.gate_config_digest != config.config_digest:
@@ -1375,22 +1687,81 @@ def inputs_digest(campaign_id: str, holdout: HoldoutVerification,
     }).encode())
 
 
+def derive_record_inputs_digest(record: EvaluationDecisionRecord,
+                                authority: EvaluationAuthority) -> str:
+    """Canonical digest of a record's INPUT BINDING, derived here.
+
+    Binds campaign/decision identity, both policy hashes, the DERIVED evaluator
+    identity and gate-config digest, the DERIVED holdout identity/status, the
+    DERIVED statistical-adequacy status, and the frozen selection-history refs.
+
+    Record-supplied aggregate VALUES deliberately never enter this digest: a
+    numeric assertion must not be able to masquerade as a different measured
+    experiment, and the observed counts are removed from the authoritative path
+    in the measurement-containment phase.
+    """
+    return _sha256_bytes(_stable({
+        "baseline_policy_hash": record.baseline_policy_hash,
+        "campaign_id": record.campaign_id,
+        "candidate_policy_hash": record.candidate_policy_hash,
+        "decision_id": record.decision_id,
+        "config_adoption_id": ("" if authority.config_adoption is None
+                               else authority.config_adoption.adoption_id),
+        "config_adoption_status": (ADOPTION_UNADOPTED
+                                   if authority.config_adoption is None
+                                   else authority.config_adoption.status),
+        "config_adoption_version": (None if authority.config_adoption is None
+                                    else authority.config_adoption.version),
+        "config_registry_digest": ("" if authority.config_adoption is None
+                                   else authority.config_adoption.registry_digest),
+        "evaluator_identity": authority.evaluator_identity.identity,
+        "gate_config_digest": authority.config.config_digest,
+        "holdout_id": authority.holdout.holdout_id,
+        "holdout_measured_sha256": authority.holdout.measured_sha256,
+        "holdout_status": authority.holdout.status,
+        "schema_version": SCHEMA_VERSION,
+        "selection_history_refs": list(record.selection_history_refs),
+        "statistical_adequacy_status": authority.adequacy.status,
+    }).encode())
+
+
 class DecisionLedger:
     """Append-only decision ledger with ADMISSION verified against authority.
 
-    Admission is no longer a content-hash self-consistency check. A record is
+Admission is no longer a content-hash self-consistency check. A record is
     admitted only when the evaluator's own derived authority agrees with it:
     current evaluator identity, matching gate config identity, and a holdout
     claim consistent with the evaluator's own verification.
 
-    Lineage is monotonic. The roadmap does not permit a candidate to move from a
-    non-eligible decision to promotion eligibility without a genuinely NEW
-    evaluation (INV-21 lineage-complete, L26 parent/supersedes lineage).
+    CONTAINMENT INVARIANT (the submitted record must equal the derived truth)::
+
+        record.final_state      == assessment.state
+        record.gate_outcomes    == assessment.gates
+        record.inputs_digest    == derive_record_inputs_digest(record, authority)
+
+    A contradiction is REJECTED. The submitted record is never silently
+    rewritten: rejecting preserves both the caller's claim and the evaluator's
+    derived answer as separately observable facts.
+
+    Two representations are kept strictly apart:
+
+    ``historical_states()``
+        the ``final_state`` strings actually STORED in the ledger. These are
+        claims that were validated at admission time. They are audit material,
+        never current authority.
+    ``final_states(config)``
+        states re-DERIVED right now against current authority. Requires a
+        config; a record whose fresh derivation contradicts its stored claim is
+        excluded, so forged eligibility cannot surface as current authority.
+
+    Lineage is monotonic and ordered by INSERTION, not by lexical decision id
+    (roadmap INV-21 lineage-complete, L26 parent/supersedes lineage).
     """
 
     def __init__(self, path: Path):
         self._path = Path(path)
         self._index: Dict[str, EvaluationDecisionRecord] = {}
+        self._order: List[str] = []
         self._lineage: Dict[str, str] = {}
         if self._path.exists():
             for line in self._path.read_text(encoding="utf-8").splitlines():
@@ -1401,6 +1772,8 @@ class DecisionLedger:
                 if existing is not None and existing.content_hash() != record.content_hash():
                     raise EvaluationGateError(
                         f"decision ledger conflict for '{record.decision_id}'")
+                if existing is None:
+                    self._order.append(record.decision_id)
                 self._index[record.decision_id] = record
                 if record.candidate_policy_hash:
                     self._lineage[record.candidate_policy_hash] = record.final_state
@@ -1409,57 +1782,145 @@ class DecisionLedger:
     def path(self) -> Path:
         return self._path
 
+    def _derive(self, record: EvaluationDecisionRecord, config: GateConfig
+                ) -> Tuple[EvaluationAuthority, EligibilityAssessment]:
+        """Derive authority ONCE and classify against that same observation.
+
+        State, gates and input binding must all be judged against one
+        consistent view; rebuilding authority separately for each comparison
+        would assume the filesystem could not change in between.
+        """
+        authority = build_authority(
+            config, runs_candidate=record.runs_candidate,
+            runs_baseline=record.runs_baseline, exclusions=record.exclusions,
+            effect=record.effect)
+        return authority, classify_promotion_eligibility(record, config)
+
     def verify_admission(self, record: EvaluationDecisionRecord,
                          config: GateConfig) -> EligibilityAssessment:
-        """Classify for admission purposes; REFUSE gates block the append."""
-        return classify_promotion_eligibility(record, config)
+        """Derive and validate admission. Submitted state is NOT authority.
+
+        Raises :class:`EvaluationGateError` on any refusal gate or on a
+        contradiction between the submitted authoritative fields and the freshly
+        derived values.
+        """
+        authority, assessment = self._derive(record, config)
+        refused = assessment.hard_failures()
+        if refused:
+            raise EvaluationGateError(
+                f"decision {record.decision_id!r} refused at admission by gates "
+                f"{list(refused)}; derived state={assessment.state}")
+        if record.final_state not in EVALUATION_STATES:
+            raise EvaluationGateError(
+                f"final_state {record.final_state!r} is not an evaluation state; "
+                f"gate statuses such as BLOCKED/REFUSE are not final states "
+                f"(expected one of {list(EVALUATION_STATES)})")
+        if record.final_state != assessment.state:
+            raise EvaluationGateError(
+                f"final_state mismatch for {record.decision_id!r}: "
+                f"submitted={record.final_state!r} derived={assessment.state!r}")
+        self._validate_gate_names(record.gate_outcomes, record.decision_id)
+        self._validate_gate_names(assessment.gates, record.decision_id)
+
+        # Normalise to the gate's own key/status pairs. A record round-tripped
+        # through JSON carries lists rather than tuples, and key ORDER is not a
+        # security property: the SET of (gate, status) pairs must match exactly,
+        # so a rewritten or dropped gate is still caught. Duplicate names are
+        # rejected above, BEFORE this set conversion, because a set would erase
+        # them.
+        submitted_gates = tuple(sorted((str(n), str(s))
+                                       for n, s in record.gate_outcomes))
+        derived_gates = tuple(sorted((str(n), str(s))
+                                     for n, s in assessment.gates))
+        if submitted_gates != derived_gates:
+            missing = sorted(set(derived_gates) - set(submitted_gates))
+            extra = sorted(set(submitted_gates) - set(derived_gates))
+            raise EvaluationGateError(
+                f"gate_outcomes mismatch for {record.decision_id!r}: "
+                f"submitted={len(record.gate_outcomes)} gate(s), "
+                f"derived={len(assessment.gates)}; missing={missing} extra={extra}")
+        if record.inputs_digest != derive_record_inputs_digest(record, authority):
+            raise EvaluationGateError(
+                f"inputs_digest mismatch for {record.decision_id!r}: the submitted "
+                f"digest does not bind this record to the currently derived inputs")
+        return assessment
+
+    @staticmethod
+    def _validate_gate_names(gates: Sequence[Tuple[str, str]], decision_id: str) -> None:
+        """Reject duplicate gate NAMES before any set/dict normalisation.
+
+        Converting to a set would silently collapse ``("safety","PASS")`` and
+        ``("safety","REFUSE")`` into one entry, hiding a contradiction. Both
+        shapes are refused: the same name twice, and the same name with two
+        different statuses. Canonical ordering is applied only for comparison,
+        after this check.
+        """
+        seen: Dict[str, str] = {}
+        for name, status in gates:
+            key = str(name)
+            if key in seen:
+                detail = (f"duplicate gate name {key!r} with statuses "
+                          f"{seen[key]!r} and {str(status)!r}"
+                          if seen[key] != str(status)
+                          else f"duplicate gate name {key!r} with status {seen[key]!r}")
+                raise EvaluationGateError(
+                    f"gate_outcomes for {decision_id!r} contain a {detail}; gate names "
+                    "must be unique or the outcome is ambiguous")
+            seen[key] = str(status)
 
     def _check_lineage(self, record: EvaluationDecisionRecord,
                        assessment: EligibilityAssessment) -> None:
         key = record.candidate_policy_hash
         if not key:
             return
-        previous = self._lineage.get(key)
-        if previous is None or previous == record.final_state:
+        prior_record = self._latest_for_candidate(key)
+        if prior_record is None or prior_record.final_state == record.final_state:
             return
         if record.final_state != STATE_PROMOTION_ELIGIBLE:
             return
-        # previous was a non-eligible decision for the same candidate.
-        if record.inputs_digest == "":
+        previous = prior_record.final_state
+        if not record.inputs_digest:
             raise EvaluationGateError(
-                f"lineage violation: candidate {key[:12]} moves from '{previous}' to "
+                f"lineage violation: candidate {key[:12]} moves from {previous!r} to "
                 f"PROMOTION_ELIGIBLE without a declared evaluation inputs_digest")
-        prior_record = self._latest_for_candidate(key)
-        if (prior_record is not None
-                and prior_record.inputs_digest == record.inputs_digest):
+        if prior_record.inputs_digest == record.inputs_digest:
             raise EvaluationGateError(
-                f"lineage violation: candidate {key[:12]} moves from '{previous}' to "
-                f"PROMOTION_ELIGIBLE on the SAME evaluation inputs as the blocked "
-                f"decision '{prior_record.decision_id}'. A superseding decision must "
-                f"prove why the old blocked state no longer applies via a genuinely "
-                f"new evaluation (roadmap INV-21, L26).")
-        if prior_record is not None and prior_record.decision_id not in record.parent_lineage:
+                f"lineage violation: candidate {key[:12]} moves from {previous!r} to "
+                f"PROMOTION_ELIGIBLE on the SAME evaluation inputs as the preceding "
+                f"decision {prior_record.decision_id!r}. A superseding decision must "
+                f"prove why the old state no longer applies via a genuinely new "
+                f"evaluation (roadmap INV-21, L26).")
+        if prior_record.decision_id not in record.parent_lineage:
             raise EvaluationGateError(
-                f"lineage violation: superseding decision '{record.decision_id}' does "
-                f"not name the superseded blocked decision '{prior_record.decision_id}' "
-                f"in its parent_lineage (roadmap INV-21)")
+                f"lineage violation: superseding decision {record.decision_id!r} does "
+                f"not name the superseded decision {prior_record.decision_id!r} in its "
+                f"parent_lineage (roadmap INV-21)")
 
     def _latest_for_candidate(self, candidate_hash: str
                               ) -> Optional[EvaluationDecisionRecord]:
-        matches = [r for r in self._index.values()
-                   if r.candidate_policy_hash == candidate_hash]
-        if not matches:
-            return None
-        return max(matches, key=lambda r: (r.decision_id,))
+        """Most recently INSERTED record for a candidate (never lexical order)."""
+        latest = None
+        for decision_id in self._order:
+            candidate = self._index.get(decision_id)
+            if candidate is not None and candidate.candidate_policy_hash == candidate_hash:
+                latest = candidate
+        return latest
 
     def append(self, record: EvaluationDecisionRecord,
                config: Optional[GateConfig] = None) -> str:
-        """Append a decision record after verifying it against authority.
+        """Append a decision record after verifying it against derived authority.
 
-        ``config`` is REQUIRED. Without the gate configuration this module
-        cannot derive the authoritative evaluator identity, so there is nothing
-        to admit against; a hash-only append is exactly the weakness being
-        removed.
+        Order is deliberate (roadmap §19.5 / P7.10 fail-closed):
+
+        1. record type, then the required config
+        2. the record must still be intact (unchanged since minting)
+        3. derive authority ONCE and classify
+        4. reject refusal gates
+        5. reject state, gate-outcome and input-digest contradictions
+        6. duplicate/content conflict handling — AFTER verification, so an
+           identical stored record can never bypass fresh authority checks
+        7. lineage monotonicity
+        8. persist the validated record exactly as submitted
         """
         if not isinstance(record, EvaluationDecisionRecord):
             raise EvaluationGateError("DecisionLedger accepts only decision records")
@@ -1468,38 +1929,92 @@ class DecisionLedger:
                 "DecisionLedger.append requires the GateConfig used to classify this "
                 "record; admission is verified against derived authority, not against "
                 "the record's own content hash")
+        if not record.is_intact():
+            raise EvaluationGateError(
+                f"decision {record.decision_id!r} changed after minting; admission "
+                "refuses a record whose content hash no longer matches its fields")
+
+        assessment = self.verify_admission(record, config)
+
         existing = self._index.get(record.decision_id)
         if existing is not None:
             if existing.content_hash() == record.content_hash():
-                return record.decision_id      # idempotent re-ingest
+                return record.decision_id      # idempotent, but only after checks
             raise EvaluationGateError(
-                f"conflicting decision record for '{record.decision_id}'; the "
-                "ledger is append-only and will not rewrite history")
+                f"conflicting decision record for {record.decision_id!r}; the ledger "
+                "is append-only and will not rewrite history")
 
-        assessment = self.verify_admission(record, config)
-        refused = assessment.hard_failures()
-        if refused:
-            raise EvaluationGateError(
-                f"decision '{record.decision_id}' refused at admission by gates "
-                f"{list(refused)}; state={assessment.state}")
         self._check_lineage(record, assessment)
 
         self._path.parent.mkdir(parents=True, exist_ok=True)
         with open(self._path, "a", encoding="utf-8") as handle:
             handle.write(_stable(record.to_dict()) + "\n")
         self._index[record.decision_id] = record
+        self._order.append(record.decision_id)
         if record.candidate_policy_hash:
             self._lineage[record.candidate_policy_hash] = record.final_state
         return record.decision_id
 
     def get(self, decision_id: str) -> Optional[EvaluationDecisionRecord]:
+        """Audit read. Returns the STORED record; not a claim of current authority."""
         return self._index.get(decision_id)
 
     def all(self) -> List[EvaluationDecisionRecord]:
-        return list(self._index.values())
+        """Audit read in insertion order. Not a claim of current authority."""
+        return [self._index[d] for d in self._order if d in self._index]
 
-    def final_states(self) -> Dict[str, str]:
+    def insertion_order(self) -> Tuple[str, ...]:
+        return tuple(self._order)
+
+    def historical_states(self) -> Dict[str, str]:
+        """The ``final_state`` strings STORED in the ledger.
+
+        AUDIT MATERIAL ONLY. These were validated when admitted, but they are
+        claims, not current authority; use :meth:`final_states` for that.
+        """
         return dict(self._lineage)
+
+    def final_states(self, config: Optional[GateConfig] = None) -> Dict[str, str]:
+        """States re-DERIVED now against current authority.
+
+        ``config`` is REQUIRED: without it there is no current authority to
+        derive against. A record whose fresh derivation disagrees with its
+        stored claim, or that now carries a REFUSE gate, is EXCLUDED, so a
+        forged or stale eligibility string can never surface here.
+        """
+        if config is None:
+            raise EvaluationGateError(
+                "final_states(config) requires the GateConfig used to classify these "
+                "records; stored states are historical claims, not current authority. "
+                "Use historical_states() if you explicitly want the stored strings.")
+        verified: Dict[str, str] = {}
+        for decision_id in self._order:
+            record = self._index.get(decision_id)
+            if record is None or not record.candidate_policy_hash:
+                continue
+            try:
+                assessment = self.verify_admission(record, config)
+            except EvaluationGateError:
+                continue          # contradicted / refused: not current authority
+            if record.final_state == assessment.state:
+                verified[record.candidate_policy_hash] = assessment.state
+        return verified
+
+    def current_authority(self, decision_id: str, config: GateConfig
+                          ) -> Optional[EligibilityAssessment]:
+        """Freshly derived assessment for a stored record, or ``None``.
+
+        ``None`` means the stored record is no longer current authority
+        (contradicted, refused, or unverifiable) — it is still readable through
+        :meth:`get` as historical material.
+        """
+        record = self._index.get(decision_id)
+        if record is None:
+            return None
+        try:
+            return self.verify_admission(record, config)
+        except EvaluationGateError:
+            return None
 
 
 def recompute_gate_outcomes(record: EvaluationDecisionRecord, config: GateConfig,
