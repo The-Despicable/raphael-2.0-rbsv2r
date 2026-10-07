@@ -6,12 +6,13 @@ HTTP 000 / connection failures) before the full N=20 canary.
 Frozen per SENTINEL directive: max_tokens=16384, temp=0.0.
 """
 import json
+import os
 import sys
 import time
 import urllib.request
 
 API_BASE = "https://integrate.api.nvidia.com/v1"
-API_KEY = "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"
+API_KEY = os.environ.get("NVIDIA_API_KEY", "")
 MODEL = "openai/gpt-oss-120b"
 MAX_TOKENS = 16384
 TIMEOUT = 180

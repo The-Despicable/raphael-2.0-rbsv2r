@@ -1,0 +1,126 @@
+{
+ "experiment": "RSI-0 offline group-relative strategy evaluation",
+ "candidates": {
+  "rsi0-c0-canonical": {
+   "runs": 3,
+   "verified_completion": 2,
+   "evidence_complete": 2,
+   "hard_violations": 0,
+   "unscorable": 0,
+   "denials": 0,
+   "steps_total": 6
+  },
+  "rsi0-c1-reverse": {
+   "runs": 3,
+   "verified_completion": 2,
+   "evidence_complete": 2,
+   "hard_violations": 0,
+   "unscorable": 0,
+   "denials": 0,
+   "steps_total": 5
+  },
+  "rsi0-c2-retry-a": {
+   "runs": 3,
+   "verified_completion": 2,
+   "evidence_complete": 2,
+   "hard_violations": 0,
+   "unscorable": 0,
+   "denials": 0,
+   "steps_total": 6
+  }
+ },
+ "per_scenario": {
+  "rsi0-c0-canonical": {
+   "S1_nominal": {
+    "verified_completion": true,
+    "steps_executed": 2,
+    "termination": "objective met: verified execution evidence present for ACT-D2-PROBE-0001, ACT-D2-HTTP-0002"
+   },
+   "S2_http_fault": {
+    "verified_completion": false,
+    "steps_executed": 2,
+    "termination": "Stage 'pep' failed: \u00a7lifecycle fail-closed: PEP raised LabHttpProbeError: HTTP probe failed rc=7: curl: (7) Failed to connect to dvwa port 80"
+   },
+   "S3_budget": {
+    "verified_completion": true,
+    "steps_executed": 2,
+    "termination": "objective met: verified execution evidence present for ACT-D2-PROBE-0001, ACT-D2-HTTP-0002"
+   }
+  },
+  "rsi0-c1-reverse": {
+   "S1_nominal": {
+    "verified_completion": true,
+    "steps_executed": 2,
+    "termination": "objective met: verified execution evidence present for ACT-D2-PROBE-0001, ACT-D2-HTTP-0002"
+   },
+   "S2_http_fault": {
+    "verified_completion": false,
+    "steps_executed": 1,
+    "termination": "Stage 'pep' failed: \u00a7lifecycle fail-closed: PEP raised LabHttpProbeError: HTTP probe failed rc=7: curl: (7) Failed to connect to dvwa port 80"
+   },
+   "S3_budget": {
+    "verified_completion": true,
+    "steps_executed": 2,
+    "termination": "objective met: verified execution evidence present for ACT-D2-PROBE-0001, ACT-D2-HTTP-0002"
+   }
+  },
+  "rsi0-c2-retry-a": {
+   "S1_nominal": {
+    "verified_completion": true,
+    "steps_executed": 2,
+    "termination": "objective met: verified execution evidence present for ACT-D2-PROBE-0001, ACT-D2-HTTP-0002"
+   },
+   "S2_http_fault": {
+    "verified_completion": false,
+    "steps_executed": 2,
+    "termination": "Stage 'pep' failed: \u00a7lifecycle fail-closed: PEP raised LabHttpProbeError: HTTP probe failed rc=7: curl: (7) Failed to connect to dvwa port 80"
+   },
+   "S3_budget": {
+    "verified_completion": true,
+    "steps_executed": 2,
+    "termination": "objective met: verified execution evidence present for ACT-D2-PROBE-0001, ACT-D2-HTTP-0002"
+   }
+  }
+ },
+ "ranking": [
+  [
+   "rsi0-c0-canonical",
+   "S1_nominal"
+  ],
+  [
+   "rsi0-c0-canonical",
+   "S3_budget"
+  ],
+  [
+   "rsi0-c1-reverse",
+   "S1_nominal"
+  ],
+  [
+   "rsi0-c1-reverse",
+   "S3_budget"
+  ],
+  [
+   "rsi0-c2-retry-a",
+   "S1_nominal"
+  ],
+  [
+   "rsi0-c2-retry-a",
+   "S3_budget"
+  ],
+  [
+   "rsi0-c1-reverse",
+   "S2_http_fault"
+  ],
+  [
+   "rsi0-c0-canonical",
+   "S2_http_fault"
+  ],
+  [
+   "rsi0-c2-retry-a",
+   "S2_http_fault"
+  ]
+ ],
+ "excluded": [],
+ "ranking_rule": "lexicographic: verified_completion desc, evidence_complete desc, steps asc, policy_id asc; hard violations and unscorable runs excluded",
+ "limits": "deterministic scenarios; no statistical confidence claims; holdout-based generalization and promotion are out of scope (absent holdout)"
+}

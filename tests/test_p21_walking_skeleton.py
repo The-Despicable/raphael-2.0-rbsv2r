@@ -50,6 +50,10 @@ def test_receipt_minted_by_pep():
         "broker": rt._broker,
         "capability": rt._capability,
         "capability_name": "fixture.inspect",
+        # RSI-1 C-1: direct stage driving must carry the Runtime-bound
+        # execution authority; the PEP refuses unbound contexts.
+        "capability_governance": rt._governance,
+        "governed_step_budget": rt._step_budget,
     }
     from orchestrator.runtime.stages import STAGE_HANDLERS
     for name, handler in STAGE_HANDLERS.items():

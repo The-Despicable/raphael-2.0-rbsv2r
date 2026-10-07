@@ -1,0 +1,26 @@
+# M1 loopback-scope override (2026-10-04).
+# configs/docker-compose.yml publishes dvwa:4280 and kali-tools:3800 on 0.0.0.0;
+# M1 requires the local lab to stay on the loopback boundary. Use together:
+#   docker compose -f configs/docker-compose.yml -f configs/docker-compose.m1-loopback.yml up -d dvwa kali-tools
+# This file changes nothing else (no image, env, or volume changes).
+services:
+  dvwa:
+    ports: !override
+      - "127.0.0.1:4280:80"
+  kali-tools:
+    ports: !override
+      - "127.0.0.1:3800:3800"
+    # M1 (2026-10-04): the Dockerfile copies server.py to /app, whose sys.path
+    # insert resolves to "/", but the compose mount places orchestrator at
+    # /raphael/orchestrator — the service crash-looped with
+    # "ModuleNotFoundError: No module named 'orchestrator'". PYTHONPATH
+    # restores the intended import path without touching the Dockerfile.
+    environment:
+      PYTHONPATH: /raphael
+# ---------------------------------------------------------------------
+# M2.1 disposition (2026-10-04): this override is now REDUNDANT for both of
+# its original purposes — the base compose file binds 127.0.0.1 by default
+# and the kali-tools Dockerfile sets PYTHONPATH=/raphael itself. It is kept
+# as the M1 record; merging it re-applies identical values and introduces
+# no exposure change (verified: rendered merge keeps 127.0.0.1 ports and the
+# same PYTHONPATH). Do not extend it.

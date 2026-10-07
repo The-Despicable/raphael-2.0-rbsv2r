@@ -2,7 +2,7 @@
 
 > **Research-grade autonomous offensive AI system** with a unified cognitive architecture (D-Series Brain, S-Series Student, E-Series Hands, P-Series Stealth) that autonomously probes targets, builds belief-state profiles, researches techniques, and executes stateful operations — all within a strict, brokered authorization envelope.
 
-> **Status**: Frozen v2.1.1 evaluation campaign complete (121/121 tests passing). This repository contains the frozen instrument for RBS-v4 terminal holdout campaign and associated research artifacts.
+> **Status**: Frozen v2.1.1 evaluation campaign artifacts preserved (the campaign-era "121/121" count refers to the instrument's tracked tests; the current working-tree floor is **621 tests passing**, verified 2026-10-04, see `RAPHAEL_E2E_AUDIT_20261004.md`). This repository contains the frozen instrument for RBS-v4 terminal holdout campaign and associated research artifacts.
 
 ---
 
@@ -89,8 +89,9 @@ pip install -r requirements.txt
 cp .env.example .env
 # Edit .env with your LLM endpoint, API keys, etc.
 
-# Start arena targets
-docker compose -f docker/arena.yml up -d
+# Start arena targets (compose file lives in configs/; stack bring-up has
+# not yet been validated in this working tree — pending M1 provisioning)
+docker compose -f configs/docker-compose.yml up -d dvwa kali-tools
 
 # Run smoke test
 python scripts/smoke_test.py
@@ -119,7 +120,7 @@ The frozen instrument (v2.1.1) was evaluated via the **RBS-v4 Terminal Holdout C
 ### Reproduce the Terminal Campaign
 ```bash
 # Ensure Docker targets are running
-docker compose -f docker/arena.yml up -d
+docker compose -f configs/docker-compose.yml up -d dvwa kali-tools
 
 # Run the frozen holdout campaign (exact RBS-v4 instrument)
 python scripts/run_rbs_v4_holdout_frozen.py
@@ -128,6 +129,12 @@ python scripts/run_rbs_v4_holdout_frozen.py
 # - rbs_v4_holdout.jsonl (1,200 rows, SHA-256: 2bf614f8...)
 # - Terminal analysis: TERMINAL_ANALYSIS_RESULTS.json
 # - D3 independent recomputation artifacts
+#
+# NOTE (2026-10-04): rbs_v4_holdout.jsonl is NOT present in this working
+# tree and was never committed (the .gitignore rule
+# evaluations/campaign/*.jsonl predates it). Until it is recovered from the
+# original environment, the reproducibility manifest cannot be verified
+# here. Decision record: evidence/arena_contamination_20261004/README.md
 ```
 
 ### Key Results (from FINAL_VERDICT_RECORD.md)
@@ -168,7 +175,7 @@ All RBS-v4 terminal campaign artifacts are preserved in `evaluations/campaign/`:
 
 | File | Description |
 |------|-------------|
-| `rbs_v4_holdout.jsonl` | Raw data (1,200 rows, SHA-256 `2bf614f8eafa0253...`) |
+| `rbs_v4_holdout.jsonl` | Raw data (1,200 rows, SHA-256 `2bf614f8eafa0253...`) — **NOT PRESENT in this working tree** (never committed; recovery pending, see `evidence/arena_contamination_20261004/README.md`) |
 | `FINAL_VERDICT_RECORD.md` | Terminal verdict with full claim ledger |
 | `TERMINAL_ANALYSIS_RESULTS.json` | Terminal analysis (regenerated 2026-08-08) |
 | `TERMINAL_D3_RECOMPUTATION_DIFF.txt` | D3 independent recomputation (byte-identical) |
@@ -185,16 +192,18 @@ All hashes and frozen manifests are preserved for exact reproducibility.
 ## Project Structure (Post-Cleanup)
 
 ```
-raphael-2.0-rbsv2r/
+raphael-2/
 ├── docs/                    # Architecture, limitations, roadmap, threats
 ├── evaluations/campaign/    # RBS-v4 terminal holdout artifacts (preserved)
-├── orchestrator/           # Core cognitive agent (D/S/E/P series)
+├── src/orchestrator/        # Core cognitive agent (D/S/E/P series)
 │   ├── brain/              # D-Series: planner, world, broker, falsification
-│   ├── student/            # S-Series: research, synthesis, knowledge
-│   └── capabilities/       # E-Series: SSH, reverse shell, filter pipeline
+│   ├── capabilities/       # E-Series: SSH, reverse shell, filter pipeline
+│   ├── exec/               # INV-1 canonical execution primitives
+│   └── runtime/            # Canonical runtime loop, stages, scope, policy
 ├── arena/                  # Evaluation arena (DVWA, VulnerableApp targets)
+├── configs/                # docker-compose stack, specs, requirements
 ├── scripts/                # Campaign runners, smoke tests, analysis
-├── tests/                  # 121 regression tests (all passing)
+├── tests/                  # Regression suite (621 passing, 2026-10-04)
 ├── .env.example            # Environment template
 ├── .gitignore              # Comprehensive ignore rules
 └── README.md               # This file

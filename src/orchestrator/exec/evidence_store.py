@@ -95,6 +95,12 @@ class EvidenceStore:
         """Deterministic retrieval by identity (None when absent)."""
         return self._index.get(identity)
 
+    def records(self) -> list:
+        """All persisted records (M3/D2: read-side for objective evaluation
+        and receipt verification). Order is insertion order; the list is a
+        copy — mutating it does not affect the store."""
+        return list(self._index.values())
+
     def _load(self) -> None:
         index: dict[str, EvidenceRecord] = {}
         with open(self._path, "r", encoding="utf-8") as handle:

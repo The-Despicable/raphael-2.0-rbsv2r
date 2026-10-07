@@ -1,0 +1,104 @@
+{
+ "policy_name": "engagement-d2-v1",
+ "version": 1,
+ "schema_version": 1,
+ "created_by": "M3/D2 bounded execution (operator-approved two-action scope, 2026-10-05)",
+ "created_at": "2026-10-05",
+ "status": "ACTIVE",
+ "mode": "BOUNDED_LAB",
+ "engagement_id": "d2-bounded-episode",
+ "max_episode_steps": 5,
+ "scope": {
+  "description": "Exactly two approved actions against the local DVWA lab container: the governed D1 nmap service probe and a fixed in-container HTTP GET of http://dvwa/. Everything not enumerated is denied. This policy does not weaken or replace engagement-d1-v1.json and leaves engagement-open-v0.json unwired.",
+  "lab": {
+   "compose_project": "raphael-m1",
+   "target_service": "dvwa",
+   "target_image_prefix": "vulnerables/web-dvwa",
+   "probe_container": "kali-tools",
+   "probe_tool": "nmap",
+   "http": {
+    "scheme": "http",
+    "host": "dvwa",
+    "port": 80,
+    "path": "/",
+    "method": "GET",
+    "max_redirects": 0,
+    "max_time_seconds": 60,
+    "max_artifact_bytes": 65536,
+    "execution_context": "in-container (kali-tools); 127.0.0.1 is explicitly prohibited in this context"
+   }
+  }
+ },
+ "allowed": {
+  "action_types": [
+   "recon_service_probe",
+   "lab_http_probe"
+  ],
+  "capabilities": [
+   "exec.d1_lab_probe",
+   "exec.http_probe"
+  ],
+  "targets": [
+   "dvwa"
+  ]
+ },
+ "prohibited": {
+  "action_types": [
+   "tool_execute",
+   "exploit_execute",
+   "sandboxed_exec",
+   "c2_listen",
+   "agent_engage",
+   "phish_execute",
+   "postex_execute",
+   "shell_exec"
+  ],
+  "capabilities": [
+   "chains.tool_registry",
+   "orchestrator.kali_tools_client",
+   "c2.beacon",
+   "c2.implant_builder",
+   "c2.sliver_backend",
+   "sandbox.run_code",
+   "fixture.inspect"
+  ],
+  "targets": []
+ },
+ "rate_limits": {
+  "max_actions_per_minute": 2,
+  "max_actions_per_hour": 60,
+  "max_concurrent": 1
+ },
+ "impact": {
+  "max_impact_per_action": 2.0,
+  "max_cumulative_impact": 20.0,
+  "high_impact_requires_approval": true
+ },
+ "fail_closed": {
+  "on_missing_file": true,
+  "on_malformed_json": true,
+  "on_unsupported_schema_version": true,
+  "on_empty_allow_lists": true,
+  "on_missing_lab_contract": true,
+  "on_unsupported_mode": true,
+  "on_malformed_http_contract": true
+ },
+ "invariants_enforced": [
+  "INV-1: process/network/file primitives confined to exec/",
+  "INV-2: every execution event carries the Broker decision_id",
+  "INV-3: execution-derived claims require receipts",
+  "INV-5: CLI -> Runtime; Runtime does not import arena",
+  "INV-6: Runtime cannot import seam",
+  "INV-7: no absolute hard-coded paths in new Runtime code"
+ ],
+ "kill_switch": {
+  "procedure": "Swap the decision source to policies/bootstrap-v0.json (make_broker_from_bootstrap). Every D2 request is then denied on the action_type dimension and no process is spawned.",
+  "restrictive_policy": "policies/bootstrap-v0.json"
+ },
+ "references": {
+  "task_order": "D2 Bounded Execution Implementation (operator-approved scope)",
+  "design_freeze": "reports/M3_D2_DESIGN_FREEZE_2026-10-04.md",
+  "entry_gate": "reports/M3_ENTRY_GATE_2026-10-04.md",
+  "d1_policy": "policies/engagement-d1-v1.json"
+ }
+}

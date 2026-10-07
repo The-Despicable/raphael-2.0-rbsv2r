@@ -9,6 +9,7 @@ at 77-149s in reachability probes. 20 calls may take 35-50 minutes.
 Telemetry: evaluations/campaign/rbs_v2r_canary_B.jsonl
 """
 import json
+import os
 import sys
 import time
 import urllib.request
@@ -19,7 +20,7 @@ OUT = REPO / "evaluations" / "campaign" / "rbs_v2r_canary_B.jsonl"
 
 # FROZEN config (freeze manifest B)
 API_BASE = "https://integrate.api.nvidia.com/v1"
-API_KEY = "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"
+API_KEY = os.environ.get("NVIDIA_API_KEY", "")
 MODEL = "openai/gpt-oss-120b"
 MAX_TOKENS = 16384
 TIMEOUT = 180

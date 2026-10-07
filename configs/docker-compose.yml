@@ -14,8 +14,12 @@ services:
       context: ./src/cai-service
       dockerfile: Dockerfile
     ports:
-      - "3201:3200"
-    env_file: .env
+      - "127.0.0.1:3201:3200"
+    # M2.1: compose-file-relative and optional — a missing repo .env must
+    # not hard-fail rendering/invocation of unrelated services.
+    env_file:
+      - path: ../.env
+        required: false
     environment:
       - SERVICE_NAME=cai-service
       - RAPHAEL_PATH=/raphael
@@ -38,8 +42,12 @@ services:
       context: ./src/mhddos-service
       dockerfile: Dockerfile
     ports:
-      - "3301:3300"
-    env_file: .env
+      - "127.0.0.1:3301:3300"
+    # M2.1: compose-file-relative and optional — a missing repo .env must
+    # not hard-fail rendering/invocation of unrelated services.
+    env_file:
+      - path: ../.env
+        required: false
     environment:
       - SERVICE_NAME=mhddos-service
       - TOR_PROXY=socks5h://tor-proxy:9050
@@ -61,8 +69,12 @@ services:
       context: ./src/cloak-service
       dockerfile: Dockerfile
     ports:
-      - "3401:3400"
-    env_file: .env
+      - "127.0.0.1:3401:3400"
+    # M2.1: compose-file-relative and optional — a missing repo .env must
+    # not hard-fail rendering/invocation of unrelated services.
+    env_file:
+      - path: ../.env
+        required: false
     environment:
       - SERVICE_NAME=cloak-service
       - TOR_PROXY=http://tor-proxy:8118
@@ -88,8 +100,12 @@ services:
       context: ./src/c2-server
       dockerfile: Dockerfile
     ports:
-      - "3501:3501"
-    env_file: .env
+      - "127.0.0.1:3501:3501"
+    # M2.1: compose-file-relative and optional — a missing repo .env must
+    # not hard-fail rendering/invocation of unrelated services.
+    env_file:
+      - path: ../.env
+        required: false
     environment:
       - SERVICE_NAME=c2-server
       - RAPHAEL_PATH=/raphael
@@ -116,8 +132,12 @@ services:
       context: ./src/phishing
       dockerfile: Dockerfile
     ports:
-      - "3502:3502"
-    env_file: .env
+      - "127.0.0.1:3502:3502"
+    # M2.1: compose-file-relative and optional — a missing repo .env must
+    # not hard-fail rendering/invocation of unrelated services.
+    env_file:
+      - path: ../.env
+        required: false
     environment:
       - SERVICE_NAME=phishing
       - RAPHAEL_PATH=/raphael
@@ -136,8 +156,12 @@ services:
       context: ./src/recon-pipeline
       dockerfile: Dockerfile
     ports:
-      - "3503:3503"
-    env_file: .env
+      - "127.0.0.1:3503:3503"
+    # M2.1: compose-file-relative and optional — a missing repo .env must
+    # not hard-fail rendering/invocation of unrelated services.
+    env_file:
+      - path: ../.env
+        required: false
     environment:
       - SERVICE_NAME=recon-pipeline
       - RAPHAEL_PATH=/raphael
@@ -164,8 +188,12 @@ services:
       context: ./src
       dockerfile: ./sword/Dockerfile
     ports:
-      - "3600:3600"
-    env_file: .env
+      - "127.0.0.1:3600:3600"
+    # M2.1: compose-file-relative and optional — a missing repo .env must
+    # not hard-fail rendering/invocation of unrelated services.
+    env_file:
+      - path: ../.env
+        required: false
     environment:
       - SERVICE_NAME=sword
     volumes:
@@ -198,8 +226,8 @@ services:
     # Pin to specific version for stability; update after testing
     image: dperson/torproxy:latest
     ports:
-      - "9050:9050"
-      - "9052:9051"
+      - "127.0.0.1:9050:9050"
+      - "127.0.0.1:9052:9051"
     environment:
       - PASSWORD=${TOR_CONTROL_PASS:-changeme}
     sysctls:
@@ -216,8 +244,8 @@ services:
       context: ./sliver
       dockerfile: Dockerfile
     ports:
-      - "31337:31337"
-      - "31334:31334"
+      - "127.0.0.1:31337:31337"
+      - "127.0.0.1:31334:31334"
     volumes:
       - sliver-config:/config
       - sliver-data:/data
@@ -234,8 +262,8 @@ services:
     # Pin to specific patch version for stability; update after testing
     image: neo4j:5-community
     ports:
-      - "7687:7687"
-      - "7474:7474"
+      - "127.0.0.1:7687:7687"
+      - "127.0.0.1:7474:7474"
     environment:
       - NEO4J_AUTH=${NEO4J_USER:-neo4j}/${NEO4J_PASS:-raphael-dev}
       - NEO4J_PLUGINS=["apoc"]
@@ -256,7 +284,10 @@ services:
 
   kali-tools:
     build:
-      context: ./src/kali-tools
+      # M2.1 (2026-10-04): compose resolves relative paths against THIS file's
+      # directory (configs/), so root-level `docker compose -f
+      # configs/docker-compose.yml …` needs ../-prefixed paths here.
+      context: ../src/kali-tools
       dockerfile: Dockerfile
     # Pin to a specific tag after building for production; :latest may break on rebuild
     image: raphael/kali-tools:latest
@@ -264,14 +295,15 @@ services:
     hostname: kali-tools
     networks: [raphael-net]
     ports:
-      - "3800:3800"
+      # M2.1: loopback-only by default — the lab must not publish 0.0.0.0.
+      - "127.0.0.1:3800:3800"
     cap_add:
       - NET_RAW
       - NET_ADMIN
       - SYS_PTRACE
     volumes:
-      - ./src/orchestrator:/raphael/orchestrator:ro
-      - ./data:/raphael/data
+      - ../src/orchestrator:/raphael/orchestrator:ro
+      - ../data:/raphael/data
     environment:
       - TOOLS_PORT=3800
       - TZ=UTC
@@ -285,7 +317,8 @@ services:
     networks:
       - raphael-net
     ports:
-      - "4280:80"
+      # M2.1: loopback-only by default.
+      - "127.0.0.1:4280:80"
     environment:
       - DB_SERVER=db
       - DB_DATABASE=dvwa
@@ -318,8 +351,12 @@ services:
       context: .
       dockerfile: ./docker/api.Dockerfile
     ports:
-      - "3900:3900"
-    env_file: .env
+      - "127.0.0.1:3900:3900"
+    # M2.1: compose-file-relative and optional — a missing repo .env must
+    # not hard-fail rendering/invocation of unrelated services.
+    env_file:
+      - path: ../.env
+        required: false
     environment:
       - SERVICE_NAME=raphael-api
       - RAPHAEL_PATH=/raphael
@@ -340,7 +377,7 @@ services:
     # Pin to specific version for stability; update after testing
     image: caido/caido:latest
     ports:
-      - "48080:8080"
+      - "127.0.0.1:48080:8080"
     environment:
       - CAIDO_PORT=8080
     networks:

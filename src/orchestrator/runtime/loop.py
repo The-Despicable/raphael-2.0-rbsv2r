@@ -24,18 +24,27 @@ import time
 from typing import Any, Optional
 
 from orchestrator.brain.capability_broker import CapabilityBroker
+from orchestrator.exec.capability_governance import governed_capability_identity
 from orchestrator.exec.safe_capability import SafeProvingCapability
 
 from orchestrator.runtime.types import (
+    D2_APPROVED_MAX_EPISODE_STEPS,
     DecisionTrace,
+    GovernedStepBudget,
     LoopTermination,
     MissionContext,
     PolicyDecision,
     RuntimeContext,
     StageResult,
+    broker_policy_is_d2,
+    resolve_capability_governance,
 )
 from orchestrator.runtime.scope import ScopeV0
-from orchestrator.runtime.stages import STAGE_ORDER, STAGE_HANDLERS
+from orchestrator.runtime.stages import (
+    STAGE_HANDLERS,
+    STAGE_ORDER,
+    artifact_roots_for,
+)
 from orchestrator.runtime.policy import make_broker_from_bootstrap
 from orchestrator.runtime.organs import OrganBundle
 
@@ -54,7 +63,8 @@ class RaphaelRuntime:
     def __init__(self, broker: Optional[CapabilityBroker] = None,
                  capability: Optional[SafeProvingCapability] = None,
                  organs: Optional[OrganBundle] = None,
-                 evidence_store: Optional[Any] = None):
+                 evidence_store: Optional[Any] = None,
+                 capability_registry: Optional[dict] = None):
         self._broker = broker if broker is not None else make_broker_from_bootstrap(
             capability_name="fixture.inspect"
         )
@@ -71,6 +81,48 @@ class RaphaelRuntime:
         # explicitly supplied organ bundle as well.
         if evidence_store is not None and getattr(self._organs, "evidence_store", None) is None:
             self._organs.evidence_store = evidence_store
+        # M3/D2: PEP dispatch registry (capability name -> exec/-owned
+        # capability). Multi-action episodes route an AUTHORIZED request to
+        # the capability the Broker authorized; routing happens inside the
+        # SAME PEP stage — no second PEP. Absent/empty registry preserves
+        # exact legacy behavior.
+        self._capability_registry = dict(capability_registry) if capability_registry else {}
+        # RSI-1 Fix B: governed-step ceiling enforced AT the PEP boundary. The
+        # approved D2 engagement may never execute more than
+        # D2_APPROVED_MAX_EPISODE_STEPS governed steps, recognised STRUCTURALLY
+        # so a renamed policy artifact or a hand-constructed BrokerPolicy with
+        # a zero/six/64 cap cannot escape it. Other engagements get ceiling 0
+        # (no bound declared) and are untouched — D1 behavior is unchanged.
+        #
+        # RSI-1 B-1: the ceiling and the protected-capability refusal come
+        # from the canonical governance REGISTRY (types.GOVERNED_ENGAGEMENT_
+        # CONTRACTS), not from policy identity labels. Deleting every identity
+        # signal can therefore no longer produce an unbounded path: it produces
+        # a refusal for the protected capability instead.
+        #
+        # RSI-1 C-1: governance is resolved over the capability OBJECTS this
+        # Runtime would invoke (default capability + registry values), not
+        # over caller-controlled names. The identity comes from the exec-owned
+        # exact type mapping (exec/capability_governance.py), so an aliased
+        # protected object — registered now or injected into the registry
+        # later — still resolves as protected. The Runtime binds exactly ONE
+        # governance decision and ONE episode budget, and binds them to the
+        # BROKER as private authority references; stage_pep enforces against
+        # those objects (identity, not type), so a hand-built stage context
+        # can neither omit nor substitute the authority.
+        self._protected_identity: frozenset = governed_capability_identity(self._capability)
+        for _obj in self._capability_registry.values():
+            self._protected_identity |= governed_capability_identity(_obj)
+        self._governance = resolve_capability_governance(
+            getattr(self._broker, "policy", None),
+            extra_protected=self._protected_identity,
+        )
+        self._step_budget = GovernedStepBudget(self._governance.ceiling)
+        try:
+            self._broker._capability_governance = self._governance
+            self._broker._governed_step_budget = self._step_budget
+        except Exception:  # noqa: BLE001 — an unbindable broker simply fails closed at the PEP
+            pass
         # Backwards-compatible alias for the world model.
         self._world_model = self._organs.world_model
 
@@ -94,7 +146,24 @@ class RaphaelRuntime:
             "capability_name": "fixture.inspect",
             "scope": ctx.scope,
             "evidence_store": getattr(self._organs, "evidence_store", None),
+            "capability_registry": self._capability_registry,
+            # RSI-1 Fix A: the authoritative Broker instance. stage_replan's
+            # objective evaluation resolves claimed decision ids against THIS
+            # object's receipt state — never against evidence-payload strings.
+            "broker_authority": self._broker,
+            # RSI-1 Fix B: the per-episode governed-step ceiling, consumed by
+            # the PEP stage itself so the D2 five-step maximum holds for every
+            # entry path, not only for the run_episode iteration clamp.
+            "governed_step_budget": self._step_budget,
+            # RSI-1 B-1: the resolved governance decision. The PEP stage
+            # refuses a PROTECTED capability outright when no recognised
+            # governed contract governs it.
+            "capability_governance": self._governance,
         }
+        # M3/D2 remediation: bind the exec/-owned artifact roots so the
+        # objective evaluator can verify artifact digests against the ACTUAL
+        # stored bytes (fail-closed when none are bound).
+        stage_ctx["artifact_roots"] = artifact_roots_for(stage_ctx)
 
         for stage_name in STAGE_ORDER:
             handler = STAGE_HANDLERS[stage_name]
@@ -150,6 +219,14 @@ class RaphaelRuntime:
         from ``mission.constraints["halt"]`` (populated by
         MissionContext.from_spec); otherwise legacy defaults apply
         (max_iterations=1, action_cap=1, require_scope=False).
+        M3/D2 remediation: the effective episode budget is clamped to the
+        AUTHORITATIVE policy cap (``BrokerPolicy.max_episode_steps``, sourced
+        from the validated engagement artifact, e.g.
+        ``max_episode_steps: 5`` in policies/engagement-d2-v1.json). A
+        caller-supplied ``max_iterations`` remains supported but can never
+        raise the policy maximum. The cap covers the whole episode and is not
+        reset by replanning, denial handling, or candidate fallback. Both the
+        requested and effective budgets are reported truthfully.
         """
         constraints = mission.constraints if isinstance(mission.constraints, dict) else {}
         halt = constraints.get("halt", {})
@@ -167,6 +244,51 @@ class RaphaelRuntime:
             max_iterations = 1
         if max_iterations < 1:
             max_iterations = 1
+        policy_cap = int(getattr(getattr(self._broker, "policy", None),
+                                 "max_episode_steps", 0) or 0)
+        requested_budget = max_iterations
+        # RSI-1 Fix B + B-1. The effective ceiling is the STRICTER of the
+        # cap the artifact declares and the canonical ceiling held in the
+        # governance REGISTRY for the resolved contract. The registry is the
+        # authority: a renamed/narrowed artifact can raise neither the
+        # recognised D2 ceiling nor obtain an unbounded fallback (that case is
+        # refused at the PEP boundary instead). 0 = the resolved contract
+        # declares no governed-step maximum (D1/bootstrap unchanged).
+        d2_recognized = broker_policy_is_d2(getattr(self._broker, "policy", None))
+        ceiling = policy_cap if policy_cap > 0 else 0
+        registry_ceiling = self._governance.ceiling
+        if registry_ceiling > 0 and (ceiling == 0 or registry_ceiling < ceiling):
+            ceiling = registry_ceiling
+        effective_budget = requested_budget
+        if ceiling > 0 and effective_budget > ceiling:
+            effective_budget = ceiling
+        budget_clamped = effective_budget < requested_budget
+        max_iterations = effective_budget
+        # Which bound actually governed the episode — reported truthfully so a
+        # clamp driven by the registry is never presented as the artifact's own
+        # declared cap.
+        if ceiling <= 0:
+            governing_bound = "no declared episode bound"
+        elif ceiling == policy_cap:
+            governing_bound = f"policy max_episode_steps {policy_cap}"
+        else:
+            governing_bound = (
+                f"canonical {self._governance.contract_id} invariant "
+                f"{registry_ceiling} (policy declared {policy_cap})"
+            )
+        # RSI-1 FINAL BLOCKER: the episode-boundary transition. There is NO
+        # in-place reset — ``GovernedStepBudget.reset()`` always refuses. The
+        # Runtime mints a NEW budget generation here, and re-binds it to the
+        # Broker, so the previous episode's budget becomes stale and inert (the
+        # PEP compares the stage-context budget to the Broker's by IDENTITY).
+        # Exactly one authoritative budget exists per active episode, and only
+        # this transition can produce a fresh allowance.
+        self._step_budget = GovernedStepBudget.next_episode(
+            self._step_budget, self._governance.ceiling)
+        try:
+            self._broker._governed_step_budget = self._step_budget
+        except Exception:  # noqa: BLE001 — unbindable broker fails closed at the PEP
+            pass
         scope = mission.scope
         if scope is not None and not isinstance(scope, ScopeV0):
             return [], LoopTermination(
@@ -192,6 +314,11 @@ class RaphaelRuntime:
             view = {"mission_name": mission.name, "mission_id": mission.mission_id,
                     "iteration": i, "target": default_target,
                     "objective_id": objective_id}
+            # M3/D2 §7: thread the evidence-based objective contract (when the
+            # mission declares one) so stage_replan can evaluate termination
+            # against persisted records. Absent: legacy view, byte-identical.
+            if "objective" in constraints:
+                view["objective"] = constraints["objective"]
             # P4.3 §15: bind the actual MissionSpec object when the
             # mission carries one (from_spec). The broker stage derives
             # the AuthorizationContext from this spec authoritatively.
@@ -225,5 +352,53 @@ class RaphaelRuntime:
                     )
                     all_traces[-1] = trace
                     continue
+                # M3/D2 §7: evidence-based objective continuation. When the
+                # replan stage evaluated a mission objective and the durable
+                # evidence does not yet satisfy it, continue within the same
+                # iteration budget (the next step's candidates are the
+                # mission's predeclared remaining actions).
+                replan_out = iter_outputs.get("replan")
+                if (termination.final_stage == "replan"
+                        and isinstance(replan_out, dict)
+                        and replan_out.get("replanned")
+                        and (i + 1) < max_iterations):
+                    all_traces[-1] = trace
+                    continue
+                # M3/D2 §7: honest terminal reason when an objective was
+                # evaluated — objective met, or not met (budget exhausted /
+                # required evidence denied or missing). Never claims success
+                # without the required evidence.
+                if isinstance(replan_out, dict) and replan_out.get("objective_evaluated"):
+                    termination = LoopTermination(
+                        terminated=True,
+                        reason=str(replan_out.get("reason", termination.reason)),
+                        iterations=i + 1,
+                        final_stage="replan",
+                    )
                 break
+        # M3/D2: truthful budget reporting. A clamp is reported as a clamp and
+        # never as permission to exceed the cap; an achieved objective stays an
+        # achieved objective.
+        termination.requested_budget = requested_budget
+        termination.effective_budget = effective_budget
+        termination.budget_clamped = budget_clamped
+        termination.policy_max_episode_steps = policy_cap
+        termination.governed_step_ceiling = self._step_budget.ceiling
+        termination.governed_steps_used = self._step_budget.used
+        termination.d2_recognized = d2_recognized
+        termination.governance_contract = self._governance.contract_id
+        termination.governance_refuses_protected = self._governance.refuses_protected_capability
+        termination.governance_budget_epoch = self._step_budget.generation
+        if budget_clamped:
+            termination.reason += (
+                f" [budget clamped: requested {requested_budget} steps > "
+                f"{governing_bound}; effective {effective_budget}]"
+            )
+        elif (termination.final_stage == "replan"
+              and termination.iterations >= effective_budget):
+            # The permitted budget ended without completion.
+            termination.reason += (
+                f" [budget exhausted: {termination.iterations}/{effective_budget} "
+                f"governed steps used]"
+            )
         return all_traces, termination

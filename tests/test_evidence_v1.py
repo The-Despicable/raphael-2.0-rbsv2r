@@ -463,18 +463,33 @@ def test_canonical_episode_without_store_is_unchanged():
 
 
 def test_evidence_v1_replay_is_idempotent(tmp_path):
-    """Replaying the same deterministic event does not duplicate evidence."""
+    """Re-ingesting the same decision does not duplicate evidence."""
     from orchestrator.runtime import RaphaelRuntime
+    from orchestrator.runtime.evidence_v1 import EvidenceRecord
 
     store = EvidenceStore(str(tmp_path / "evidence_v1.jsonl"))
     rt = RaphaelRuntime(evidence_store=store)
     rt.run_episode(
         _candidate_mission("ev1-replay", "ev1-fixed-001"), require_scope=True)
+    # The default capability collects no artifact, so this episode persists
+    # only its execution_result.
+    records = store.records()
+    assert {r.kind.value for r in records} == {"execution_result"}
+    persisted = records[0]
+
+    # Re-ingesting the identical record is idempotent (same content-addressed
+    # identity, no duplicate row).
+    assert store.append(EvidenceRecord.from_dict(persisted.to_dict())) == persisted.identity
     assert len(store) == 1
+
+    # A fresh episode mints a NEW authorization (new decision_id), so it is a
+    # genuinely distinct attempt and is recorded as such — the two records are
+    # never conflated.
     rt.run_episode(
         _candidate_mission("ev1-replay", "ev1-fixed-001"), require_scope=True)
-    # Same content-addressed identity: idempotent, no duplicate record.
-    assert len(store) == 1
+    assert len(store) == 2
+    decision_ids = {dict(r.payload)["decision_id"] for r in store.records()}
+    assert len(decision_ids) == 2
 
 
 def test_evidence_v1_malformed_or_failing_store_fails_closed():

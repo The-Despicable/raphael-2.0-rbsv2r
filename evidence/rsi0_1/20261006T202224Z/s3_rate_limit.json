@@ -1,0 +1,48 @@
+{
+ "experiment": "S3_rate_limit_verification",
+ "boundary": "Broker (authoritative PDP)",
+ "proposals": [],
+ "episodes": [
+  {
+   "episode": 1,
+   "pep_invocations": 2,
+   "terminated_at": "replan",
+   "termination": "objective met: verified execution evidence present for ACT-D2-PROBE-0001, ACT-D2-HTTP-0002"
+  },
+  {
+   "episode": 2,
+   "pep_invocations": 0,
+   "terminated_at": "broker",
+   "termination": "Stage 'broker' failed: G3-EN-5 fail-closed: denied by real Broker (class='recon_service_probe', reason='RateLimiter: Per-minute rate limit exceeded: 2/2')"
+  }
+ ],
+ "proposal_sequence": [
+  [
+   "recon_service_probe",
+   "allow"
+  ],
+  [
+   "lab_http_probe",
+   "allow"
+  ],
+  [
+   "recon_service_probe",
+   "denied"
+  ]
+ ],
+ "denials": [
+  {
+   "action_type": "recon_service_probe",
+   "capability": "exec.d1_lab_probe",
+   "target": "dvwa",
+   "decision": "denied",
+   "receipt_status": "ActionProposalStatus.DENIED",
+   "reason": "RateLimiter: Per-minute rate limit exceeded: 2/2"
+  }
+ ],
+ "persisted_denied_receipts": 1,
+ "persisted_rate_denials": 1,
+ "rate_denial_reason": "RateLimiter: Per-minute rate limit exceeded: 2/2",
+ "limiter_semantics": "counts authorized proposals (records an action on allow); rate-denied proposals are recorded as denials (emergency-brake accounting) and never execute; state persists per Broker instance across episodes",
+ "third_proposal_denied_at_broker": true
+}

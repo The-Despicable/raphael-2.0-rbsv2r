@@ -335,9 +335,18 @@ def test_cross_target_replay_rejected(tmp_path):
 def test_pep_sandboxed_branch_end_to_end():
     """Broker allow -> PEP sandbox branch -> SUCCESS with captured output."""
     from orchestrator.runtime.stages import stage_broker, stage_pep
-    from orchestrator.runtime.types import ActionRequest
+    from orchestrator.runtime.types import ActionRequest, GovernedStepBudget
+    from orchestrator.runtime.types import resolve_capability_governance
 
     broker = _broker()
+    # RSI-1 C-1: a direct stage_pep caller must carry the Runtime/Broker-bound
+    # execution authority. A hand-built broker binds its own resolved
+    # governance and episode budget; the PEP refuses unbound or substituted
+    # authority before start_execution.
+    governance = resolve_capability_governance(broker.policy)
+    budget = GovernedStepBudget(governance.ceiling)
+    broker._capability_governance = governance
+    broker._governed_step_budget = budget
     argv = ("/bin/echo", "pep-sandbox")
     request = ActionRequest(
         action_type="sandboxed_exec",
@@ -352,6 +361,8 @@ def test_pep_sandboxed_branch_end_to_end():
         "capability": SafeProvingCapability(broker=broker),
         "capability_name": "fixture.inspect",
         "planner_request": {"request": request},
+        "capability_governance": governance,
+        "governed_step_budget": budget,
     }
     broker_out = stage_broker(ctx)
     assert broker_out.success

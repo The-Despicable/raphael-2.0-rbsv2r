@@ -42,7 +42,6 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 logger = logging.getLogger("phishing")
 
 TEMPLATE_DIR = Path(os.environ.get("TEMPLATE_DIR", "/app/templates"))
-TEMPLATE_DIR.mkdir(parents=True, exist_ok=True)
 
 gophish = GoPhishAPI()
 evilginx = EvilGinx()
@@ -59,6 +58,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.on_event("startup")
+def _ensure_template_dir() -> None:
+    """Create TEMPLATE_DIR at service startup, never at import time.
+
+    Module-level mkdir made importing this module mutate the filesystem
+    (and fail hard when the default /app path was not creatable).
+    """
+    TEMPLATE_DIR.mkdir(parents=True, exist_ok=True)
 
 # ── Request schemas ──────────────────────────────────────────────────────────
 

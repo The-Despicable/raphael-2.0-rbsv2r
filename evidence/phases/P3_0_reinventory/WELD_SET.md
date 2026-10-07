@@ -25,7 +25,7 @@ welded set exactly (asserted by probe + guardrail). AM-4 STATUS: ALL 15 WELDED
 | W-07 | R3.0-P10 | `bridge kali.*` (6) → `KaliToolsClient.run` remote branch (httpx) |
 | W-08 | R3.0-P11 | `bridge c2.*` (5) + chains/spray → `c2/manager` → sliver/native (`beacon` aiohttp server, `dga` sockets) / `implant_builder` (SUB-05…09 + `:599 shell=True`) |
 | W-09 | R3.0-P12 | `kali-tools/server.py:19 POST /run` → `:23 subprocess.run` (authenticate + broker-gate or isolate; shared sink) |
-| W-10 | R3.0-P16 | `ExploitAgent.execute`: `custom_payload` → `orchestrator/sandbox.py:25` (arbitrary-code `run_code`); `relay_chain`/`ad_kill_chain`/`llm_exploit`/`ssrf`/`xss`/`nuclei` tools (shared sinks P09/P18/P06) |
+| W-10 | R3.0-P16 | `ExploitAgent.execute`: `custom_payload` → `orchestrator/sandbox/__init__.py` `run_code` (arbitrary-code sink); `relay_chain`/`ad_kill_chain`/`llm_exploit`/`ssrf`/`xss`/`nuclei` tools (shared sinks P09/P18/P06) |
 | W-11 | R3.0-P18 | `bridge exploit.*` (4 live): `llm_exploit_engine` (kali+LLM), `relay_chain` (socket RCE relay), `MCPBridge` listener (127.0.0.1:port, no auth) + `ExploitPipeline` (`sqlmap_wrapper` httpx, ssrf/nettacker), httpx `mcp_exploit` |
 | W-12 | R3.0-P19 | `bridge mode.*` (5): community/debate/deep_research/scan/student — unbrokered LLM (`providers` aiohttp) / OSINT / socket-scan / kali-whatweb emission + `research_scheduler` httpx + `proxy_guard` verify (incl. `--direct`/`RAPHAEL_DEV_MODE` bypasses, student `proposal_only` + unbrokered profile) |
 | W-13 | R3.0-P20 | `bridge harvester.*` (3, sqlite+httpx feeds), `model.call` (`providers` LLM APIs), `target.profile` (direct nmap subprocess) |
@@ -157,3 +157,5 @@ No independent production entry → WELDED (covered-by-entry; P9 owns removal).
   6 mediated · 4 reachable notes · 62 dead). Bare-import files without effectful use
   (`ladon` has socket use → P06; true import-only files → P17 note/P24).
   (AM-4 note: the 78 formerly not-yet files now read `Pxx welded`.)
+
+> **Amendment 2026-10-04 (M0-A):** the former sibling module `src/orchestrator/sandbox.py` was permanently shadowed by the `orchestrator/sandbox/` package and broke 14 imports; its `PatchSandbox`/W-10 definition was merged into `src/orchestrator/sandbox/__init__.py` and the shadow file removed. Paths above updated accordingly; W-10 gate semantics unchanged (fail-closed stub, see tests/test_m0_clean_floor.py).

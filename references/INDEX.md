@@ -182,6 +182,20 @@ Quick-reference per tool, organized by usage phase.
 | `tools/cracking/john.md` | Offline password hash cracking (CPU) |
 | `tools/cracking/hashcat.md` | Offline password hash cracking (GPU) |
 
+## Research Compilations
+
+| File | Purpose |
+|------|---------|
+| `offensive_powerups_v1.md` | 9-round offensive capability research (2026-09): agent planning, recon pipelines, C2/AD, LOLBAS/API, BYOVD, anti-analysis, n-day weaponization, infra cloaking, supply-chain/initial access — with Raphael integration map |
+| `famous_group_ttps_v1.md` | 8-round famous-group TTP research (2026-09): R10-13 classic groups (Anonymous/LulzSec/SEA, APT28/29, Equation/Shadow Brokers, Lazarus, Carbanak/FIN7, Lapsus$, Scattered Spider) + R14-17 2025-26 addendum (NoName057/OpUK, Salt Typhoon/CaptiveCrunch, ShinyHunters OAuth supply chain, ransomware-2026, AI-orchestrated attacks) — cross-group ATT&CK taxonomy, OPSEC-failure analysis, Raphael integration map |
+| `BLACK_HAT_GROUNDING_v1.md` | Verification record for `BLACK_HAT_OPERATOR_BLUEPRINT.md` (2026-10-01): 119/119 ATT&CK IDs validated against live enterprise/mobile/ICS indexes via `scripts/ground_attack_ids.py`, 15-correction log, ATT&CK renumbering notes (T1562 retirement, T1656→T1684.001), CISA AA25-343A/AA23-320A confirmation, arsenal executability audit (0/24 tools, bring-up + re-grounding procedures) |
+
+## papers/ — Acquired Research Papers
+
+| File | Purpose |
+|------|---------|
+| `papers/AutoPen_2025_CSAE.pdf` / `.txt` | AutoPen (CSAE'25, gold OA, CC-BY): LLM multi-agent autonomous pentest — SA/AA/EA + Inspection Agent (orchestration/self-inspection/backtracking), KG of system-software-CVE-resource nodes, two-round RAG, multi-agent prompt-variation voting, VulnHub 10-target benchmark. Design input for S7 planner |
+
 ## runtime-guides/ — Shared Runtime References
 
 Shared operator/runtime references. Used by: operator, Claude, Codex.

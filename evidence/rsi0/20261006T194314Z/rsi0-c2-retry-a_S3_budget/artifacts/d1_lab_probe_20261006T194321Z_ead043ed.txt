@@ -1,0 +1,4 @@
+Starting Nmap 7.99
+Nmap scan report for dvwa (172.19.0.4)
+PORT   STATE SERVICE
+80/tcp open  http

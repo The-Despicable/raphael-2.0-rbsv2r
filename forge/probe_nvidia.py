@@ -1,4 +1,5 @@
 """Probe NVIDIA API: check .env keys, list live models, test alternatives."""
+import os
 import json, re, sys
 
 # 1. What keys does .env hold?
@@ -13,7 +14,7 @@ for m in re.finditer(r"^(NVIDIA_API_KEY[A-Z_]*)=(\S+)", env_text, re.M):
     keys[m.group(1)] = m.group(2)
 print("env keys found:", {k: v[:20] + "..." for k, v in keys.items()})
 
-frozen_key = "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"
+frozen_key = os.environ.get("NVIDIA_API_KEY", "")
 
 def probe(key, label):
     import urllib.request

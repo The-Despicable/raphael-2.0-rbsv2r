@@ -1,6 +1,11 @@
 # RAPHAEL_ROADMAP_OFFENSIVE_RESTORE_v1 — Full Offensive Restoration & Autonomous Operation
 
-Status: PLANNED (build pending operator go per phase)
+> **SUPERSEDED 2026-09-30** by `RAPHAEL_ARCHITECTURE_ROADMAP_v2.md` (operator
+> directive: singular architecture/roadmap absorbing research rounds 1-17).
+> This file is retained as an archive. Live content: build phases → v2 §6,
+> restriction model → v2 §2, DoD → v2 §1, non-goals → v2 §11, risks → v2 App. A.
+
+Status: ARCHIVED (superseded by v2)
 Base: HEAD `3b2e22db3d952622150d271c12c41d9ed21e81fd` + 91 dirty entries (worktree)
 Prepared from: end-to-end audit (2026-09-30), file-level weld census, git history recovery probe.
 

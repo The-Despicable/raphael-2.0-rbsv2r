@@ -142,6 +142,14 @@ class BrokerPolicy:
     max_impact_per_action: float = 5.0      # 0-10 scale
     max_cumulative_impact: float = 50.0     # Per engagement
     high_impact_requires_approval: bool = True  # > max_impact_per_action needs explicit approval
+
+    # ── Episode step budget (M3/D2) ─────────────────────────────────────
+    # Authoritative episode-wide maximum of governed steps. 0 = the policy
+    # declares no cap (legacy/D1 behavior). The Runtime clamps its effective
+    # iteration budget to this value; a caller-supplied larger budget cannot
+    # raise it. This is a governed policy field, not a launcher default.
+    max_episode_steps: int = 0
+    policy_name: str = ""
     
     # ── Time Windows ─────────────────────────────────────────────
     engagement_start: float = field(default_factory=time.time)
@@ -168,6 +176,7 @@ class BrokerPolicy:
             "max_impact_per_action": self.max_impact_per_action,
             "max_cumulative_impact": self.max_cumulative_impact,
             "high_impact_requires_approval": self.high_impact_requires_approval,
+            "max_episode_steps": self.max_episode_steps,
             "engagement_start": self.engagement_start,
             "engagement_end": self.engagement_end,
             "created_by": self.created_by,
@@ -345,20 +354,16 @@ class CapabilityBroker:
         receipt.metadata["impact_estimate"] = impact_estimate
         # 2. Run ALL authorization checks
         checks = self._run_all_checks(target, action_type, capability, method, impact_estimate)
-        
+
         # 3. Aggregate decision
         all_allow = all(c.decision == AuthorizationDecision.ALLOW for c in checks)
-        
+
         if all_allow:
-            receipt = authorize(
-                receipt, 
-                reason=self._aggregate_reasons(checks),
-                policy_version=str(self.policy.version),
-                authorized_by="capability_broker",
-            )
-            logger.info(f"ALLOWED: {action_type} on {target} via {capability}")
-            
-            # 3b. Apply RateLimiter delay if configured
+            # M3/D2: rate limits are enforced BEFORE authorization. An
+            # AUTHORIZED receipt can never transition to DENIED (fail-closed
+            # state machine), so a rate-denied attempt must be denied while
+            # the proposal is still in PROPOSED state — otherwise the broker
+            # would return a None receipt for a real attempt.
             if self.rate_limiter:
                 # Determine target type for rate limiting
                 target_type = "web"
@@ -366,14 +371,15 @@ class CapabilityBroker:
                     target_type = "shell"
                 elif "dns" in capability.lower():
                     target_type = "dns"
-                
+
                 allowed, reason, delay = self.rate_limiter.authorize_with_delay(
                     target=target,
                     action_type=action_type,
                     target_type=target_type
                 )
                 if not allowed:
-                    # Rate limiter denied - update receipt
+                    # Rate limiter denied - the proposal is still PROPOSED,
+                    # so the DENIED transition is valid.
                     receipt = deny(
                         receipt,
                         reason=f"RateLimiter denied: {reason}",
@@ -381,8 +387,17 @@ class CapabilityBroker:
                         authorized_by="capability_broker",
                     )
                     logger.warning(f"RATE LIMIT DENIED: {action_type} on {target} — {reason}")
+                    self.receipt_store[receipt.action_id] = receipt
+                    self._log_action(receipt, checks)
                     return receipt
                 logger.debug(f"RateLimiter delay applied: {delay:.2f}s for {target}")
+            receipt = authorize(
+                receipt,
+                reason=self._aggregate_reasons(checks),
+                policy_version=str(self.policy.version),
+                authorized_by="capability_broker",
+            )
+            logger.info(f"ALLOWED: {action_type} on {target} via {capability}")
         else:
             deny_reasons = [c.reason for c in checks if c.decision == AuthorizationDecision.DENY]
             receipt = deny(
@@ -397,6 +412,54 @@ class CapabilityBroker:
         self.receipt_store[receipt.action_id] = receipt
         self._log_action(receipt, checks)
         
+        return receipt
+
+    def authoritative_success_receipt(self, decision_id: str, mission_id: str,
+                                      mission_action_id: str) -> Optional[ActionReceipt]:
+        """RSI-1 Fix A: resolve a claimed decision id against THIS broker's
+        authoritative receipt state.
+
+        The canonical flow mints ``PolicyDecision.decision_id`` from the broker
+        receipt's ``action_id``, which ``create_proposal`` derives from
+        ``time.time_ns()`` plus ``os.urandom`` — a UNIQUE per-attempt identity,
+        not the mission-scoped action id. Several attempts of the same mission
+        action therefore resolve independently and none can borrow another's
+        chain.
+
+        A receipt qualifies only when ALL of the following hold, every one of
+        them read from this broker's own state rather than from a claim:
+
+        1. it exists in this broker's receipt store;
+        2. it reached the SUCCEEDED terminal state (proposed, authorized, or
+           started is not enough; denied/failed/timeout never qualify);
+        3. its own recorded decision is "allow";
+        4. its lifecycle metadata binds it to the claimed mission AND the
+           claimed mission-scoped action id;
+        5. its authorized target is one this broker's policy actually allows.
+
+        Anything else returns None (fail closed).
+        """
+        from orchestrator.hardening.action_receipt import ActionProposalStatus
+        if not decision_id or not mission_id or not mission_action_id:
+            return None
+        receipt = self.receipt_store.get(decision_id)
+        if receipt is None:
+            return None
+        # Exact terminal-state match: a substring test would be a claim about
+        # presentation rather than the lifecycle state machine.
+        if getattr(receipt, "status", None) is not ActionProposalStatus.SUCCEEDED:
+            return None
+        if str(getattr(receipt, "decision", "") or "") != "allow":
+            return None
+        md = getattr(receipt, "metadata", None) or {}
+        if md.get("mission_id") != mission_id:
+            return None
+        if md.get("mission_action_id") != mission_action_id:
+            return None
+        allowed_targets = tuple(getattr(self.policy, "allowed_targets", ()) or ())
+        if allowed_targets and "*" not in allowed_targets:
+            if str(getattr(receipt, "target", "") or "") not in allowed_targets:
+                return None
         return receipt
 
     def _run_all_checks(
@@ -526,7 +589,12 @@ class CapabilityBroker:
     def start_execution(self, receipt: ActionReceipt) -> ActionReceipt:
         """Mark action as STARTED and update rate/concurrency tracking."""
         receipt = start_execution(receipt)
-        
+        # The lifecycle state machine refuses an illegal transition (e.g. a
+        # DENIED or already-terminal receipt). Propagate that refusal as None
+        # instead of dereferencing it: the PEP stage treats None as fail-closed.
+        if receipt is None:
+            return None
+
         # Update rate tracker
         if receipt.target not in self._rate_tracker:
             self._rate_tracker[receipt.target] = []
@@ -545,11 +613,17 @@ class CapabilityBroker:
         """Mark action as completed (succeeded/failed/timeout)."""
         if success:
             receipt = complete_execution(receipt, success=True, result=result, evidence_ids=evidence_ids)
+            # A refused terminal transition (the receipt never reached STARTED)
+            # propagates as None rather than being indexed below.
+            if receipt is None:
+                return None
             # Update cumulative impact
             # Note: impact was estimated at proposal time
             self._cumulative_impact += receipt.metadata.get("impact_estimate", 0)
         else:
             receipt = complete_execution(receipt, success=False, result=result, evidence_ids=evidence_ids)
+        if receipt is None:
+            return None
         
         # Decrement concurrency
         self._concurrent_count = max(0, self._concurrent_count - 1)
@@ -560,6 +634,8 @@ class CapabilityBroker:
     def timeout_execution(self, receipt: ActionReceipt, result: str = "") -> ActionReceipt:
         """Mark action as timed out."""
         receipt = timeout_execution(receipt, result=result)
+        if receipt is None:
+            return None
         self._concurrent_count = max(0, self._concurrent_count - 1)
         self.receipt_store[receipt.action_id] = receipt
         return receipt

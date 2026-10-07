@@ -6,7 +6,7 @@ Run: .venv/bin/python forge/sweep_imports.py
 """
 import importlib, os, sys
 
-SRC = "/home/yaser/raphael-2.0-rbsv2r/src"
+SRC = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src")
 sys.path.insert(0, SRC)
 
 ok, fail = [], []

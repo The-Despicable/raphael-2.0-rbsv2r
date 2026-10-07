@@ -1,0 +1,18 @@
+{
+ "experiment": "C2_rate_retry_window",
+ "window_wait_seconds": 61,
+ "episode_1": {
+  "pep_invocations": 1,
+  "terminated_at": "broker",
+  "termination": "Stage 'broker' failed: G3-EN-5 fail-closed: denied by real Broker (class='recon_service_probe', reason='RateLimiter: Per-minute rate limit exceeded: 1/1')"
+ },
+ "episode_2": {
+  "pep_invocations": 1,
+  "terminated_at": "broker",
+  "termination": "Stage 'broker' failed: G3-EN-5 fail-closed: denied by real Broker (class='lab_http_probe', reason='RateLimiter: Per-minute rate limit exceeded: 1/1')",
+  "b_executed_http_302": false
+ },
+ "denials_before_window_expiry": 2,
+ "retry_exercised_across_episodes": true,
+ "verdict": "PARTIALLY SUPPORTED \u2014 the retry executes through the full governed path when the transient failure is a Broker-stage rate denial and the window expires (across episodes); it is UNSUPPORTED within one episode when the failure is a capability-boundary fault (the runtime halts at the PEP)."
+}

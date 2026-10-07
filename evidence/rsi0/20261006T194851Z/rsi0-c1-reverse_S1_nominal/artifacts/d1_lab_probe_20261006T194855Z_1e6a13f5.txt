@@ -1,0 +1,9 @@
+Starting Nmap 7.99 ( https://nmap.org ) at 2026-10-06 19:48 +0000
+Nmap scan report for dvwa (172.19.0.2)
+Host is up (0.000038s latency).
+rDNS record for 172.19.0.2: dvwa.raphael-m1_raphael-net
+
+PORT   STATE SERVICE
+80/tcp open  http
+
+Nmap done: 1 IP address (1 host up) scanned in 0.54 seconds

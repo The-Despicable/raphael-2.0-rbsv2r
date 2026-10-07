@@ -29,6 +29,9 @@ neo4j
 pywinrm
 aiofiles
 jinja2
+# python-dotenv — M1 (2026-10-04): required by .env loading referenced in the
+# restoration roadmap (P0.3) and the gap analysis (M1-A); was undeclared.
+python-dotenv
 
 # --- tests ---
 pytest

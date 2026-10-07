@@ -25,9 +25,11 @@
 ```
 PYTHONPATH=src python3 -m pytest tests/ --no-header -q
 ```
-Expect: 357 passed / 0 failed / 0 skipped / 0 xfail. Guardrails: the 10
-`tests/test_p2_guardrail_*.py` files (30 collected). Closure: run the B-1a
-probe above; expect static 34/0 Arena, loaded 53/0 Arena.
+Expect: 621 passed / 0 failed / 0 skipped / 0 xfail (verified 2026-10-04 on
+Python 3.14.4 — the frozen `>=3.11,<3.13` pin is NOT satisfiable in the
+current environment; re-verify on 3.12 after M1 provisioning). Guardrails:
+the 10 `tests/test_p2_guardrail_*.py` files (30 collected). Closure: run the
+B-1a probe above; expect static 34/0 Arena, loaded 53/0 Arena.
 
 ## Chain (authorization flows one way)
 

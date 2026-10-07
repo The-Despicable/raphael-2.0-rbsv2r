@@ -216,10 +216,10 @@ def test_w09_kali_server_run_denies_403():
     assert "R3.0-P12" in exc_info.value.detail and "W-09" in exc_info.value.detail
 
 
-# ── W-10: sandbox sink + exploit dispatcher (AST: shadowed package) ────
+# ── W-10: sandbox sink + exploit dispatcher (AST: package __init__) ────
 
 def test_w10_run_code_and_dispatcher_reference_gate():
-    assert _has_gate_call(_tree("src/orchestrator/sandbox.py"), "run_code")
+    assert _has_gate_call(_tree("src/orchestrator/sandbox/__init__.py"), "run_code")
     assert _has_gate_call(_tree("src/orchestrator/agents/exploit.py"), "execute")
 
 
@@ -373,7 +373,7 @@ def test_r2_w07_kali_client_body_deleted():
 
 
 def test_r2_w10_run_code_body_deleted():
-    calls = _func_calls(_tree("src/orchestrator/sandbox.py"), "run_code")
+    calls = _func_calls(_tree("src/orchestrator/sandbox/__init__.py"), "run_code")
     assert "subprocess.run" not in calls
 
 

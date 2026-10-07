@@ -1,0 +1,82 @@
+{
+  "policy_name": "engagement-d1-v1",
+  "version": 1,
+  "schema_version": 1,
+  "created_by": "M2-D1 (2026-10-04): bounded governed-action demonstration",
+  "created_at": "2026-10-04",
+  "status": "ACTIVE",
+  "mode": "BOUNDED_LAB",
+  "engagement_id": "d1-governed-action",
+  "scope": {
+    "description": "Exactly one allowlisted service-probe action against the local DVWA container of the raphael-m1 compose lab. Everything not enumerated here is denied. This is NOT an open engagement policy; engagement-open-v0.json remains unwired and inactive.",
+    "lab": {
+      "compose_project": "raphael-m1",
+      "target_service": "dvwa",
+      "target_image_prefix": "vulnerables/web-dvwa",
+      "probe_container": "kali-tools",
+      "probe_tool": "nmap"
+    }
+  },
+  "allowed": {
+    "action_types": ["recon_service_probe"],
+    "capabilities": ["exec.d1_lab_probe"],
+    "targets": ["dvwa"]
+  },
+  "prohibited": {
+    "action_types": [
+      "tool_execute",
+      "exploit_execute",
+      "sandboxed_exec",
+      "c2_listen",
+      "agent_engage",
+      "phish_execute",
+      "postex_execute",
+      "shell_exec"
+    ],
+    "capabilities": [
+      "chains.tool_registry",
+      "orchestrator.kali_tools_client",
+      "c2.beacon",
+      "c2.implant_builder",
+      "c2.sliver_backend",
+      "sandbox.run_code",
+      "fixture.inspect"
+    ],
+    "targets": []
+  },
+  "rate_limits": {
+    "max_actions_per_minute": 6,
+    "max_actions_per_hour": 60,
+    "max_concurrent": 1
+  },
+  "impact": {
+    "max_impact_per_action": 2.0,
+    "max_cumulative_impact": 20.0,
+    "high_impact_requires_approval": true
+  },
+  "fail_closed": {
+    "on_missing_file": true,
+    "on_malformed_json": true,
+    "on_unsupported_schema_version": true,
+    "on_empty_allow_lists": true,
+    "on_missing_lab_contract": true,
+    "on_unsupported_mode": true
+  },
+  "invariants_enforced": [
+    "INV-1: process/network/file primitives confined to exec/",
+    "INV-2: every execution event carries the Broker decision_id",
+    "INV-3: execution-derived claims require receipts",
+    "INV-5: CLI -> Runtime; Runtime does not import arena",
+    "INV-6: Runtime cannot import seam",
+    "INV-7: no absolute hard-coded paths in new Runtime code"
+  ],
+  "kill_switch": {
+    "procedure": "Swap the decision source to policies/bootstrap-v0.json (make_broker_from_bootstrap). The same D1 request is then denied on the action_type dimension and no process is spawned.",
+    "restrictive_policy": "policies/bootstrap-v0.json"
+  },
+  "references": {
+    "gap_analysis": "RAPHAEL_GAP_ANALYSIS_IMPROVEMENT_PLAN_20261004.md",
+    "task_order": "RAPHAEL-M2-D1-2026-10-04",
+    "supersedes_nothing": "engagement-open-v0.json exists but is not loaded by any code path and grants nothing here"
+  }
+}

@@ -256,8 +256,17 @@ class EvidenceRecord:
                          stdout: str = "", stderr: str = "",
                          duration_ms: float = 0.0, reason: str = "",
                          decision: str = "", policy_version: str = "",
-                         artifacts: tuple = (), parents: tuple = (),
+                         decision_id: str = "", artifacts: tuple = (),
+                         parents: tuple = (),
                          observed_at: Optional[float] = None) -> "EvidenceRecord":
+        """Mint an execution_result record.
+
+        M3/D2 remediation: ``decision_id`` records the Broker decision that
+        authorized this attempt. It is provenance only (it authorizes
+        nothing), but the objective evaluator REQUIRES it — without the
+        authorization linkage an execution_result cannot demonstrate that a
+        governed execution actually produced it.
+        """
         if returncode is not None and not isinstance(returncode, int):
             raise EvidenceError("Evidence v1: 'returncode' must be int or omitted")
         payload = {
@@ -272,6 +281,8 @@ class EvidenceRecord:
             payload["returncode"] = returncode
         if decision:
             payload["decision"] = _check_text("decision", decision, limit=16)
+        if decision_id:
+            payload["decision_id"] = _check_id("decision_id", decision_id)
         if policy_version:
             payload["policy_version"] = _check_text("policy_version", policy_version, limit=64)
         if artifacts:

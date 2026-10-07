@@ -41,4 +41,11 @@ COPY server.py /app/server.py
 WORKDIR /app
 EXPOSE 3800
 
+# M2.1 (2026-10-04): server.py imports `orchestrator.auth`, which the compose
+# contract mounts read-only at /raphael/orchestrator. server.py's own sys.path
+# insert resolves to "/" (dirname of /app), so without this the service
+# crash-looped with "ModuleNotFoundError: No module named 'orchestrator'".
+# /raphael is the single authoritative source location (no second copy).
+ENV PYTHONPATH=/raphael
+
 CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "3800"]

@@ -18,15 +18,18 @@ No new stages. The existing 10 stages are modified in-place to call
 the real brain organs.
 """
 from __future__ import annotations
+import logging
 import math
 import time
 from typing import Any, Optional
 
+from orchestrator.exec.capability_governance import governed_capability_identity
 from orchestrator.runtime.types import (
     ActionRequest,
     ExecutionEvent,
     PolicyDecision,
     StageResult,
+    resolve_capability_governance,
 )
 
 
@@ -309,6 +312,38 @@ def stage_planner_request(ctx: dict) -> StageResult:
     )
 
 
+def _persist_denial_record(ctx: dict, request, decision, receipt, reason: str = "") -> None:
+    """M3/D2 §6: durable denial receipt for every attempted action.
+
+    Authorization, scope/target-mismatch, and rate-limit denials all reach
+    the broker stage and terminate the episode before stage_receipt can run;
+    without this, a denial would leave only a transcript. Evidence records;
+    it never authorizes. Content-addressed identity makes re-ingest
+    idempotent (no duplicate records for a single attempt). Persistence
+    failure is logged and swallowed: it must not mask the denial.
+    """
+    store = ctx.get("evidence_store")
+    if store is None:
+        return
+    from orchestrator.runtime.evidence_v1 import EvidenceRecord
+    view = ctx.get("view", {}) if isinstance(ctx.get("view"), dict) else {}
+    try:
+        store.append(EvidenceRecord.execution_result(
+            mission_id=str(view.get("mission_id", "") or ""),
+            producer="runtime.broker",
+            action_id=str(getattr(request, "action_id", "")
+                          or getattr(receipt, "action_id", "") or ""),
+            status="denied",
+            reason=str(reason or decision.reason or "")[:512],
+            decision="deny",
+            policy_version=str(decision.policy_version or ""),
+        ))
+    except Exception as exc:  # noqa: BLE001 - persistence must not mask denial
+        logging.getLogger(__name__).warning(
+            "denial evidence persistence failed (denial still enforced): %s", exc,
+        )
+
+
 def stage_broker(ctx: dict) -> StageResult:
     """Broker call. Authorizes the ActionRequest against the real brain
     CapabilityBroker (CONV-1)."""
@@ -351,6 +386,12 @@ def stage_broker(ctx: dict) -> StageResult:
         # request declares it) and thread it as authorization material.
         # The broker records argv on the receipt; the PEP re-verifies it.
         argv = tuple(request.args.get("argv", ())) if isinstance(request.args, dict) else ()
+        # RSI-1 Fix A: authoritatively bind the Broker receipt to the current
+        # mission and the mission-scoped action id via the receipt's lifecycle
+        # metadata. The objective evaluator resolves this binding against the
+        # Broker's receipt state — a payload claim without the binding can
+        # never verify.
+        view_mid = str((ctx.get("view") or {}).get("mission_id", "") or "")
         receipt = broker.propose_action(
             target=request.target,
             action_type=request.action_type,
@@ -358,6 +399,8 @@ def stage_broker(ctx: dict) -> StageResult:
             method=method,
             impact_estimate=impact_estimate,
             authorized_argv=argv,
+            metadata={"mission_id": view_mid,
+                      "mission_action_id": request.action_id},
         )
     except Exception as exc:
         return StageResult.make(
@@ -372,6 +415,11 @@ def stage_broker(ctx: dict) -> StageResult:
         # P3.11 §14.10: record the denial as Planner feedback before
         # returning the unchanged fail-closed denial.
         _record_broker_denial_feedback(ctx, request, receipt, decision.reason)
+        # M3/D2 §6: persist a durable denial receipt for EVERY attempted
+        # action (authorization, scope, and rate-limit denials all arrive
+        # here). Evidence records; it never authorizes. Persistence failure
+        # must not mask the denial itself.
+        _persist_denial_record(ctx, request, decision, receipt)
         return StageResult.make(
             stage_name=STAGE_BROKER,
             success=False,
@@ -414,6 +462,8 @@ def stage_broker(ctx: dict) -> StageResult:
             # P3.11 §14.10: record the scope denial as Planner feedback
             # before returning the unchanged fail-closed denial.
             _record_broker_denial_feedback(ctx, request, receipt, scope_reason)
+            # M3/D2 §6: scope/target mismatch is an attempted action too.
+            _persist_denial_record(ctx, request, decision, receipt, reason=scope_reason)
             return StageResult.make(
                 stage_name=STAGE_BROKER,
                 success=False,
@@ -481,6 +531,168 @@ def stage_pep(ctx: dict) -> StageResult:
             ),
             duration_ms=(time.time() - t0) * 1000.0,
         )
+    # RSI-1 B-1 + C-1: the execution boundary is FAIL-CLOSED on authority.
+    #
+    # ESCAPE 1 (capability substitution, closed): protection was bound to
+    # capability NAME strings (policy vocabulary / dispatch-registry keys),
+    # both caller-controlled; a protected object registered under an
+    # innocuous alias severed the name→protection link and executed
+    # unbounded. Protection is now derived from the EXACT capability OBJECT
+    # that would execute, via the exec-owned type mapping
+    # (exec/capability_governance.py) — relabelling, aliasing, subclass
+    # attribute overrides, and post-construction registry edits cannot strip
+    # it.
+    #
+    # ESCAPE 2 (hand-built context, closed): both gates were conditional on
+    # key presence, so a caller that omitted ``capability_governance`` and
+    # ``governed_step_budget`` — or supplied fresh replacements each call —
+    # skipped them. Authority is now REQUIRED: the Broker must carry the
+    # Runtime-bound governance and episode-budget objects, the stage context
+    # must carry THOSE EXACT OBJECTS (identity, not type), and any absence
+    # or substitution REFUSES before the receipt is started. Missing
+    # authority is a refusal, never "no gate".
+    #
+    # The expected governance is INDEPENDENTLY derived here on every
+    # invocation from the Broker policy plus the dispatched object identity,
+    # so the enforced decision does not depend on what the context claims.
+
+    # 1-2. Resolve the EXACT capability object that would execute (dispatch
+    # routing BEFORE enforcement, so governance covers the invoked object;
+    # M3/D2 keeps routing inside the SAME PEP stage — not a second PEP).
+    registry = ctx.get("capability_registry") or {}
+    if request.action_type != "sandboxed_exec":
+        capability = registry.get(request.capability, capability)
+
+    # 3-4. Derive the expected governance from the Broker policy plus the
+    # dispatched OBJECT's governed identity. ``extra_protected`` can only
+    # trigger the fail-closed refusal; it can never manufacture a contract
+    # or raise a ceiling.
+    object_identity = governed_capability_identity(capability)
+    expected = resolve_capability_governance(
+        getattr(broker, "policy", None),
+        extra_protected=object_identity,
+    )
+
+    # 5. Require trusted authority: the Runtime/Broker-bound governance and
+    # the Runtime/Broker-owned episode budget, carried by identity through
+    # the stage context. A direct caller that omits them, forges them, or
+    # substitutes fresh/foreign objects is refused here — before
+    # ``start_execution`` and before any capability runs.
+    bound_governance = getattr(broker, "_capability_governance", None)
+    bound_budget = getattr(broker, "_governed_step_budget", None)
+    if bound_governance is None or bound_budget is None:
+        return StageResult.make(
+            stage_name=STAGE_PEP,
+            success=False,
+            output={"governance_authority_refused": True,
+                    "authority_missing": "broker"},
+            error=(
+                "§governance fail-closed: no capability-governance / "
+                "governed-step-budget authority is bound to this Broker; "
+                "execution requires Runtime-bound authority"
+            ),
+            duration_ms=(time.time() - t0) * 1000.0,
+        )
+    if ctx.get("capability_governance") is not bound_governance:
+        return StageResult.make(
+            stage_name=STAGE_PEP,
+            success=False,
+            output={"governance_authority_refused": True,
+                    "authority_missing": "capability_governance"},
+            error=(
+                "§governance fail-closed: stage context does not carry the "
+                "Runtime/Broker-bound capability_governance authority; "
+                "missing or substituted authority is a refusal, not a gate skip"
+            ),
+            duration_ms=(time.time() - t0) * 1000.0,
+        )
+    if ctx.get("governed_step_budget") is not bound_budget:
+        return StageResult.make(
+            stage_name=STAGE_PEP,
+            success=False,
+            output={"governance_authority_refused": True,
+                    "authority_missing": "governed_step_budget"},
+            error=(
+                "§budget fail-closed: stage context does not carry the "
+                "Runtime/Broker-owned governed-step budget authority; missing "
+                "or substituted budget authority is a refusal, not a gate skip"
+            ),
+            duration_ms=(time.time() - t0) * 1000.0,
+        )
+
+    # 6a. Protected-capability refusal, derived from policy + OBJECT identity.
+    # A protected capability may not execute unless a recognised governed
+    # engagement contract governs it — checked BEFORE the Broker receipt is
+    # started and before any capability is invoked, so the receipt stays
+    # AUTHORIZED and can never satisfy an objective.
+    if expected.refuses_protected_capability:
+        return StageResult.make(
+            stage_name=STAGE_PEP,
+            success=False,
+            output={"protected_capability_refused": True,
+                    "capability": str(getattr(request, "capability", "") or ""),
+                    "governance_contract": expected.contract_id},
+            error=str(expected.reason or "protected capability refused"),
+            duration_ms=(time.time() - t0) * 1000.0,
+        )
+
+    # 6a-2. RSI-1 C-1 DECISIVE FIX — contract membership.
+    #
+    # A recognised governed contract must authorise BOTH the policy AND the
+    # exact capability OBJECT being executed. Recognition alone is not
+    # sufficient: a canonical D1 policy (ceiling 0) paired with a
+    # LabHttpProbeCapability OBJECT — dispatched under the D1 registry key, or
+    # as the bare default capability — was authorised as "D1, uncapped" and
+    # executed the HTTP probe repeatedly (12 governed executions before the
+    # rate limiter intervened). The object's OWN canonical identity is compared
+    # here against the contract's CLOSED capability set, so a D1 contract can
+    # never authorise exec.http_probe and D2 authorises exactly its two
+    # approved capabilities.
+    #
+    # Checked BEFORE the receipt is started and before any capability is
+    # invoked: on refusal the receipt stays AUTHORIZED (never STARTED, never
+    # SUCCEEDED) and the capability is never invoked.
+    permitted, membership_reason = expected.permits_object_identity(object_identity)
+    if not permitted:
+        return StageResult.make(
+            stage_name=STAGE_PEP,
+            success=False,
+            output={"capability_contract_refused": True,
+                    "capability": str(getattr(request, "capability", "") or ""),
+                    "object_identity": sorted(object_identity),
+                    "governance_contract": expected.contract_id,
+                    "contract_capabilities": sorted(expected.contract_capabilities)},
+            error=str(membership_reason),
+            duration_ms=(time.time() - t0) * 1000.0,
+        )
+
+    # 6b. The governed-step ceiling is consumed HERE — immediately before the
+    # Broker receipt is started and the capability is invoked — so the bound
+    # is on steps that actually reach the PEP. The authoritative budget is
+    # the Runtime-owned episode budget object bound to the Broker; a
+    # recognised BOUNDED contract (ceiling > 0) always enforces the REGISTRY
+    # ceiling: a tampered budget ceiling of 0 or 64 is repaired to the
+    # registry value, so a recognised D2 episode can never be loosened into
+    # an unbounded path. Ceiling 0 (D1/bootstrap) declares no governed-step
+    # maximum and is untouched.
+    budget = bound_budget
+    if expected.ceiling > 0 and budget.ceiling != expected.ceiling:
+        budget.ceiling = expected.ceiling
+    if not budget.try_consume():
+        return StageResult.make(
+            stage_name=STAGE_PEP,
+            success=False,
+            output={"governed_step_budget_exhausted": True,
+                    "governed_step_ceiling": getattr(budget, "ceiling", 0),
+                    "governed_steps_used": getattr(budget, "used", 0)},
+            error=(
+                "§budget fail-closed: governed-step maximum reached "
+                f"({getattr(budget, 'used', 0)}/{getattr(budget, 'ceiling', 0)}); "
+                "no further governed step may reach the PEP in this episode"
+            ),
+            duration_ms=(time.time() - t0) * 1000.0,
+        )
+    # 7. Only now does the receipt start.
     started = broker.start_execution(receipt)
     if started is None or getattr(started, "status", None) != ActionProposalStatus.STARTED:
         return StageResult.make(
@@ -498,6 +710,9 @@ def stage_pep(ctx: dict) -> StageResult:
         if request.action_type == "sandboxed_exec":
             outcome = _stage_pep_sandboxed(ctx, request, decision, t0)
         else:
+            # M3/D2: dispatch routing was resolved above (BEFORE the
+            # governance boundary), so the object actually invoked is the
+            # exact object governance was derived from.
             outcome = _stage_pep_capability(capability, request, decision, t0)
     except Exception as exc:
         # A raised PEP must still reach a truthful terminal failure before
@@ -506,6 +721,8 @@ def stage_pep(ctx: dict) -> StageResult:
             receipt, success=False,
             result=f"pep raised {type(exc).__name__}",
         )
+        _persist_failure_record(ctx, request, receipt, decision,
+                                f"pep raised {type(exc).__name__}: {exc}")
         return StageResult.make(
             stage_name=STAGE_PEP,
             success=False,
@@ -523,7 +740,40 @@ def stage_pep(ctx: dict) -> StageResult:
         success=bool(outcome.success),
         result=(outcome.error or "executed"),
     )
+    if not outcome.success:
+        # M3/D2 §6: an executed-but-failed action gets a durable failure
+        # receipt too (timeout, executor error, bounded abort). The failure
+        # is never represented as success.
+        _persist_failure_record(ctx, request, receipt, decision,
+                                outcome.error or "execution failed")
     return outcome
+
+
+def _persist_failure_record(ctx: dict, request, receipt, decision, reason: str) -> None:
+    """M3/D2 §6: durable failure receipt for an action whose execution
+    started and then failed (timeout, executor/network error, bounded abort).
+    A failure is never represented as success. Persistence failure is logged,
+    never masking the truthful broker terminal state."""
+    store = ctx.get("evidence_store")
+    if store is None:
+        return
+    from orchestrator.runtime.evidence_v1 import EvidenceRecord
+    view = ctx.get("view", {}) if isinstance(ctx.get("view"), dict) else {}
+    try:
+        store.append(EvidenceRecord.execution_result(
+            mission_id=str(view.get("mission_id", "") or ""),
+            producer="runtime.pep",
+            action_id=str(getattr(request, "action_id", "")
+                          or getattr(receipt, "action_id", "") or ""),
+            status="failed",
+            reason=str(reason or "")[:512],
+            decision="allow",
+            policy_version=str(decision.policy_version or ""),
+        ))
+    except Exception as exc:  # noqa: BLE001
+        logging.getLogger(__name__).warning(
+            "failure evidence persistence failed (failure still recorded on the broker receipt): %s", exc,
+        )
 
 
 def _stage_pep_capability(capability, request: "ActionRequest",
@@ -623,6 +873,52 @@ def _stage_pep_sandboxed(ctx: dict, request: "ActionRequest",
     )
 
 
+
+class _ArtifactEvidenceError(ValueError):
+    """PEP output lacks the metadata needed to mint a verifiable artifact record."""
+    pass
+
+
+def _artifact_meta(pep_output: Any, ref: str, key: str) -> Any:
+    """Extract the PEP-reported metadata value for one collected artifact ref.
+
+    The single-artifact capabilities report ``artifact_<key>`` for the
+    artifact named by ``artifact_relpath``; multi-artifact outputs report a
+    parallel mapping under ``artifact_meta``. The value is only ever
+    DESCRIPTIVE here: it is persisted as the record's claimed digest and is
+    re-measured against the actual stored bytes during objective evaluation.
+    """
+    if not isinstance(pep_output, dict):
+        return None
+    per_artifact = pep_output.get("artifact_meta")
+    if isinstance(per_artifact, dict) and isinstance(per_artifact.get(ref), dict):
+        return per_artifact[ref].get(key)
+    if str(pep_output.get("artifact_relpath", "")) == ref:
+        return pep_output.get(f"artifact_{key}")
+    return None
+
+
+def _artifact_sha256(pep_output: Any, ref: str) -> str:
+    """Claimed sha256 for one artifact ref; malformed/missing => fail closed."""
+    from orchestrator.runtime.evidence_v1 import EvidenceError
+    value = _artifact_meta(pep_output, ref, "sha256")
+    if not isinstance(value, str) or len(value) != 64:
+        raise EvidenceError(
+            f"§14.5 artifact {ref!r} has no well-formed sha256 in the PEP output"
+        )
+    return value
+
+
+def _artifact_size(pep_output: Any, ref: str) -> int:
+    """Claimed size for one artifact ref; malformed/missing => fail closed."""
+    from orchestrator.runtime.evidence_v1 import EvidenceError
+    value = _artifact_meta(pep_output, ref, "size_bytes")
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise EvidenceError(
+            f"§14.5 artifact {ref!r} has no well-formed size in the PEP output"
+        )
+    return value
+
 def stage_receipt(ctx: dict) -> StageResult:
     """Receipt emission. Links ExecutionEvent to PolicyDecision.
 
@@ -668,6 +964,10 @@ def stage_receipt(ctx: dict) -> StageResult:
     # Idempotent replay: identity is content-addressed over the identity-
     # bearing fields (observed_at is provenance, not identity), so an
     # existing identity means the equivalent record is already durable.
+    # M3/D2 remediation: the record now carries the authorizing
+    # ``decision_id`` and the collected artifact refs, and each artifact
+    # gets its own artifact record linked by execution_ref/parents — the
+    # provenance chain the objective evaluator verifies.
     evidence_v1_id = ""
     store = ctx.get("evidence_store")
     if store is not None:
@@ -684,12 +984,24 @@ def stage_receipt(ctx: dict) -> StageResult:
                 status=str(event.outcome or "unknown"),
                 reason=str(decision.reason or ""),
                 decision=str(decision.decision or ""),
+                decision_id=str(decision.decision_id or ""),
                 policy_version=str(getattr(broker_receipt, "policy_version", "") or ""),
+                artifacts=tuple(receipt.artifact_refs),
             )
             if store.get(record.identity) is None:
                 store.append(record)
             evidence_v1_id = record.identity
             receipt.evidence_v1_ids = (evidence_v1_id,)
+            for ref in receipt.artifact_refs:
+                store.append(EvidenceRecord.artifact(
+                    mission_id=str(receipt.mission_id or ""),
+                    producer="runtime.receipt",
+                    relpath=str(ref),
+                    size_bytes=int(_artifact_size(pep_output, ref)),
+                    sha256=str(_artifact_sha256(pep_output, ref)),
+                    execution_ref=record.identity,
+                    parents=(record.identity,),
+                ))
         except Exception as exc:
             return StageResult.make(
                 stage_name=STAGE_RECEIPT,
@@ -776,6 +1088,167 @@ def stage_contradiction(ctx: dict) -> StageResult:
     )
 
 
+OBJECTIVE_PRODUCERS = ("runtime.receipt", "runtime.broker", "runtime.pep")
+OBJECTIVE_SUCCESS_STATUS = ("ok", "succeeded")
+
+
+def artifact_roots_for(ctx: dict) -> tuple:
+    """Bound artifact directories of every capability in this runtime.
+
+    M3/D2 remediation: the objective evaluator verifies artifact digests
+    against ACTUAL bytes, so it needs the exec/-owned roots the capabilities
+    wrote to. Empty means no artifact can be verified (fail-closed).
+    """
+    roots = []
+    caps = list((ctx.get("capability_registry") or {}).values()) + [ctx.get("capability")]
+    for cap in caps:
+        root = getattr(cap, "artifact_root", None) if cap is not None else None
+        if root is not None and root not in roots:
+            roots.append(root)
+    return tuple(roots)
+
+
+def _verify_objective_action(store, view: dict, action_id: str, artifact_roots: tuple,
+                             broker_authority=None) -> dict:
+    """Verify the complete provenance chain for ONE required action.
+
+    Returns ``{"ok": bool, "reason": str, "identity": str}``. Fails closed on
+    every deficiency; a generic or missing mission id never satisfies an action.
+
+    RSI-1 Fix A: ``broker_authority`` is the Runtime's authoritative Broker
+    instance. A qualifying execution result must carry a ``decision_id`` that
+    the Broker's OWN receipt state resolves to a SUCCEEDED receipt bound (via
+    lifecycle metadata) to the same mission and mission-scoped action id.
+    Producer labels, decision strings, digests, and internal consistency of
+    the evidence ledger are never sufficient on their own. ``broker_authority
+    is None`` fails closed — objective completion is unverifiable without the
+    authoritative execution state.
+    """
+    mission_id = str(view.get("mission_id", "") or "")
+    if not mission_id:
+        return {"ok": False, "reason": "no mission identity in scope", "identity": ""}
+    if broker_authority is None:
+        return {"ok": False,
+                "reason": "no authoritative broker state bound to the objective "
+                          "evaluation (fail closed)",
+                "identity": ""}
+
+    def p(rec) -> dict:
+        return dict(rec.payload)
+
+    scoped = [r for r in store.records()
+              if r.kind.value == "execution_result" and r.mission_id == mission_id]
+    attempts: dict = {}
+    for rec in scoped:
+        if p(rec).get("action_id") != action_id:
+            continue
+        decision_id = str(p(rec).get("decision_id", "") or "")
+        if decision_id:
+            attempts.setdefault(decision_id, []).append(rec)
+    if not attempts:
+        present = [r for r in scoped if p(r).get("action_id") == action_id]
+        if present:
+            unprovenanced = [r for r in present
+                             if not str(p(r).get("decision_id", "") or "")]
+            reason = ("execution records carry no decision_id provenance"
+                      if unprovenanced else
+                      "every attempt was denied or failed")
+            return {"ok": False, "reason": reason, "identity": ""}
+        return {"ok": False,
+                "reason": "no governed execution record for this mission and action",
+                "identity": ""}
+
+    # Contradiction: every record of an ATTEMPT is weighed, not only the
+    # successful-looking ones. Mixed outcomes for one decision_id are
+    # ambiguous -> the attempt is rejected (fail closed). A separate, later
+    # attempt (a different decision_id) is judged on its own records.
+    verified_attempts = []
+    for attempt, group in sorted(attempts.items()):
+        producers = {r.producer for r in group}
+        if not producers <= set(OBJECTIVE_PRODUCERS):
+            return {"ok": False,
+                    "reason": f"attempt {attempt} has a non-runtime producer {sorted(producers)}",
+                    "identity": ""}
+        outcomes = {(str(p(r).get("decision")), str(p(r).get("status"))) for r in group}
+        if len(outcomes) > 1:
+            return {"ok": False,
+                    "reason": f"contradictory records for attempt {attempt}: {sorted(outcomes)}",
+                    "identity": ""}
+        decision, status = next(iter(outcomes))
+        if decision != "allow" or status not in OBJECTIVE_SUCCESS_STATUS:
+            continue  # denial/failure: never satisfies the objective
+        # RSI-1 Fix A: authoritative resolution. The attempt's decision id
+        # must resolve, in the Broker's own receipt state, to a SUCCEEDED
+        # receipt bound to this mission and this mission-scoped action id.
+        # A payload string alone — however consistent — is not provenance.
+        auth_receipt = broker_authority.authoritative_success_receipt(
+            decision_id=attempt, mission_id=mission_id, mission_action_id=action_id)
+        if auth_receipt is None:
+            continue  # unresolvable claim: not a governed execution
+        verified_attempts.append((attempt, group[0], auth_receipt))
+
+    if not verified_attempts:
+        return {"ok": False,
+                "reason": "no attempt with an allowed, executed, decision-linked record",
+                "identity": ""}
+
+    # Artifact + integrity: each declared artifact ref must have a persisted,
+    # correctly linked artifact record whose digest matches the ACTUAL bytes.
+    # The chain belongs to the authoritative attempt: the resolved receipt's
+    # authorized target and capability must match the claimed execution
+    # record's mission binding (fail closed on any mismatch).
+    reasons = []
+    for attempt, rec, auth_receipt in verified_attempts:
+        refs = p(rec).get("artifacts") or ()
+        if not refs:
+            reasons.append(f"attempt {attempt} declares no artifact evidence")
+            continue
+        ok, reason = _verify_artifacts_for(store, rec, refs, artifact_roots)
+        if ok:
+            return {"ok": True, "reason": "verified", "identity": rec.identity}
+        reasons.append(reason)
+    return {"ok": False,
+            "reason": "no verified artifact chain: " + "; ".join(reasons),
+            "identity": ""}
+
+
+def _verify_artifacts_for(store, exec_record, refs, artifact_roots: tuple) -> tuple:
+    """Verify each artifact ref of one execution record against real bytes."""
+    from orchestrator.exec.artifact_verify import (
+        ArtifactVerificationError,
+        verify_artifact,
+    )
+    artifact_records = [r for r in store.records() if r.kind.value == "artifact"]
+    for ref in refs:
+        linked = [r for r in artifact_records
+                  if dict(r.payload).get("relpath") == str(ref)
+                  and r.mission_id == exec_record.mission_id
+                  and (dict(r.payload).get("execution_ref") == exec_record.identity
+                       or exec_record.identity in r.parents)]
+        if not linked:
+            return False, f"artifact {ref!r} has no linked artifact record"
+        claimed = str(dict(linked[0].payload).get("sha256", ""))
+        claimed_size = dict(linked[0].payload).get("size_bytes")
+        measured = None
+        for root in artifact_roots:
+            try:
+                measured = verify_artifact(root, str(ref))
+                break
+            except ArtifactVerificationError:
+                continue
+        if measured is None:
+            return False, (f"artifact {ref!r} does not resolve to stored bytes "
+                           f"in any bound artifact root")
+        if measured["sha256"] != claimed:
+            return False, (f"artifact {ref!r} digest mismatch: claimed {claimed}, "
+                           f"measured {measured['sha256']}")
+        if claimed_size is not None and measured["size_bytes"] != claimed_size:
+            return False, (f"artifact {ref!r} size mismatch: claimed {claimed_size}, "
+                           f"measured {measured['size_bytes']}")
+    return True, "verified"
+
+
+
 def stage_replan(ctx: dict) -> StageResult:
     """Replan stage. G3-EN-5 walking skeleton: no replan needed.
 
@@ -819,6 +1292,56 @@ def stage_replan(ctx: dict) -> StageResult:
                     )
     except Exception:
         pass
+    # M3/D2 §7 + remediation: evidence-based objective evaluation. The
+    # objective contract (mission constraint, threaded into the view by
+    # run_episode) lists the action_ids whose COMPLETE provenance chain must
+    # be durably present and integrity-verified:
+    #   current mission -> required action -> authorization decision
+    #   -> execution result -> persisted artifact -> verified bytes
+    # A model assertion, an unverified proposal, a bare producer string, or a
+    # correctly-formatted digest is never evidence. Absent objective
+    # contract: exact legacy behavior.
+    objective = ctx.get("view", {}).get("objective")
+    store = ctx.get("evidence_store")
+    if isinstance(objective, dict) and store is not None:
+        required = [str(r) for r in objective.get("requires_evidence", []) if str(r)]
+        found, missing, deficiencies = [], [], []
+        for rid in required:
+            verdict = _verify_objective_action(
+                store, ctx.get("view", {}), rid, ctx.get("artifact_roots") or (),
+                broker_authority=ctx.get("broker_authority"))
+            if verdict["ok"]:
+                found.append(rid)
+            else:
+                missing.append(rid)
+                deficiencies.append(f"{rid}: {verdict['reason']}")
+        if not missing:
+            return StageResult.make(
+                stage_name=STAGE_REPLAN,
+                success=True,
+                output={
+                    "replanned": False,
+                    "objective_evaluated": True,
+                    "objective_met": True,
+                    "reason": "objective met: verified execution evidence present for " + ", ".join(required),
+                    "evidence_found": found,
+                },
+                duration_ms=(time.time() - t0) * 1000.0,
+            )
+        return StageResult.make(
+            stage_name=STAGE_REPLAN,
+            success=True,
+            output={
+                "replanned": True,
+                "objective_evaluated": True,
+                "objective_met": False,
+                "reason": ("objective not met: unverified or missing required evidence for "
+                           + ", ".join(missing) + " [" + "; ".join(deficiencies) + "]"),
+                "evidence_missing": missing,
+                "evidence_deficiencies": deficiencies,
+            },
+            duration_ms=(time.time() - t0) * 1000.0,
+        )
     return StageResult.make(
         stage_name=STAGE_REPLAN,
         success=True,

@@ -1,0 +1,82 @@
+{
+ "experiment": "RSI-0.1 scenario validity and candidate-behavior verification",
+ "run_id": "20261006T202224Z",
+ "generated_at": 1791318144.831604,
+ "s3_rate_limit": {
+  "experiment": "S3_rate_limit_verification",
+  "boundary": "Broker (authoritative PDP)",
+  "proposals": [],
+  "episodes": [
+   {
+    "episode": 1,
+    "pep_invocations": 2,
+    "terminated_at": "replan",
+    "termination": "objective met: verified execution evidence present for ACT-D2-PROBE-0001, ACT-D2-HTTP-0002"
+   },
+   {
+    "episode": 2,
+    "pep_invocations": 0,
+    "terminated_at": "broker",
+    "termination": "Stage 'broker' failed: G3-EN-5 fail-closed: denied by real Broker (class='recon_service_probe', reason='RateLimiter: Per-minute rate limit exceeded: 2/2')"
+   }
+  ],
+  "proposal_sequence": [
+   [
+    "recon_service_probe",
+    "allow"
+   ],
+   [
+    "lab_http_probe",
+    "allow"
+   ],
+   [
+    "recon_service_probe",
+    "denied"
+   ]
+  ],
+  "denials": [
+   {
+    "action_type": "recon_service_probe",
+    "capability": "exec.d1_lab_probe",
+    "target": "dvwa",
+    "decision": "denied",
+    "receipt_status": "ActionProposalStatus.DENIED",
+    "reason": "RateLimiter: Per-minute rate limit exceeded: 2/2"
+   }
+  ],
+  "persisted_denied_receipts": 1,
+  "persisted_rate_denials": 1,
+  "rate_denial_reason": "RateLimiter: Per-minute rate limit exceeded: 2/2",
+  "limiter_semantics": "counts authorized proposals (records an action on allow); rate-denied proposals are recorded as denials (emergency-brake accounting) and never execute; state persists per Broker instance across episodes",
+  "third_proposal_denied_at_broker": true
+ },
+ "c2_capability_fault": {
+  "experiment": "C2_capability_fault",
+  "candidate_steps_declared": 3,
+  "terminated_at": "pep",
+  "termination": "Stage 'pep' failed: \u00a7lifecycle fail-closed: PEP raised D1LabProbeError: nmap probe failed rc=7: nmap: connection refused (fixture)",
+  "iterations_run": 1,
+  "retry_step_proposed": false,
+  "persisted_failure_receipts": 1,
+  "failure_reason": "pep raised D1LabProbeError: nmap probe failed rc=7: nmap: connection refused (fixture)",
+  "verdict": "UNSUPPORTED \u2014 the runtime halts at the PEP stage on a capability failure; the retry candidate step is never proposed. C2 retry is unvalidated for capability faults."
+ },
+ "c2_rate_retry_window": {
+  "experiment": "C2_rate_retry_window",
+  "window_wait_seconds": 61,
+  "episode_1": {
+   "pep_invocations": 1,
+   "terminated_at": "broker",
+   "termination": "Stage 'broker' failed: G3-EN-5 fail-closed: denied by real Broker (class='recon_service_probe', reason='RateLimiter: Per-minute rate limit exceeded: 1/1')"
+  },
+  "episode_2": {
+   "pep_invocations": 1,
+   "terminated_at": "broker",
+   "termination": "Stage 'broker' failed: G3-EN-5 fail-closed: denied by real Broker (class='lab_http_probe', reason='RateLimiter: Per-minute rate limit exceeded: 1/1')",
+   "b_executed_http_302": false
+  },
+  "denials_before_window_expiry": 2,
+  "retry_exercised_across_episodes": true,
+  "verdict": "PARTIALLY SUPPORTED \u2014 the retry executes through the full governed path when the transient failure is a Broker-stage rate denial and the window expires (across episodes); it is UNSUPPORTED within one episode when the failure is a capability-boundary fault (the runtime halts at the PEP)."
+ }
+}

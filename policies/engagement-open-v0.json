@@ -1,0 +1,50 @@
+{
+  "policy_name": "engagement-open-v0",
+  "version": "0",
+  "schema_version": 1,
+  "created_by": "Offensive restoration P1 (operator-directed, see RAPHAEL_ROADMAP_OFFENSIVE_RESTORE_v1.md)",
+  "created_at": "2026-09-30",
+  "status": "ACTIVE",
+  "supersedes": "bootstrap-v0",
+  "superseded_by": null,
+  "mode": "OPEN",
+  "scope": {
+    "description": "Open engagement policy: every gate mechanism (Broker dimensions, welds, receipts, INV-1) stays enforced; this artifact is the decision source and returns ALLOW for every in-request dimension. Operator supplies targets per engagement.",
+    "applies_to": [
+      "Canonical CapabilityBroker PDP (runtime stage_broker)",
+      "AM-4 weld gates W-01..W-15 (enforce_broker_mediation)"
+    ]
+  },
+  "allowed_action_types": ["*"],
+  "allowed_capabilities": ["*"],
+  "allowed_targets": ["*"],
+  "prohibited_action_types": [],
+  "prohibited_capabilities": [],
+  "prohibited_targets": [],
+  "rate_limits": {
+    "max_actions_per_minute": 1000000,
+    "max_actions_per_hour": 10000000,
+    "max_concurrent": 100000
+  },
+  "impact": {
+    "max_impact_per_action": 10.0,
+    "max_cumulative_impact": 1000000000.0,
+    "high_impact_requires_approval": false
+  },
+  "engagement_window": {
+    "engagement_start": 0.0,
+    "engagement_end": 0.0
+  },
+  "invariants_enforced": [
+    "INV-1: process/network/file primitives confined to exec/ (P2)",
+    "INV-2: every execution event has Broker decision_id (P2/P3)",
+    "INV-3: execution-derived claims require receipts (P3)",
+    "INV-5: CLI -> Runtime; Runtime does not import arena (P2)",
+    "INV-6: Runtime cannot import seam (P2)",
+    "INV-7: no absolute hard-coded paths in new Runtime code (P2)"
+  ],
+  "references": {
+    "roadmap": "RAPHAEL_ROADMAP_OFFENSIVE_RESTORE_v1.md",
+    "superseded_policy": "policies/bootstrap-v0.json"
+  }
+}

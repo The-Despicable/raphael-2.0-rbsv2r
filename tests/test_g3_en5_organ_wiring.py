@@ -160,7 +160,11 @@ def test_g3_en5_inv2_preserved():
     ))
     ctx = {"view": {"target": "system_info.name"}, "world_model": rt._world_model,
             "broker": rt._broker, "capability": rt._capability,
-            "organs": rt._organs, "capability_name": "fixture.inspect"}
+            "organs": rt._organs, "capability_name": "fixture.inspect",
+            # RSI-1 C-1: direct stage driving must carry the Runtime-bound
+            # execution authority; the PEP refuses unbound contexts.
+            "capability_governance": rt._governance,
+            "governed_step_budget": rt._step_budget}
     from orchestrator.runtime.stages import STAGE_HANDLERS
     for name, handler in STAGE_HANDLERS.items():
         r = handler(ctx)

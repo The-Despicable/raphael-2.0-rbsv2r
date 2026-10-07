@@ -1,0 +1,89 @@
+{
+  "mission_id": "d2-bounded-episode",
+  "generated_at": 1791182325.8847528,
+  "phases": [
+    {
+      "phase": "positive",
+      "policy": {
+        "name": "engagement-d2-v1",
+        "version": 1,
+        "sha256": "47f1820542b2264d1dca6b3d3cf3632b85d448dce6e43265c0060ff766219072"
+      },
+      "termination": "objective met: required evidence present for ACT-D2-PROBE-0001, ACT-D2-HTTP-0002",
+      "steps": [
+        {
+          "step": 0,
+          "action_id": "ACT-D2-PROBE-0001",
+          "action_type": "recon_service_probe",
+          "capability": "exec.d1_lab_probe",
+          "decision_id": "675840a3ec279563",
+          "target_identity": {
+            "identity": "dvwa",
+            "container_image": "vulnerables/web-dvwa",
+            "probe_container": "kali-tools",
+            "shared_networks": [
+              "raphael-m1_raphael-net"
+            ],
+            "target_ip": "172.19.0.2",
+            "verified_at": 1791182326.1957154
+          },
+          "result_status": "ActionProposalStatus.SUCCEEDED",
+          "service_confirmed": true,
+          "artifact": {
+            "relpath": "artifacts/d1_lab_probe_20261005T063846Z_90b2cdf1.txt",
+            "sha256": "cf9bb059234e53f4d011a72bf5e4141e65348315cc8dce426fc1e4fed4b758de",
+            "digest_verified": true
+          }
+        },
+        {
+          "step": 1,
+          "action_id": "ACT-D2-HTTP-0002",
+          "action_type": "lab_http_probe",
+          "capability": "exec.http_probe",
+          "decision_id": "a9bbf621c6bf8f26",
+          "target_identity": {
+            "identity": "dvwa",
+            "container_image": "vulnerables/web-dvwa",
+            "probe_container": "kali-tools",
+            "shared_networks": [
+              "raphael-m1_raphael-net"
+            ],
+            "target_ip": "172.19.0.2",
+            "verified_at": 1791182327.2022748
+          },
+          "result_status": "ActionProposalStatus.SUCCEEDED",
+          "http_status": 302,
+          "redirect_url": "http://dvwa/login.php",
+          "redirect_followed": false,
+          "artifact": {
+            "relpath": "artifacts/http_probe_20261005T063847Z_1d339e57.txt",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "digest_verified": true
+          }
+        }
+      ]
+    },
+    {
+      "phase": "kill_switch",
+      "terminated_at": "broker",
+      "steps_denied": 2,
+      "process_spawns": 0,
+      "capability_invocations": 0,
+      "note": "decision source swapped to policies/bootstrap-v0.json"
+    },
+    {
+      "phase": "wrong_target",
+      "terminated_at": "broker",
+      "process_spawns": 0,
+      "capability_invocations": 0
+    }
+  ],
+  "evidence_summary": {
+    "execution_result_records": 5,
+    "denied_records": 3,
+    "succeeded_records": 2,
+    "store": "/home/yaser/external-audits/raphael-2/evidence/demo/d2/20261005T063845Z/evidence_store.jsonl"
+  },
+  "no_process_spawned_in_any_denial_phase": true,
+  "uuid_marker": "67a7bf4205b0437bac4d202d69361551"
+}

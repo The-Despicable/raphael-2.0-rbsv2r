@@ -1,0 +1,11 @@
+{
+ "experiment": "C2_capability_fault",
+ "candidate_steps_declared": 3,
+ "terminated_at": "pep",
+ "termination": "Stage 'pep' failed: \u00a7lifecycle fail-closed: PEP raised D1LabProbeError: nmap probe failed rc=7: nmap: connection refused (fixture)",
+ "iterations_run": 1,
+ "retry_step_proposed": false,
+ "persisted_failure_receipts": 1,
+ "failure_reason": "pep raised D1LabProbeError: nmap probe failed rc=7: nmap: connection refused (fixture)",
+ "verdict": "UNSUPPORTED \u2014 the runtime halts at the PEP stage on a capability failure; the retry candidate step is never proposed. C2 retry is unvalidated for capability faults."
+}

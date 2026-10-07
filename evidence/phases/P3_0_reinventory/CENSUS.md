@@ -24,7 +24,7 @@ per-file traces: `raw/importers_final.txt`).
 | 1 | `src/orchestrator/chains/tool_registry.py` | F | :67 `create_subprocess_exec` DELETED (AM-4-R2 W-01 branch deletion); :341 `Path(rc_file).write_text` retained (001R5 rule find; dead behind gate) | api/tools (live) | P04 welded |
 | 2 | `src/orchestrator/api/tools_bridge.py` | N | httpx hop | E-BRIDGE-TOOLS (live) | P05 welded |
 | 3 | `src/orchestrator/agents/exploit.py` | N | requests ×2; kali/scanner fan-out | engage (live) | P06 welded |
-| 4 | `src/orchestrator/sandbox.py` | P | :25 `run(python3 tmp)` DELETED + :39 `Path(tmppath).unlink` DELETED (AM-4-R2 W-10 branch deletion); `import subprocess` retained | agents/exploit `custom_payload` (live) | P16 welded |
+| 4 | `src/orchestrator/sandbox/__init__.py` | P | :25 `run(python3 tmp)` DELETED + :39 `Path(tmppath).unlink` DELETED (AM-4-R2 W-10 branch deletion); `import subprocess` retained | agents/exploit `custom_payload` (live) | P16 welded |
 | 5 | `src/orchestrator/postex/winrm_exploit.py` | N | httpx (exec via WinRM) | agents/postex, sword, c2-server | P06 welded |
 | 6 | `src/orchestrator/postex/ladon_scanner.py` | N,P | socket (subprocess import-only) | agents/postex, sword | P06 welded |
 | 7 | `src/orchestrator/scanners/nmap_scanner.py` | N | raw sockets | agents, pipelines, recon/sword/cai services | P06 welded |
@@ -232,3 +232,5 @@ No lexicon hit, hence no row, by construction (minimal 001R4 change):
   `write_text`/`write_bytes`/`unlink`; :203/:205 remain payload-string literals).
 - `src/raphael/exploit_factory/payload_templates.py` — NOW CENSUS ROW #154 (001R4:
   real `:248 write_text`; the :154 Popen-tuple remains a literal).
+
+> **Amendment 2026-10-04 (M0-A):** the former sibling module `src/orchestrator/sandbox.py` was permanently shadowed by the `orchestrator/sandbox/` package and broke 14 imports; its `PatchSandbox`/W-10 definition was merged into `src/orchestrator/sandbox/__init__.py` and the shadow file removed. Paths above updated accordingly; W-10 gate semantics unchanged (fail-closed stub, see tests/test_m0_clean_floor.py).
