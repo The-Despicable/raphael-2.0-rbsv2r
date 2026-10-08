@@ -228,7 +228,7 @@ def _finalised(cfg, **overrides):
     payload = {k: v for k, v in draft.to_dict().items() if k != "content_hash"}
     payload["gate_outcomes"] = [list(g) for g in derived.gates]
     payload["final_state"] = derived.state
-    payload["inputs_digest"] = eg.derive_record_inputs_digest(draft, authority)
+    payload["inputs_digest"] = eg.derive_evaluation_inputs_digest(draft, authority)
     return EvaluationDecisionRecord.mint(**payload)
 
 

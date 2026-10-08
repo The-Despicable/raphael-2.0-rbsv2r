@@ -208,7 +208,7 @@ def _record(cfg, *, root=None, anchors=None, finalize=True, **overrides):
     payload = {k: v for k, v in record.to_dict().items() if k != "content_hash"}
     payload["gate_outcomes"] = [list(g) for g in derived.gates]
     payload["final_state"] = derived.state
-    payload["inputs_digest"] = eg.derive_record_inputs_digest(record, auth)
+    payload["inputs_digest"] = eg.derive_evaluation_inputs_digest(record, auth)
     return EvaluationDecisionRecord.mint(**payload)
 
 
@@ -841,9 +841,49 @@ def _superseding(cfg, decision_id, parent_lineage, **overrides):
                    parent_lineage=parent_lineage, **overrides)
 
 
+def test_admission_derives_authority_exactly_once(fixture, tmp_path):
+    """P1-1 regression: one admission reads pinned authority ONCE.
+
+    ``DecisionLedger._derive`` must not build authority and then let the
+    classifier build it again: two reads could observe different anchor bytes,
+    so the state, gate and evaluation-input checks would not share one
+    observation. Counting ``build_authority`` calls makes that verifiable.
+    """
+    import inspect
+    assert "authority" not in inspect.signature(
+        classify_promotion_eligibility).parameters, \
+        "authority must never be a caller-supplied parameter"
+
+    real_build = eg.build_authority
+    calls = {"n": 0}
+
+    def counting(*args, **kwargs):
+        calls["n"] += 1
+        return real_build(*args, **kwargs)
+
+    # Build the record BEFORE counting: constructing a finalised record
+    # classifies it, which is fixture work, not admission work.
+    record = _record(ADOPTED, decision_id="authority-once")
+    eg.build_authority = counting
+    try:
+        calls["n"] = 0
+        DecisionLedger(tmp_path / "l.jsonl").append(record, ADOPTED)
+        assert calls["n"] == 1, f"admission derived authority {calls['n']}x"
+
+        calls["n"] = 0
+        classify_promotion_eligibility(record, ADOPTED)
+        assert calls["n"] == 1, f"classifier derived authority {calls['n']}x"
+    finally:
+        eg.build_authority = real_build
+
+
 def test_legitimate_supersession_is_accepted(fixture, tmp_path):
-    """POSITIVE CONTROL: a replay decision is superseded by a genuinely new,
-    independently derived evaluation that names its predecessor.
+    """POSITIVE CONTROL: a replay decision is superseded by a genuinely new
+    evaluation that names its predecessor.
+
+    The successor differs by a REAL evaluation input (a different frozen
+    selection history), not merely by ``decision_id``, so the evaluation-input
+    identity changes for the correct reason.
 
     Proves the lineage controls do not simply refuse everything.
     """
@@ -853,9 +893,10 @@ def test_legitimate_supersession_is_accepted(fixture, tmp_path):
     assert replay.final_state == STATE_LOCAL_REPLAY
     ledger.append(replay, ADOPTED)
 
-    successor = _superseding(ADOPTED, "B-eligible", ("A-replay",))
+    successor = _superseding(ADOPTED, "B-eligible", ("A-replay",),
+                             selection_history_refs=("sel-new-round",))
     assert successor.final_state == STATE_PROMOTION_ELIGIBLE
-    assert successor.inputs_digest != replay.inputs_digest   # genuinely new inputs
+    assert successor.inputs_digest != replay.inputs_digest   # real input changed
 
     assert ledger.append(successor, ADOPTED) == "B-eligible"
     assert ledger.final_states(ADOPTED) == {
@@ -868,55 +909,69 @@ def test_legitimate_supersession_is_accepted(fixture, tmp_path):
 def test_supersession_without_predecessor_is_refused(fixture, tmp_path):
     """A superseding decision that does not NAME its predecessor is refused.
 
-    Reached through the ordinary admission path: the successor is otherwise
-    fully consistent and carries genuinely distinct derived inputs, so only the
-    lineage rule can refuse it.
+    ISOLATED: the successor carries a genuinely DIFFERENT evaluation input, so
+    the same-input guard cannot fire; predecessor naming is the only remaining
+    reason for refusal.
     """
     ledger = DecisionLedger(tmp_path / "l.jsonl")
     replay = _record(ADOPTED, decision_id="A-replay", holdout_evaluation_refs=())
     ledger.append(replay, ADOPTED)
 
-    successor = _superseding(ADOPTED, "B-unlinked", ("some-other-parent",))
+    successor = _superseding(ADOPTED, "B-unlinked", ("some-other-parent",),
+                             selection_history_refs=("sel-new-round",))
     assert successor.final_state == STATE_PROMOTION_ELIGIBLE
-    with pytest.raises(EvaluationGateError, match="lineage violation"):
+    assert successor.inputs_digest != replay.inputs_digest
+    with pytest.raises(EvaluationGateError, match="does not name the superseded"):
         ledger.append(successor, ADOPTED)
     assert len(ledger.all()) == 1                     # nothing was written
 
 
 def test_same_inputs_supersession_is_refused(fixture, tmp_path):
-    """ISOLATED-UNIT: a blocked decision cannot be re-labelled on the SAME
+    """A blocked decision cannot be re-labelled as eligible on the SAME
     evaluation inputs.
 
-    The predecessor is seeded directly into the ledger indexes to represent a
-    historical record written under the pre-Phase-1 digest regime, which did not
-    bind ``decision_id`` into ``inputs_digest``. Seeding is required because the
-    duplicate-id guard would otherwise fire first for a same-digest record; the
-    superseding record itself is ordinary, self-consistent, and admitted only if
-    the lineage rule allows it.
+    ISOLATED: the successor NAMES its predecessor, so predecessor validation
+    passes and the same-input guard is the only possible reason for refusal.
+    Only ``decision_id`` and the holdout evidence reference differ; every
+    evaluation input is identical, so the evaluation-input digests match.
     """
     ledger = DecisionLedger(tmp_path / "l.jsonl")
-    replay = _record(ADOPTED, decision_id="A-replay", holdout_evaluation_refs=())
+    replay = _record(ADOPTED, decision_id="A-blocked", holdout_evaluation_refs=())
+    assert replay.final_state == STATE_LOCAL_REPLAY
     ledger.append(replay, ADOPTED)
 
-    successor = _superseding(ADOPTED, "B-same-inputs", ("A-replay",))
+    successor = _superseding(ADOPTED, "B-same-inputs", ("A-blocked",))
     assert successor.final_state == STATE_PROMOTION_ELIGIBLE
+    assert successor.inputs_digest == replay.inputs_digest, \
+        "precondition: identical evaluation inputs must share an input identity"
+    assert tuple(successor.parent_lineage) == ("A-blocked",), \
+        "precondition: predecessor naming is VALID, isolating the same-input guard"
 
-    legacy_payload = {k: v for k, v in replay.to_dict().items()
-                      if k != "content_hash"}
-    legacy_payload["decision_id"] = "HIST-legacy"
-    legacy_payload["final_state"] = STATE_STATISTICALLY_INADEQUATE
-    legacy_payload["gate_outcomes"] = [["statistical_adequacy", "BLOCKED"]]
-    legacy_payload["inputs_digest"] = successor.inputs_digest   # SAME derived inputs
-    legacy = EvaluationDecisionRecord.mint(**legacy_payload)
-
-    ledger._index[legacy.decision_id] = legacy
-    ledger._order.append(legacy.decision_id)
-    ledger._lineage[legacy.candidate_policy_hash] = legacy.final_state
-    assert ledger._latest_for_candidate(legacy.candidate_policy_hash) is legacy
-
-    with pytest.raises(EvaluationGateError, match="lineage violation"):
+    with pytest.raises(EvaluationGateError, match="SAME evaluation inputs"):
         ledger.append(successor, ADOPTED)
-    assert len(ledger.all()) == 2                     # only the seeded + replay
+    assert len(ledger.all()) == 1
+
+
+def test_decision_id_alone_does_not_change_evaluation_input_identity(fixture):
+    """P1-2 regression: ``decision_id`` is record identity, not an evaluation
+    input. Renaming a decision must not make identical inputs look like a
+    different experiment."""
+    auth = build_authority(ADOPTED, runs_candidate=40, runs_baseline=40, effect=0.2)
+    left = _record(ADOPTED, decision_id="decision-one")
+    right = _record(ADOPTED, decision_id="decision-two")
+    assert left.decision_id != right.decision_id
+    assert left.inputs_digest == right.inputs_digest
+
+
+def test_meaningful_input_change_does_change_evaluation_input_identity(fixture):
+    """The converse: a real evaluation input change MUST be visible."""
+    base = _record(ADOPTED, decision_id="decision-one")
+    changed_selection = _record(ADOPTED, decision_id="decision-one",
+                                selection_history_refs=("sel-new",))
+    changed_candidate = _record(ADOPTED, decision_id="decision-one",
+                                candidate_policy_hash="9" * 64)
+    assert base.inputs_digest != changed_selection.inputs_digest
+    assert base.inputs_digest != changed_candidate.inputs_digest
 
 
 def test_superseding_record_with_duplicate_decision_id_is_refused(fixture,

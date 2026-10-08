@@ -1453,6 +1453,26 @@ def classify_promotion_eligibility(
     authority = build_authority(
         config, runs_candidate=record.runs_candidate, runs_baseline=record.runs_baseline,
         exclusions=record.exclusions, effect=record.effect)
+    return _classify_with_authority(record, config, authority,
+                                    blocking_conditions=blocking_conditions)
+
+
+def _classify_with_authority(record: EvaluationDecisionRecord, config: GateConfig,
+                             authority: EvaluationAuthority, *,
+                             blocking_conditions: Tuple[str, ...] = ()
+                             ) -> EligibilityAssessment:
+    """Classify a record against ONE already-derived authority observation.
+
+    INTERNAL. There is deliberately no caller-supplied ``authority`` parameter on
+    :func:`classify_promotion_eligibility`: authority is always derived here or
+    by the ledger, never asserted. Splitting the body out is what lets the
+    ledger derive authority exactly ONCE per admission and reuse that single
+    observation for the state, gate and evaluation-input checks, instead of
+    re-reading pinned anchors three times and risking a mid-admission change.
+    """
+    gates: List[Tuple[str, str]] = []
+    reasons: List[str] = []
+
     identity = authority.evaluator_identity
     holdout = authority.holdout
     evidence = authority.evidence
@@ -1687,24 +1707,30 @@ def inputs_digest(campaign_id: str, holdout: HoldoutVerification,
     }).encode())
 
 
-def derive_record_inputs_digest(record: EvaluationDecisionRecord,
-                                authority: EvaluationAuthority) -> str:
-    """Canonical digest of a record's INPUT BINDING, derived here.
+def derive_evaluation_inputs_digest(record: EvaluationDecisionRecord,
+                                   authority: EvaluationAuthority) -> str:
+    """Digest of the EVALUATION INPUTS alone.
 
-    Binds campaign/decision identity, both policy hashes, the DERIVED evaluator
-    identity and gate-config digest, the DERIVED holdout identity/status, the
-    DERIVED statistical-adequacy status, and the frozen selection-history refs.
+    This is deliberately NOT record identity. ``decision_id`` names the
+    decision record, not the experiment, so it is EXCLUDED: binding it here
+    would let two otherwise identical evaluations of the same inputs look like
+    two different experiments, which would silently defeat the same-input
+    lineage guard in :meth:`DecisionLedger._check_lineage`.
 
-    Record-supplied aggregate VALUES deliberately never enter this digest: a
-    numeric assertion must not be able to masquerade as a different measured
-    experiment, and the observed counts are removed from the authoritative path
-    in the measurement-containment phase.
+    Bound here: campaign identity, baseline and candidate policy hashes, the
+    DERIVED evaluator identity and gate-config digest, the DERIVED holdout
+    identity/status, the DERIVED statistical-adequacy status, configuration
+    adoption identity, and the frozen selection-history references.
+
+    Record-supplied aggregate VALUES never enter this digest: a numeric
+    assertion must not be able to masquerade as a different measured
+    experiment. Those are removed from the authoritative path in the
+    measurement-containment phase.
     """
     return _sha256_bytes(_stable({
         "baseline_policy_hash": record.baseline_policy_hash,
         "campaign_id": record.campaign_id,
         "candidate_policy_hash": record.candidate_policy_hash,
-        "decision_id": record.decision_id,
         "config_adoption_id": ("" if authority.config_adoption is None
                                else authority.config_adoption.adoption_id),
         "config_adoption_status": (ADOPTION_UNADOPTED
@@ -1737,7 +1763,7 @@ Admission is no longer a content-hash self-consistency check. A record is
 
         record.final_state      == assessment.state
         record.gate_outcomes    == assessment.gates
-        record.inputs_digest    == derive_record_inputs_digest(record, authority)
+        record.inputs_digest    == derive_evaluation_inputs_digest(record, authority)
 
     A contradiction is REJECTED. The submitted record is never silently
     rewritten: rejecting preserves both the caller's claim and the evaluator's
@@ -1786,15 +1812,16 @@ Admission is no longer a content-hash self-consistency check. A record is
                 ) -> Tuple[EvaluationAuthority, EligibilityAssessment]:
         """Derive authority ONCE and classify against that same observation.
 
-        State, gates and input binding must all be judged against one
-        consistent view; rebuilding authority separately for each comparison
-        would assume the filesystem could not change in between.
+        State, gates and the evaluation-input binding are all judged against ONE
+        consistent authority object. ``_classify_with_authority`` is internal and
+        takes no caller-supplied authority, so a single derivation per admission is
+        guaranteed rather than merely intended.
         """
         authority = build_authority(
             config, runs_candidate=record.runs_candidate,
             runs_baseline=record.runs_baseline, exclusions=record.exclusions,
             effect=record.effect)
-        return authority, classify_promotion_eligibility(record, config)
+        return authority, _classify_with_authority(record, config, authority)
 
     def verify_admission(self, record: EvaluationDecisionRecord,
                          config: GateConfig) -> EligibilityAssessment:
@@ -1839,7 +1866,7 @@ Admission is no longer a content-hash self-consistency check. A record is
                 f"gate_outcomes mismatch for {record.decision_id!r}: "
                 f"submitted={len(record.gate_outcomes)} gate(s), "
                 f"derived={len(assessment.gates)}; missing={missing} extra={extra}")
-        if record.inputs_digest != derive_record_inputs_digest(record, authority):
+        if record.inputs_digest != derive_evaluation_inputs_digest(record, authority):
             raise EvaluationGateError(
                 f"inputs_digest mismatch for {record.decision_id!r}: the submitted "
                 f"digest does not bind this record to the currently derived inputs")
