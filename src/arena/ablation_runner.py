@@ -42,6 +42,51 @@ import errno
 # Distinct from manifest ACTION_BUDGET=20; ACTION_CAP bounds broker dispatches.
 ACTION_CAP = 5
 
+
+class InvalidScenarioSplit(ValueError):
+    """Raised when an AblationRunner is constructed with a split outside the
+    ScenarioSplit vocabulary.
+
+    F-SPLIT-1: split selection previously used ``split_map.get(split, DEV)``,
+    so any unrecognised value (notably "validation", while the canonical value
+    is "val") silently produced a DEV scenario — a fail-open default in the one
+    path whose purpose is split integrity. Invalid values now fail closed at
+    construction, before any run_id or recorder is created.
+    """
+
+
+def _resolve_scenario_split(split: Any) -> "ScenarioSplit":
+    """Resolve a raw split label to its ScenarioSplit member, fail closed.
+
+    The accepted vocabulary is derived from ScenarioSplit itself rather than a
+    duplicated literal map, so it cannot drift from the enum. Lookup is exact
+    and case-sensitive: "val" is the only accepted spelling of the validation
+    split, and "DEV"/"Validation"/"validation"/"holdout " are all rejected.
+
+    A split that is not already a ScenarioSplit must be an exact string match
+    on a member value; no normalisation, trimming, case-folding, aliasing, or
+    defaulting is performed.
+    """
+    from arena.templates.base import ScenarioSplit
+
+    if isinstance(split, ScenarioSplit):
+        return split
+
+    accepted = sorted(member.value for member in ScenarioSplit)
+    if isinstance(split, str):
+        try:
+            return ScenarioSplit(split)
+        except ValueError:
+            pass
+
+    raise InvalidScenarioSplit(
+        f"Invalid split {split!r}: accepted values are {accepted} "
+        f"(ScenarioSplit members). Note the validation split is 'val', "
+        f"not 'validation'. Unknown splits fail closed; they are never "
+        f"treated as 'dev'."
+    )
+
+
 def _safe_debug_stderr(msg: str) -> None:
     """Write debug message to stderr, swallowing EPIPE (dead capture pipe).
 
@@ -637,10 +682,19 @@ class AblationRunner:
     def __init__(self, template, config: AblationConfig, seed: int,
                  split: str = "dev", output_dir: Optional[str] = None,
                  llm_config_override: Optional[LLMProviderConfig] = None):
+        # F-SPLIT-1: resolve split FIRST, before any attribute is assigned and
+        # before any run_id / recorder / service is constructed. An invalid
+        # split must leave no partially-initialised runner behind.
+        resolved_split = _resolve_scenario_split(split)
+
         self.template = template
         self.config = config
         self.seed = seed
-        self.split = split
+        # Canonical member value ("dev" / "val" / "holdout"). For every accepted
+        # input this is byte-identical to the label the caller passed, so the
+        # run_id below is unchanged for all valid callers.
+        self.split = resolved_split.value
+        self.scenario_split = resolved_split
         self.output_dir = Path(output_dir) if output_dir else RESULTS_BASE
         self._llm_config_override = llm_config_override
         
@@ -803,12 +857,13 @@ class AblationRunner:
         return self.metrics
     
     def _build_scenario(self) -> ArenaScenario:
-        """Generate scenario from template and seed."""
-        from arena.templates.base import ScenarioSplit
-        split_map = {"dev": ScenarioSplit.DEV, "val": ScenarioSplit.VALIDATION,
-                     "holdout": ScenarioSplit.HOLDOUT}
-        sp = split_map.get(self.split, ScenarioSplit.DEV)
-        return self.template.generate(seed=self.seed, split=sp)
+        """Generate scenario from template and seed.
+
+        F-SPLIT-1: the split was resolved and validated at construction
+        (see _resolve_scenario_split), so this path carries a guaranteed
+        ScenarioSplit member. There is no fallback here.
+        """
+        return self.template.generate(seed=self.seed, split=self.scenario_split)
     
     def _build_traced_runner(self) -> ArenaRunner:
         """Build ArenaRunner with traced and ablated components.
