@@ -8,22 +8,39 @@
   "reconstruction_statement": "No canonical dataset may be reconstructed from raw telemetry for authority purposes.",
   "gitignore_statement": ".gitignore remains in force for canonical JSONL artifacts (line 87).",
   "manifest_statement": "The authoritative-anchor manifest must not be modified to bypass the missing holdout.",
+  "predecessor_dataset_status": "ABSENT_AND_UNVERIFIABLE",
+  "predecessor_dataset_path": "evaluations/campaign/rbs_v4_holdout_STALE_T1T12_GPTOSS_QUARANTINE.jsonl",
+  "predecessor_dataset_digest": null,
+  "predecessor_dataset_commit": null,
+  "predecessor_dataset_verifiable": false,
+  "predecessor_row_count_claim": "UNVERIFIABLE",
+  "historical_claim_status": "NOT_VERIFIABLE_FROM_REPOSITORY",
+  "predecessor_verification": {
+    "checked_in_worktree": false,
+    "checked_in_git_history": false,
+    "git_object_present": false,
+    "method": "test -e <path>; git log --all -- <path>; git rev-list --all --objects | grep rbs_v4_holdout_STALE",
+    "note": "The quarantined predecessor was asserted QUARANTINED by an earlier classification. That artifact is not present in the worktree and has no git object in any branch, so the assertion was unverifiable and has been withdrawn. It is NOT recreated: .gitignore line 87 blocks evaluations/campaign/*.jsonl, so committing it would require an explicit, separately reviewed change to that rule, which has not been made."
+  },
+  "predecessor_unverifiability_statement": "The repository does not contain sufficient evidence to verify the existence, contents, row count, or provenance of the claimed 3,240-row predecessor dataset. No historical claim about that dataset may be treated as verified.",
   "campaign_reconciliation": {
     "campaign_a_predecessor": {
-      "description": "Quarantined 3,240-row predecessor campaign",
+      "description": "Claimed 3,240-row predecessor campaign; artifact ABSENT and UNVERIFIABLE",
       "script": "scripts/run_rbs_v4_holdout.py",
-      "design": "12 templates x 9 configs x 30 seeds = 3240 rows",
-      "seed_range": "dev-range (1072-1101)",
-      "provider": "gpt-oss:20b-cloud",
-      "quarantine_path": "rbs_v4_holdout_STALE_T1T12_GPTOSS_QUARANTINE.jsonl",
-      "status": "QUARANTINED"
+      "design_claim_only": "12 templates x 9 configs x 30 seeds = 3240 rows",
+      "seed_range_claim_only": "dev-range (1072-1101)",
+      "provider_claim_only": "gpt-oss:20b-cloud",
+      "quarantine_path": "evaluations/campaign/rbs_v4_holdout_STALE_T1T12_GPTOSS_QUARANTINE.jsonl",
+      "status": "ABSENT_AND_UNVERIFIABLE",
+      "quarantine_status_withdrawn": true,
+      "note": "The 3,240-row figure also appears in the reproducibility manifest 'design' block, which is a design claim about an earlier campaign, not a verified dataset. The manifest's 'dataset' block declares the 1,200-row file that is itself missing. Both figures therefore describe artifacts this repository cannot verify."
     },
     "campaign_b_frozen_terminal": {
-      "description": "Frozen 1,200-row terminal campaign",
-      "script": "scripts/run_rbs_v4_holdout_frozen.py",
-      "design": "5 families x 4 arms x 60 seeds = 1200 rows",
-      "seed_range": "holdout absolute (2000-2059)",
-      "provider": "nvidia/llama-3.3-nemotron-super-49b-v1",
+      "description": "Frozen 1,200-row terminal campaign; canonical JSONL MISSING",
+      "script": "evaluations/campaign/run_rbs_v4_holdout_frozen.py",
+      "design_claim_only": "5 families x 4 arms x 60 seeds = 1200 rows",
+      "seed_range_claim_only": "holdout absolute (2000-2059)",
+      "provider_claim_only": "nvidia/llama-3.3-nemotron-super-49b-v1",
       "canonical_path": "evaluations/campaign/rbs_v4_holdout.jsonl",
       "canonical_status": "MISSING"
     }
@@ -31,6 +48,7 @@
   "measurement_authority_statement": "verify_authoritative_holdout() returns HOLDOUT_MISSING. No substitution, fabrication, or reconstruction is permitted.",
   "promotion_authority_impact": "L2 persistent exploration policy is blocked until the canonical holdout is independently verified or formally classified as permanently unrecoverable and an alternative measurement contract is adopted.",
   "date": "2026-10-09",
+  "revision_note": "Corrected 2026-10-09 by the independent Phase 3 readiness audit follow-up. The earlier value 'QUARANTINED' asserted the existence of an artifact that does not exist in the worktree or in git history; it is replaced by ABSENT_AND_UNVERIFIABLE.",
   "author": "Independent audit procedure (repo-only verification)",
   "source_revision": "governance/rsi-1-phase3-readiness"
 }
