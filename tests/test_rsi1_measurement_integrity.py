@@ -335,13 +335,20 @@ def test_a10_placeholder_detection_is_public_and_explicit():
 # ══════════════════════════════════════════════════════════════════════════
 
 def test_b0_the_exploit_parameter_no_longer_exists():
-    """The decisive audit exploit's attack surface is gone at the signature."""
+    """The decisive audit exploit's attack surface is gone at the signature.
+
+    C1/C2 remediation (2026-10-09) added ``policy_identities``: observations
+    produced by :func:`derive_policy_identity`, which hashes artifact CONTENT
+    inside the authority module. That is evidence content, not caller-supplied
+    authority — the exploit parameters below remain banned.
+    """
     import inspect
     params = inspect.signature(classify_promotion_eligibility).parameters
     assert "independent_holdout" not in params
     assert "adequacy" not in params
     assert "safety_outcomes" not in params
-    assert set(params) == {"record", "config", "blocking_conditions"}
+    assert set(params) == {"record", "config", "blocking_conditions",
+                           "policy_identities"}
 
 
 def test_b1_fabricated_verified_status_refused():

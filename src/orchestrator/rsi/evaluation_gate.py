@@ -534,6 +534,172 @@ def resolve_config_adoption(config: GateConfig,
 
 
 # ══════════════════════════════════════════════════════════════════════════
+# 2c. Policy identity — derive-and-verify, never record-supplied trust
+# ══════════════════════════════════════════════════════════════════════════
+#
+# C1/C2 finding: ``EvaluationDecisionRecord.baseline_policy_hash`` and
+# ``candidate_policy_hash`` are caller-supplied strings. The runtime policy
+# loader computes a SHA-256 over the artifact at load time, but nothing bound
+# the record's hash to that loaded artifact, so the record hash was an
+# ASSERTED identity — usable for lineage bookkeeping, never proof of content.
+#
+# Mechanism below: the artifact CONTENT is hashed here (the caller supplies
+# bytes, never a digest), and the derived digest is compared against the
+# record. A derived-vs-declared mismatch is a detected fabrication and refuses
+# unconditionally. Absence of a derived binding is BLOCKED only when the gate
+# config requires policy identity (``require_policy_identity``); otherwise the
+# historical asserted-hash behavior is preserved unchanged. Whether adopted
+# production configurations must set that flag is an operator governance
+# decision (PROPOSED, not silently adopted by this mechanism).
+
+POLICY_IDENTITY_VERIFIED = "POLICY_IDENTITY_VERIFIED"
+POLICY_IDENTITY_MISMATCH = "POLICY_IDENTITY_MISMATCH"
+POLICY_IDENTITY_ASSERTED = "POLICY_IDENTITY_ASSERTED"
+POLICY_IDENTITY_MISSING = "POLICY_IDENTITY_MISSING"
+
+POLICY_IDENTITY_ROLES = ("baseline", "candidate")
+
+
+@dataclass(frozen=True)
+class PolicyIdentity:
+    """A policy identity observation derived by THIS module.
+
+    ``content_sha256`` is either computed here from the artifact's actual
+    bytes (``derived=True``) or an explicitly asserted, non-authoritative
+    echo of a record-supplied value (``derived=False``, via
+    :func:`asserted_policy_identity`). Only ``derived=True`` can turn the
+    policy-identity gate PASS; an asserted identity can never verify.
+    """
+    role: str
+    policy_id: str
+    content_sha256: str
+    origin: str = ""
+    derived: bool = True
+
+    def __post_init__(self) -> None:
+        if self.role not in POLICY_IDENTITY_ROLES:
+            raise EvaluationGateError(
+                f"policy identity role must be one of {POLICY_IDENTITY_ROLES}, "
+                f"got {self.role!r}")
+        if not isinstance(self.policy_id, str) or not self.policy_id:
+            raise EvaluationGateError("policy_id must be a non-empty string")
+        if not _is_hex_sha256(self.content_sha256):
+            raise EvaluationGateError(
+                f"content_sha256 must be a 64-char lowercase hex SHA-256, got "
+                f"{self.content_sha256!r}")
+        if type(self.derived) is not bool:
+            raise EvaluationGateError("derived must be a bool")
+
+
+def derive_policy_identity(role: str, policy_id: str, content: bytes,
+                           origin: str = "") -> PolicyIdentity:
+    """Derive the identity of a policy artifact from its actual bytes.
+
+    The caller supplies the artifact CONTENT (never a digest); the SHA-256 is
+    computed here, inside the authority module. ``origin`` is recorded
+    verbatim for audit readability and is not an authority.
+    """
+    if not isinstance(content, (bytes, bytearray)):
+        raise EvaluationGateError(
+            f"policy content must be bytes to hash (got {type(content).__name__}); "
+            "accepting a caller-computed digest would re-create the C1/C2 gap")
+    return PolicyIdentity(role=role, policy_id=policy_id,
+                          content_sha256=_sha256_bytes(bytes(content)),
+                          origin=origin, derived=True)
+
+
+def asserted_policy_identity(role: str, policy_id: str, claimed_sha256: str,
+                             origin: str = "") -> PolicyIdentity:
+    """Record a caller-supplied policy hash as ASSERTED (non-authoritative).
+
+    Adopting asserted identities downstream is an explicit operator decision
+    with recorded consequences; this constructor exists so that mode cannot be
+    mistaken for verification — ``derived=False`` can never turn the
+    policy-identity gate green.
+    """
+    if not _is_hex_sha256(claimed_sha256):
+        raise EvaluationGateError(
+            f"claimed_sha256 must be a 64-char lowercase hex SHA-256, got "
+            f"{claimed_sha256!r}")
+    return PolicyIdentity(role=role, policy_id=policy_id,
+                          content_sha256=claimed_sha256, origin=origin,
+                          derived=False)
+
+
+def verify_policy_identity(record: "EvaluationDecisionRecord",
+                           identities: Tuple[PolicyIdentity, ...],
+                           *, require_binding: bool = False
+                           ) -> List[Tuple[str, str, str]]:
+    """Compare a record's policy hashes against identity observations.
+
+    Returns ``(gate_name, status, detail)`` triples for the
+    ``policy_identity_baseline`` / ``policy_identity_candidate`` gates.
+
+    Rules (fail-closed precedence):
+
+    * a DERIVED identity that matches the record hash     -> PASS
+    * a DERIVED identity that contradicts the record hash -> REFUSE
+      (unconditionally, regardless of ``require_binding``: a derived-vs-declared
+      mismatch is a detected fabrication, the same class as any other
+      record-vs-authority contradiction)
+    * no identity supplied, or only an ASSERTED one       -> BLOCKED when
+      ``require_binding`` is True, no gate otherwise (historical behavior)
+    * an empty record hash                                -> BLOCKED
+      (POLICY_IDENTITY_MISSING) when ``require_binding`` is True
+    """
+    gates: List[Tuple[str, str, str]] = []
+    by_role = {}
+    for item in identities:
+        if not isinstance(item, PolicyIdentity):
+            raise EvaluationGateError(
+                f"policy identities must be PolicyIdentity instances, got "
+                f"{type(item).__name__}")
+        if item.role in by_role:
+            raise EvaluationGateError(
+                f"duplicate policy identity for role {item.role!r}; one "
+                "observation per role, ambiguity is not verification")
+        by_role[item.role] = item
+
+    for role in POLICY_IDENTITY_ROLES:
+        gate_name = f"policy_identity_{role}"
+        record_hash = getattr(record, f"{role}_policy_hash")
+        identity = by_role.get(role)
+        if identity is not None and identity.derived:
+            if record_hash == identity.content_sha256:
+                gates.append((gate_name, STATUS_PASS,
+                              f"{POLICY_IDENTITY_VERIFIED}: record hash matches "
+                              f"the digest derived from artifact content "
+                              f"(policy_id={identity.policy_id!r})"))
+            else:
+                gates.append((gate_name, STATUS_REFUSE,
+                              f"{POLICY_IDENTITY_MISMATCH}: record declares "
+                              f"{record_hash!r} but the artifact supplied for "
+                              f"verification hashes to {identity.content_sha256!r} "
+                              f"(policy_id={identity.policy_id!r}); declared "
+                              "policy identity is a fabrication"))
+            continue
+        if not require_binding:
+            # Asserted mode without an adopted requirement: historical
+            # behavior, no new gate. The hash remains a claim.
+            continue
+        if not record_hash:
+            gates.append((gate_name, STATUS_BLOCKED,
+                          f"{POLICY_IDENTITY_MISSING}: record declares no "
+                          f"{role} policy hash"))
+        elif identity is None:
+            gates.append((gate_name, STATUS_BLOCKED,
+                          f"{POLICY_IDENTITY_ASSERTED}: record-supplied hash is "
+                          f"asserted, not verified — no artifact content was "
+                          f"supplied for derivation"))
+        else:
+            gates.append((gate_name, STATUS_BLOCKED,
+                          f"{POLICY_IDENTITY_ASSERTED}: identity for "
+                          f"{identity.policy_id!r} is an asserted echo "
+                          f"(derived=False) and cannot verify the record hash"))
+    return gates
+
+
+# ══════════════════════════════════════════════════════════════════════════
 # 3. Gate configuration
 # ══════════════════════════════════════════════════════════════════════════
 
@@ -557,6 +723,15 @@ class GateConfig:
     min_effect_size: Optional[float] = None
     significance_level: Optional[float] = None
     max_exclusion_fraction: Optional[float] = None
+    #: C1/C2 remediation. When True, decision records must carry a DERIVED
+    #: policy identity (artifact content hashed by this module) matching their
+    #: declared baseline/candidate policy hashes; an asserted-only hash is
+    #: BLOCKED. Defaults to False so experimental classification keeps the
+    #: historical behavior; whether adopted production configurations must set
+    #: it True is an operator governance decision (PROPOSED, see
+    #: evidence/GOVERNANCE_DECISIONS_20261009.jsonl). A derived-vs-declared
+    #: MISMATCH refuses unconditionally even when this flag is False.
+    require_policy_identity: bool = False
 
     def __post_init__(self) -> None:
         for name in ("min_runs_per_arm", "min_effect_size", "significance_level",
@@ -571,7 +746,7 @@ class GateConfig:
         # Requirement flags must be genuine booleans. Accepting 1 / "true" would
         # let a truthy non-bool smuggle authority-flag state past the promotion
         # lock, so this is an explicit type requirement, not coercion.
-        for name in PROMOTION_REQUIREMENTS:
+        for name in PROMOTION_REQUIREMENTS + ("require_policy_identity",):
             if type(getattr(self, name)) is not bool:
                 raise EvaluationGateError(
                     f"{name} must be a bool, got "
@@ -1428,6 +1603,7 @@ def classify_promotion_eligibility(
         config: GateConfig,
         *,
         blocking_conditions: Tuple[str, ...] = (),
+        policy_identities: Tuple[PolicyIdentity, ...] = (),
 ) -> EligibilityAssessment:
     """Classify a decision record. Reports; never promotes.
 
@@ -1435,6 +1611,10 @@ def classify_promotion_eligibility(
     boolean, no caller-supplied ``AdequacyReport``, no caller-supplied
     evaluator identity, and no caller-supplied gate digest. Every gate below is
     DERIVED by :func:`build_authority` and then COMPARED against the record.
+
+    ``policy_identities`` carries observations produced by
+    :func:`derive_policy_identity` — artifact CONTENT hashed inside this
+    module — never caller-computed digests. See section 2c.
 
     Fail-closed precedence:
 
@@ -1454,12 +1634,14 @@ def classify_promotion_eligibility(
         config, runs_candidate=record.runs_candidate, runs_baseline=record.runs_baseline,
         exclusions=record.exclusions, effect=record.effect)
     return _classify_with_authority(record, config, authority,
-                                    blocking_conditions=blocking_conditions)
+                                    blocking_conditions=blocking_conditions,
+                                    policy_identities=policy_identities)
 
 
 def _classify_with_authority(record: EvaluationDecisionRecord, config: GateConfig,
                              authority: EvaluationAuthority, *,
-                             blocking_conditions: Tuple[str, ...] = ()
+                             blocking_conditions: Tuple[str, ...] = (),
+                             policy_identities: Tuple[PolicyIdentity, ...] = ()
                              ) -> EligibilityAssessment:
     """Classify a record against ONE already-derived authority observation.
 
@@ -1533,6 +1715,20 @@ def _classify_with_authority(record: EvaluationDecisionRecord, config: GateConfi
                        f"gate config campaign {config.campaign_id!r}")
     else:
         gates.append(("campaign_binding", STATUS_PASS))
+
+    # ── C2. policy identity binding (C1/C2 remediation) ────────────────────
+    # The record's baseline/candidate policy hashes are caller-supplied
+    # strings. They verify only against a DERIVED identity (artifact content
+    # hashed in this module). A derived-vs-declared mismatch refuses
+    # unconditionally; a missing/asserted-only binding is BLOCKED when the
+    # config requires policy identity, and emits no gate otherwise
+    # (historical asserted-hash behavior, preserved for experimental use).
+    for pi_gate, pi_status, pi_detail in verify_policy_identity(
+            record, policy_identities,
+            require_binding=config.require_policy_identity):
+        gates.append((pi_gate, pi_status))
+        if pi_status != STATUS_PASS:
+            reasons.append(f"{pi_gate}: {pi_detail}")
 
     # ── D. holdout anchor and verification, both derived ───────────────────
     gates.append(("holdout_anchor", STATUS_PASS if authority.anchor_status == "LOADED"
@@ -1808,7 +2004,8 @@ Admission is no longer a content-hash self-consistency check. A record is
     def path(self) -> Path:
         return self._path
 
-    def _derive(self, record: EvaluationDecisionRecord, config: GateConfig
+    def _derive(self, record: EvaluationDecisionRecord, config: GateConfig,
+                policy_identities: Tuple[PolicyIdentity, ...] = ()
                 ) -> Tuple[EvaluationAuthority, EligibilityAssessment]:
         """Derive authority ONCE and classify against that same observation.
 
@@ -1821,17 +2018,21 @@ Admission is no longer a content-hash self-consistency check. A record is
             config, runs_candidate=record.runs_candidate,
             runs_baseline=record.runs_baseline, exclusions=record.exclusions,
             effect=record.effect)
-        return authority, _classify_with_authority(record, config, authority)
+        return authority, _classify_with_authority(
+            record, config, authority, policy_identities=policy_identities)
 
     def verify_admission(self, record: EvaluationDecisionRecord,
-                         config: GateConfig) -> EligibilityAssessment:
+                         config: GateConfig,
+                         policy_identities: Tuple[PolicyIdentity, ...] = ()
+                         ) -> EligibilityAssessment:
         """Derive and validate admission. Submitted state is NOT authority.
 
         Raises :class:`EvaluationGateError` on any refusal gate or on a
         contradiction between the submitted authoritative fields and the freshly
-        derived values.
+        derived values. ``policy_identities`` (derived via
+        :func:`derive_policy_identity`) is verified as part of admission.
         """
-        authority, assessment = self._derive(record, config)
+        authority, assessment = self._derive(record, config, policy_identities)
         refused = assessment.hard_failures()
         if refused:
             raise EvaluationGateError(
@@ -1934,14 +2135,15 @@ Admission is no longer a content-hash self-consistency check. A record is
         return latest
 
     def append(self, record: EvaluationDecisionRecord,
-               config: Optional[GateConfig] = None) -> str:
+               config: Optional[GateConfig] = None,
+               policy_identities: Tuple[PolicyIdentity, ...] = ()) -> str:
         """Append a decision record after verifying it against derived authority.
 
         Order is deliberate (roadmap §19.5 / P7.10 fail-closed):
 
         1. record type, then the required config
         2. the record must still be intact (unchanged since minting)
-        3. derive authority ONCE and classify
+        3. derive authority ONCE and classify (with any policy identities)
         4. reject refusal gates
         5. reject state, gate-outcome and input-digest contradictions
         6. duplicate/content conflict handling — AFTER verification, so an
@@ -1961,7 +2163,7 @@ Admission is no longer a content-hash self-consistency check. A record is
                 f"decision {record.decision_id!r} changed after minting; admission "
                 "refuses a record whose content hash no longer matches its fields")
 
-        assessment = self.verify_admission(record, config)
+        assessment = self.verify_admission(record, config, policy_identities)
 
         existing = self._index.get(record.decision_id)
         if existing is not None:

@@ -264,7 +264,7 @@ def test_b12_adoption_id_is_derived_not_caller_supplied(tmp_path, monkeypatch):
 def test_b13_classifier_and_build_authority_take_no_adoption_input():
     import inspect
     assert set(inspect.signature(classify_promotion_eligibility).parameters) == {
-        "record", "config", "blocking_conditions"}
+        "record", "config", "blocking_conditions", "policy_identities"}
     assert "config_adoption" not in inspect.signature(build_authority).parameters
 
 
