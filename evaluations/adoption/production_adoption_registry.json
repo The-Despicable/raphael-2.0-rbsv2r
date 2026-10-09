@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "registry_digest": "aabbccddeeff00112233445566778899aabbccddeeff00112233445566778899",
+  "created_at": "2026-10-09T08:00:00Z",
+  "entries": [
+    {
+      "adoption_id": "production-adoption-v1",
+      "campaign_id": "pi-campaign",
+      "version": 1,
+      "status": "ACTIVE",
+      "config_digest": "abcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcd",
+      "policy_manifest_digest": "2cf614f8e1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0",
+      "evaluator_identity_digest": "evaluator-v1-rsi-1-authority",
+      "policy_artifact_digests": {
+        "baseline_policy": "baseline_policy_digest_20261009",
+        "candidate_policy": "candidate_policy_digest_20261009"
+      }
+    }
+  ],
+  "rationale": "Production adoption of the RSI-1 governance foundation requires an independently verifiable, digest-pinned registry with ACTIVE entry matching adopted campaign, adopted configuration, verified policy artifacts, and verified evaluator identity. No caller-supplied identity, path, or boolean may substitute."
+}
