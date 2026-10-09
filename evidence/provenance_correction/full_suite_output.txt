@@ -1,0 +1,223 @@
+........................................................................ [  5%]
+........................................................................ [ 10%]
+........................................................................ [ 15%]
+........................................................................ [ 20%]
+........................................................................ [ 25%]
+........................................................................ [ 30%]
+........................................................................ [ 35%]
+........................................................................ [ 40%]
+........................................................................ [ 45%]
+........................................................................ [ 50%]
+........................................................................ [ 55%]
+........................................................................ [ 60%]
+........................................................................ [ 66%]
+........................................................................ [ 71%]
+........................................................................ [ 76%]
+........................................................................ [ 81%]
+........................................................................ [ 86%]
+........................................................................ [ 91%]
+........................................................................ [ 96%]
+.................................................                        [100%]
+=============================== warnings summary ===============================
+tests/test_am4_weld_gates.py::test_w09_kali_server_run_denies_403
+  /home/yaser/external-audits/raphael-2/src/kali-tools/server.py:15: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+tests/test_am4_weld_gates.py::test_w09_kali_server_run_denies_403
+tests/test_am4_weld_gates.py::test_r2_phishing_status_routes_deny_403
+  /home/yaser/external-audits/raphael-2/.venv/lib/python3.12/site-packages/fastapi/applications.py:4744: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    return self.router.on_event(event_type)  # ty: ignore[deprecated]
+
+tests/test_am4_weld_gates.py::test_r2_phishing_status_routes_deny_403
+  /home/yaser/external-audits/raphael-2/src/phishing/main.py:63: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+tests/test_am4_weld_gates.py::test_r2_proxyguard_report_helpers_deny
+  /home/yaser/external-audits/raphael-2/src/sword/report.py:8: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    self.timestamp = datetime.utcnow().strftime("%Y-%m-%d_%H-%M-%S")
+
+tests/test_cli_smoke.py::test_cli_imports
+  /home/yaser/external-audits/raphael-2/.venv/lib/python3.12/site-packages/_pytest/python.py:171: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_cli_smoke.py::test_cli_imports returned <class 'list'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_cli_smoke.py::test_cli_argparse
+  /home/yaser/external-audits/raphael-2/.venv/lib/python3.12/site-packages/_pytest/python.py:171: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_cli_smoke.py::test_cli_argparse returned <class 'list'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_cli_smoke.py::test_cli_models_config
+  /home/yaser/external-audits/raphael-2/.venv/lib/python3.12/site-packages/_pytest/python.py:171: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_cli_smoke.py::test_cli_models_config returned <class 'list'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_cli_smoke.py::test_cli_health_check_logic
+  /home/yaser/external-audits/raphael-2/.venv/lib/python3.12/site-packages/_pytest/python.py:171: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_cli_smoke.py::test_cli_health_check_logic returned <class 'list'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_cli_smoke.py::test_cli_banner_and_output
+  /home/yaser/external-audits/raphael-2/.venv/lib/python3.12/site-packages/_pytest/python.py:171: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_cli_smoke.py::test_cli_banner_and_output returned <class 'list'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_cli_smoke.py::test_cli_error_handling
+  /home/yaser/external-audits/raphael-2/.venv/lib/python3.12/site-packages/_pytest/python.py:171: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_cli_smoke.py::test_cli_error_handling returned <class 'list'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_cli_smoke.py::test_docker_files_exist
+  /home/yaser/external-audits/raphael-2/.venv/lib/python3.12/site-packages/_pytest/python.py:171: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_cli_smoke.py::test_docker_files_exist returned <class 'list'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_cli_smoke.py::test_docker_compose_syntax
+  /home/yaser/external-audits/raphael-2/.venv/lib/python3.12/site-packages/_pytest/python.py:171: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_cli_smoke.py::test_docker_compose_syntax returned <class 'list'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_cli_smoke.py::test_docker_images_buildable
+  /home/yaser/external-audits/raphael-2/.venv/lib/python3.12/site-packages/_pytest/python.py:171: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_cli_smoke.py::test_docker_images_buildable returned <class 'list'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_cli_smoke.py::test_docker_running_services
+  /home/yaser/external-audits/raphael-2/.venv/lib/python3.12/site-packages/_pytest/python.py:171: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_cli_smoke.py::test_docker_running_services returned <class 'list'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_cli_smoke.py::test_ai_models_config
+  /home/yaser/external-audits/raphael-2/.venv/lib/python3.12/site-packages/_pytest/python.py:171: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_cli_smoke.py::test_ai_models_config returned <class 'list'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_cli_smoke.py::test_ai_providers_module
+  /home/yaser/external-audits/raphael-2/.venv/lib/python3.12/site-packages/_pytest/python.py:171: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_cli_smoke.py::test_ai_providers_module returned <class 'list'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_cli_smoke.py::test_ai_adaptive_router
+  /home/yaser/external-audits/raphael-2/.venv/lib/python3.12/site-packages/_pytest/python.py:171: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_cli_smoke.py::test_ai_adaptive_router returned <class 'list'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_cli_smoke.py::test_tools_availability
+  /home/yaser/external-audits/raphael-2/.venv/lib/python3.12/site-packages/_pytest/python.py:171: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_cli_smoke.py::test_tools_availability returned <class 'list'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_cli_smoke.py::test_tools_kali_server
+  /home/yaser/external-audits/raphael-2/.venv/lib/python3.12/site-packages/_pytest/python.py:171: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_cli_smoke.py::test_tools_kali_server returned <class 'list'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_cli_smoke.py::test_tools_kali_dockerfile
+  /home/yaser/external-audits/raphael-2/.venv/lib/python3.12/site-packages/_pytest/python.py:171: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_cli_smoke.py::test_tools_kali_dockerfile returned <class 'list'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_cli_smoke.py::test_orchestrator_imports
+  /home/yaser/external-audits/raphael-2/.venv/lib/python3.12/site-packages/_pytest/python.py:171: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_cli_smoke.py::test_orchestrator_imports returned <class 'list'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_cli_smoke.py::test_orchestrator_app
+  /home/yaser/external-audits/raphael-2/.venv/lib/python3.12/site-packages/_pytest/python.py:171: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_cli_smoke.py::test_orchestrator_app returned <class 'list'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_cli_smoke.py::test_orchestrator_pipelines
+  /home/yaser/external-audits/raphael-2/.venv/lib/python3.12/site-packages/_pytest/python.py:171: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_cli_smoke.py::test_orchestrator_pipelines returned <class 'list'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_cli_smoke.py::test_orchestrator_c2
+  /home/yaser/external-audits/raphael-2/.venv/lib/python3.12/site-packages/_pytest/python.py:171: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_cli_smoke.py::test_orchestrator_c2 returned <class 'list'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_cli_smoke.py::test_orchestrator_security
+  /home/yaser/external-audits/raphael-2/.venv/lib/python3.12/site-packages/_pytest/python.py:171: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_cli_smoke.py::test_orchestrator_security returned <class 'list'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_cli_smoke.py::test_orchestrator_brain
+  /home/yaser/external-audits/raphael-2/.venv/lib/python3.12/site-packages/_pytest/python.py:171: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_cli_smoke.py::test_orchestrator_brain returned <class 'list'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_cli_smoke.py::test_orchestrator_agent
+  /home/yaser/external-audits/raphael-2/.venv/lib/python3.12/site-packages/_pytest/python.py:171: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_cli_smoke.py::test_orchestrator_agent returned <class 'list'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_cli_smoke.py::test_env_configuration
+  /home/yaser/external-audits/raphael-2/.venv/lib/python3.12/site-packages/_pytest/python.py:171: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_cli_smoke.py::test_env_configuration returned <class 'list'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_cli_smoke.py::test_requirements
+  /home/yaser/external-audits/raphael-2/.venv/lib/python3.12/site-packages/_pytest/python.py:171: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_cli_smoke.py::test_requirements returned <class 'list'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_cli_smoke.py::test_project_structure
+  /home/yaser/external-audits/raphael-2/.venv/lib/python3.12/site-packages/_pytest/python.py:171: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_cli_smoke.py::test_project_structure returned <class 'list'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+tests/test_p2_guardrail_deprecated_import.py: 1 warning
+tests/test_p2_guardrail_inv1.py: 6 warnings
+tests/test_p2_guardrail_no_production_bypass.py: 1 warning
+tests/test_p2_guardrail_runtime_no_seam.py: 1 warning
+tests/test_p2_guardrail_single_runtime.py: 2 warnings
+tests/test_p311_adversarial_probes.py: 1 warning
+  <unknown>:141: SyntaxWarning: invalid escape sequence '\-'
+
+tests/test_rsi1_learning_substrate.py::test_grpo_prototype_learns_on_the_toy_task
+  /home/yaser/external-audits/raphael-2/.venv/lib/python3.12/site-packages/torch/autograd/graph.py:1072: UserWarning: CUDA initialization: The NVIDIA driver on your system is too old (found version 12080). Please update your GPU driver by downloading and installing a new version from the URL: http://www.nvidia.com/Download/index.aspx Alternatively, go to: https://pytorch.org to install a PyTorch version that has been compiled with your version of the CUDA driver. (Triggered internally at /__w/pytorch/pytorch/c10/cuda/CUDAFunctions.cpp:119.)
+    return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+1417 passed, 44 warnings in 103.37s (0:01:43)

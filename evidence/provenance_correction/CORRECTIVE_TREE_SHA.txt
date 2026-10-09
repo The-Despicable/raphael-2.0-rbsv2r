@@ -1,0 +1,10 @@
+# Tree SHA binding for the RSI-1 provenance correction.
+#
+# A commit cannot contain its own tree SHA any more than it can contain
+# its own commit SHA. This file therefore pins the tree of the last
+# CONTENT commit on the branch; the evidence-bundle commit that follows
+# adds only files under evidence/provenance_correction/.
+#
+# Verify with:  git rev-parse 2d049e2f51f3382f06311e43907266e65fd2acc4^{tree}
+corrective_pre_bundle_commit_sha: 2d049e2f51f3382f06311e43907266e65fd2acc4
+corrective_pre_bundle_tree_sha: 191ae07eb954498b828d6668e70e6c7b0b65a73e

@@ -1,0 +1,95 @@
+{
+  "title": "RAPHAEL RSI-1 Provenance Correction \u2014 corrective evidence bundle",
+  "date": "2026-10-09",
+  "branch": "governance/rsi-1-provenance-correction",
+  "starting_commit_sha": "1fd7cda7610aa7a6cda56b5c5d9955aed771d674",
+  "starting_commit_sha_expected": "1fd7cda7610aa7a6cda56b5c5d9955aed771d674",
+  "corrective_pre_bundle_commit_sha": "2d049e2f51f3382f06311e43907266e65fd2acc4",
+  "corrective_pre_bundle_tree_sha": "191ae07eb954498b828d6668e70e6c7b0b65a73e",
+  "tree_sha_binding_explanation": "A commit cannot contain its own tree SHA. This bundle pins the tree of the last CONTENT commit; the evidence-bundle commit that follows adds only files under evidence/provenance_correction/. Verify with 'git rev-parse 2d049e2f51f3382f06311e43907266e65fd2acc4^{tree}'.",
+  "python_version": "3.12.15",
+  "pytest_version": "9.1.1",
+  "commands": [
+    "PYTHONPATH=src .venv/bin/python -m pytest tests/ -q",
+    "PYTHONPATH=src .venv/bin/python -m pytest tests/test_phase3_evidence_binding.py tests/test_rsi1_holdout_classification.py tests/test_rsi1_measurement_contract.py tests/test_rsi1_production_adoption_registry.py tests/test_rsi1_historical_call_site_rulings.py tests/test_rsi1_policy_identity.py tests/test_rsi1_measurement_integrity.py tests/test_rsi1_config_adoption.py tests/test_rsi1_governance_remediation.py tests/test_f_split_1_split_vocabulary.py -q"
+  ],
+  "results": {
+    "full_configured_suite": {
+      "passed": 1417,
+      "failed": 0,
+      "warnings": 44,
+      "tail": "1417 passed, 44 warnings in 103.37s (0:01:43)"
+    },
+    "focused_suite": {
+      "passed": 494,
+      "failed": 0,
+      "tail": "494 passed in 4.37s"
+    },
+    "f_split_1_split_vocabulary": {
+      "passed": 74,
+      "failed": 0
+    }
+  },
+  "corrections_applied": [
+    {
+      "finding": "Evidence bundle recorded the parent commit as 'final'",
+      "resolution": "FINAL_COMMIT_SHA.txt removed; evidence/phase3_readiness/EVIDENCE_BINDING.json binds to the audited tree SHA 49237b060d78ad0d9d1f9ad33b8ea073853a3b1f."
+    },
+    {
+      "finding": "Manifest falsely reported 'Policy identity remediation (21/69 tests pass)'",
+      "resolution": "Corrected to the verified 69/69 and a machine-readable policy_identity_suite_result was added."
+    },
+    {
+      "finding": "Holdout classification claimed a nonexistent quarantined predecessor was QUARANTINED",
+      "resolution": "Reclassified ABSENT_AND_UNVERIFIABLE with null digest and null commit; the artifact was NOT recreated."
+    },
+    {
+      "finding": "measurement_contract.py was a skeleton whose assert_complete() could never raise and which returned EXPECTED_SUCCESS for any unverified digest",
+      "resolution": "Reimplemented with digest-verified evidence, reachable UNACCOUNTED, duplicate detection, and a live assert_complete(). 9 vacuous tests replaced by 47 behavioural tests; four mutations each fail the suite."
+    },
+    {
+      "finding": "production_adoption_registry.json carried six fabricated digests, named a test fixture campaign, used an incompatible schema, and was pinned by nothing",
+      "resolution": "DELETED (Path A). No real adopted campaign exists, so no replacement was created. resolve_config_adoption returns UNADOPTED_CONFIG."
+    },
+    {
+      "finding": "Historical call-site census was wrong: 25 vs 23 claimed, 10 of 19 paths pointed at scripts/ for src/arena/ files, and no ruling existed",
+      "resolution": "Census re-derived from source to 22 verified sites; every path and line re-verified; all entries carry PENDING_OPERATOR_RATIFICATION."
+    },
+    {
+      "finding": "Self-authored audit verdict shipped inside the audited commit; .zcodeignore unexplained; agent-only identity",
+      "resolution": "Verdict moved to reports/historical/ with a SUPERSEDED banner; .zcodeignore removed; operator attestation recorded as PENDING because the operator's identity is not known to this agent and was not invented."
+    }
+  ],
+  "no_placeholder_provenance_remains": {
+    "statement": "No placeholder digest, identity, campaign id, or registry entry remains anywhere on this branch.",
+    "verified_by": [
+      "tests/test_rsi1_production_adoption_registry.py",
+      "tests/test_rsi1_holdout_classification.py",
+      "tests/test_rsi1_historical_call_site_rulings.py"
+    ]
+  },
+  "adoption_registry": {
+    "path": null,
+    "exists": false,
+    "statement": "No adoption registry exists. No registry may be committed unless every digest and identity is computed from real, committed artifacts and the config is independently adopted."
+  },
+  "holdout": {
+    "canonical_path": "evaluations/campaign/rbs_v4_holdout.jsonl",
+    "canonical_status": "MISSING",
+    "classification": "UNVERIFIABLE",
+    "reconstruction_permitted": false,
+    "statement": "No canonical holdout was fabricated, reconstructed, interpolated, or synthesized. The quarantined predecessor was NOT recreated; it is classified ABSENT_AND_UNVERIFIABLE."
+  },
+  "phase3_statement": "Phase 3 is NOT authorized. Phase 3 capability is NOT implemented. No promotion, deployment, rollback, or production adoption is enabled. L2 is NOT claimed.",
+  "operator_attestation": {
+    "path": "evidence/provenance_correction/OPERATOR_ATTESTATION.md",
+    "status": "PENDING_NOT_SIGNED",
+    "note": "Operator identity is not known to this agent and was not invented. All commits are authored by the agent identity OMP Agent <agent@local>."
+  },
+  "historical_rulings": {
+    "verified_sites": 22,
+    "ruling_status": "PENDING_OPERATOR_RATIFICATION",
+    "note": "Phase 3 readiness remains blocked until each site's intended split is ratified by the operator."
+  },
+  "request": "A fresh independent audit is requested. Phase 3 authorization is NOT requested by this bundle."
+}
