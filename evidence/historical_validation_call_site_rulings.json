@@ -1,0 +1,209 @@
+{
+  "ruling_date": "2026-10-09",
+  "author": "Independent audit procedure",
+  "total_sites": 25,
+  "default_ruling": "HISTORICAL_ONLY",
+  "current_authority_granted_by_default": false,
+  "sites": [
+    {
+      "id": "script-run_experiment0",
+      "path": "scripts/run_experiment0.py",
+      "original_label": "validation",
+      "operator_ruling_pending": true,
+      "historical_only": true,
+      "current_authority_granted_by_default": false
+    },
+    {
+      "id": "script-run_experiment1",
+      "path": "scripts/run_experiment1.py",
+      "original_label": "validation",
+      "operator_ruling_pending": true,
+      "historical_only": true,
+      "current_authority_granted_by_default": false
+    },
+    {
+      "id": "script-run_experiment2",
+      "path": "scripts/run_experiment2.py",
+      "original_label": "validation",
+      "operator_ruling_pending": true,
+      "historical_only": true,
+      "current_authority_granted_by_default": false
+    },
+    {
+      "id": "script-run_experiment3",
+      "path": "scripts/run_experiment3.py",
+      "original_label": "validation",
+      "operator_ruling_pending": true,
+      "historical_only": true,
+      "current_authority_granted_by_default": false
+    },
+    {
+      "id": "script-run_rbsv2_campaign",
+      "path": "scripts/run_rbsv2_campaign.py",
+      "original_label": "validation",
+      "operator_ruling_pending": true,
+      "historical_only": true,
+      "current_authority_granted_by_default": false
+    },
+    {
+      "id": "script-run_rbs_v3_campaign",
+      "path": "scripts/run_rbs_v3_campaign.py",
+      "original_label": "validation",
+      "operator_ruling_pending": true,
+      "historical_only": true,
+      "current_authority_granted_by_default": false
+    },
+    {
+      "id": "script-run_rbs_v4_pilot",
+      "path": "scripts/run_rbs_v4_pilot.py",
+      "original_label": "validation",
+      "operator_ruling_pending": true,
+      "historical_only": true,
+      "current_authority_granted_by_default": false
+    },
+    {
+      "id": "script-run_rbs_v4_validation-1",
+      "path": "scripts/run_rbs_v4_validation.py",
+      "original_label": "validation",
+      "operator_ruling_pending": true,
+      "historical_only": true,
+      "current_authority_granted_by_default": false
+    },
+    {
+      "id": "script-run_rbs_v4_validation-2",
+      "path": "scripts/run_rbs_v4_validation.py",
+      "original_label": "validation",
+      "operator_ruling_pending": true,
+      "historical_only": true,
+      "current_authority_granted_by_default": false
+    },
+    {
+      "id": "script-run_rbs_v4_validation-3",
+      "path": "scripts/run_rbs_v4_validation.py",
+      "original_label": "validation",
+      "operator_ruling_pending": true,
+      "historical_only": true,
+      "current_authority_granted_by_default": false
+    },
+    {
+      "id": "script-run_rbs_v4_validation-4",
+      "path": "scripts/run_rbs_v4_validation.py",
+      "original_label": "validation",
+      "operator_ruling_pending": true,
+      "historical_only": true,
+      "current_authority_granted_by_default": false
+    },
+    {
+      "id": "script-run_rbs_v4_validation-5",
+      "path": "scripts/run_rbs_v4_validation.py",
+      "original_label": "validation",
+      "operator_ruling_pending": true,
+      "historical_only": true,
+      "current_authority_granted_by_default": false
+    },
+    {
+      "id": "script-run_rbs_v4_validation-6",
+      "path": "scripts/run_rbs_v4_validation.py",
+      "original_label": "validation",
+      "operator_ruling_pending": true,
+      "historical_only": true,
+      "current_authority_granted_by_default": false
+    },
+    {
+      "id": "script-run_rbs_v4_validation_100-1",
+      "path": "scripts/run_rbs_v4_validation_100.py",
+      "original_label": "validation",
+      "operator_ruling_pending": true,
+      "historical_only": true,
+      "current_authority_granted_by_default": false
+    },
+    {
+      "id": "script-run_rbs_v4_validation_100-2",
+      "path": "scripts/run_rbs_v4_validation_100.py",
+      "original_label": "validation",
+      "operator_ruling_pending": true,
+      "historical_only": true,
+      "current_authority_granted_by_default": false
+    },
+    {
+      "id": "script-run_rbs_v4_repair_verify",
+      "path": "scripts/run_rbs_v4_repair_verify.py",
+      "original_label": "validation",
+      "operator_ruling_pending": true,
+      "historical_only": true,
+      "current_authority_granted_by_default": false
+    },
+    {
+      "id": "script-run_t10_fix_verify",
+      "path": "scripts/run_t10_fix_verify.py",
+      "original_label": "validation",
+      "operator_ruling_pending": true,
+      "historical_only": true,
+      "current_authority_granted_by_default": false
+    },
+    {
+      "id": "diag-d8_cognitive_trace",
+      "path": "scripts/d8_cognitive_trace.py",
+      "original_label": "validation",
+      "operator_ruling_pending": true,
+      "historical_only": true,
+      "current_authority_granted_by_default": false
+    },
+    {
+      "id": "diag-d8_regression_test",
+      "path": "scripts/d8_regression_test.py",
+      "original_label": "validation",
+      "operator_ruling_pending": true,
+      "historical_only": true,
+      "current_authority_granted_by_default": false
+    },
+    {
+      "id": "diag-d9_regression_test",
+      "path": "scripts/d9_regression_test.py",
+      "original_label": "validation",
+      "operator_ruling_pending": true,
+      "historical_only": true,
+      "current_authority_granted_by_default": false
+    },
+    {
+      "id": "diag-d10_regression_test",
+      "path": "scripts/d10_regression_test.py",
+      "original_label": "validation",
+      "operator_ruling_pending": true,
+      "historical_only": true,
+      "current_authority_granted_by_default": false
+    },
+    {
+      "id": "diag-d10_falsification_defeater_diagnostic",
+      "path": "scripts/d10_falsification_defeater_diagnostic.py",
+      "original_label": "validation",
+      "operator_ruling_pending": true,
+      "historical_only": true,
+      "current_authority_granted_by_default": false
+    },
+    {
+      "id": "diag-d11_regression_test",
+      "path": "scripts/d11_regression_test.py",
+      "original_label": "validation",
+      "operator_ruling_pending": true,
+      "historical_only": true,
+      "current_authority_granted_by_default": false
+    },
+    {
+      "id": "diag-d16_holdout_runner",
+      "path": "scripts/d16_holdout_runner.py",
+      "original_label": "validation",
+      "operator_ruling_pending": true,
+      "historical_only": true,
+      "current_authority_granted_by_default": false
+    },
+    {
+      "id": "diag-d7_r1_gemma_retest",
+      "path": "scripts/d7_r1_gemma_retest.py",
+      "original_label": "validation",
+      "operator_ruling_pending": true,
+      "historical_only": true,
+      "current_authority_granted_by_default": false
+    }
+  ]
+}
