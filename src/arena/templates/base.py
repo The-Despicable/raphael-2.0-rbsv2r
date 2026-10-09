@@ -170,15 +170,7 @@ class ScenarioTemplate(ABC):
             Populated ArenaScenario.
         """
         ...
-    
-    def split_of(self, seed: int) -> ScenarioSplit:
-        """Determine which split a relative seed belongs to."""
-        if seed < 1000:
-            return ScenarioSplit.DEV
-        elif seed < 2000:
-            return ScenarioSplit.VALIDATION
-        else:
-            return ScenarioSplit.HOLDOUT
+
 
 
 def create_scenario_from_template(template: ScenarioTemplate, seed: int,
