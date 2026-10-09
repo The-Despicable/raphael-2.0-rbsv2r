@@ -693,10 +693,413 @@ def verify_policy_identity(record: "EvaluationDecisionRecord",
                           f"supplied for derivation"))
         else:
             gates.append((gate_name, STATUS_BLOCKED,
-                          f"{POLICY_IDENTITY_ASSERTED}: identity for "
-                          f"{identity.policy_id!r} is an asserted echo "
-                          f"(derived=False) and cannot verify the record hash"))
+                              f"{POLICY_IDENTITY_ASSERTED}: identity for "
+                              f"{identity.policy_id!r} is an asserted echo "
+                              f"(derived=False) and cannot verify the record hash"))
     return gates
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# 2d. Campaign-scoped POLICY MANIFEST — the trusted re-derivation source
+# ══════════════════════════════════════════════════════════════════════════
+#
+# Operator ruling 2026-10-09: exploration-policy artifacts must be committed and
+# digest-pinned for campaigns seeking authoritative results, bound to trusted
+# configuration/adoption state, WITHOUT per-campaign anchors in AnchorSet and
+# WITHOUT a second independent authority source.
+#
+# TRUST CHAIN (each link verified before the next is used):
+#
+#   AnchorSet.adopted_config_registry_sha256   (pinned IN THIS FILE)
+#     -> adoption registry bytes               (_read_pinned_json, digest-verified)
+#     -> registry entry config_digest          (== config.config_digest)
+#     -> config.policy_manifest_file/_sha256   (fields of config.to_dict())
+#     -> manifest bytes                        (_read_pinned_json, digest-verified)
+#     -> manifest entry artifact path + sha256 (exact bytes, digest-verified)
+#     -> PolicyIdentity(role, policy_id, sha256(bytes), derived=True)
+#
+# Adoption is the ONLY way in: resolve_policy_identities() refuses to read a
+# manifest unless resolve_config_adoption(config) reports ADOPTED. That is what
+# makes this a projection of the existing authority rather than a parallel one.
+#
+# NOTHING here reads an identity from a ledger record, from the record's own
+# declared hash, or from any caller. The record's declared hash is only ever
+# COMPARED against the derived identity, and a disagreement refuses.
+
+POLICY_MANIFEST_SCHEMA_VERSION = 1
+POLICY_MANIFEST_KEYS = frozenset({"schema_version", "campaign_id",
+                                  "source_revision", "policies"})
+POLICY_MANIFEST_ENTRY_KEYS = frozenset({"role", "policy_id", "artifact",
+                                        "sha256", "policy_schema_version"})
+
+POLICY_MANIFEST_VERIFIED = "POLICY_MANIFEST_VERIFIED"
+POLICY_MANIFEST_UNPINNED = "POLICY_MANIFEST_UNPINNED"
+POLICY_MANIFEST_CONFIG_NOT_ADOPTED = "POLICY_MANIFEST_CONFIG_NOT_ADOPTED"
+POLICY_MANIFEST_ABSENT = "POLICY_MANIFEST_ABSENT"
+POLICY_MANIFEST_TAMPERED = "POLICY_MANIFEST_TAMPERED"
+POLICY_MANIFEST_MALFORMED = "POLICY_MANIFEST_MALFORMED"
+POLICY_MANIFEST_CAMPAIGN_MISMATCH = "POLICY_MANIFEST_CAMPAIGN_MISMATCH"
+POLICY_MANIFEST_ROLE_INVALID = "POLICY_MANIFEST_ROLE_INVALID"
+POLICY_ARTIFACT_ABSENT = "POLICY_ARTIFACT_ABSENT"
+POLICY_ARTIFACT_TAMPERED = "POLICY_ARTIFACT_TAMPERED"
+POLICY_ARTIFACT_UNPARSABLE = "POLICY_ARTIFACT_UNPARSABLE"
+
+#: Every one of these is fail-closed: none of them can produce an identity.
+POLICY_MANIFEST_FAILURE_STATUSES = (
+    POLICY_MANIFEST_UNPINNED, POLICY_MANIFEST_CONFIG_NOT_ADOPTED,
+    POLICY_MANIFEST_ABSENT, POLICY_MANIFEST_TAMPERED, POLICY_MANIFEST_MALFORMED,
+    POLICY_MANIFEST_CAMPAIGN_MISMATCH, POLICY_MANIFEST_ROLE_INVALID,
+    POLICY_ARTIFACT_ABSENT, POLICY_ARTIFACT_TAMPERED,
+    POLICY_ARTIFACT_UNPARSABLE,
+)
+
+
+@dataclass(frozen=True)
+class PolicyManifestResolution:
+    """Outcome of resolving policy identities from the trusted manifest.
+
+    ``status == POLICY_MANIFEST_VERIFIED`` is the ONLY value that carries
+    ``identities``, and it is reachable only when the config is independently
+    ADOPTED and every manifest and artifact digest verified. Every other status
+    is an explicit fail-closed outcome with an empty ``identities`` tuple.
+    """
+    status: str
+    identities: Tuple[PolicyIdentity, ...] = ()
+    manifest_file: str = ""
+    manifest_sha256: str = ""
+    campaign_id: str = ""
+    source_revision: str = ""
+    artifact_digests: Mapping[str, str] = field(default_factory=dict)
+    detail: str = ""
+
+    @property
+    def verified(self) -> bool:
+        return self.status == POLICY_MANIFEST_VERIFIED
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {"artifact_digests": dict(sorted(self.artifact_digests.items())),
+                "campaign_id": self.campaign_id, "detail": self.detail,
+                "identities": [
+                    {"content_sha256": i.content_sha256, "derived": i.derived,
+                     "origin": i.origin, "policy_id": i.policy_id, "role": i.role}
+                    for i in self.identities],
+                "manifest_file": self.manifest_file,
+                "manifest_sha256": self.manifest_sha256,
+                "source_revision": self.source_revision, "status": self.status}
+
+
+def _read_pinned_artifact_bytes(relpath: str, expected_sha256: str) -> bytes:
+    """Read exact artifact bytes, repository-relative, digest-verified.
+
+    Deliberately a BYTE read, not a JSON read: the identity is the digest of the
+    committed bytes, so re-serialising the parsed object would prove nothing
+    about what was actually committed. Same containment rules as
+    :func:`_read_pinned_json` — no absolute paths, no basename searching, no
+    sibling substitution, no escape from the repository root, bounded size.
+    """
+    if not isinstance(relpath, str) or not relpath:
+        raise EvaluationGateError("pinned artifact path is missing")
+    if not _is_hex_sha256(expected_sha256):
+        raise EvaluationGateError("pinned artifact digest is malformed")
+    root = _REPO_ROOT.resolve()
+    declared = Path(relpath)
+    if declared.is_absolute():
+        raise EvaluationGateError("pinned artifact path must be repository-relative")
+    target = (root / declared).resolve()
+    if root != target and root not in target.parents:
+        raise EvaluationGateError("pinned artifact path escapes the repository")
+    if not target.is_file():
+        raise FileNotFoundError(relpath)
+    if target.stat().st_size > _MAX_PINNED_BYTES:
+        raise EvaluationGateError("pinned artifact exceeds the bounded-read limit")
+    raw = target.read_bytes()
+    if _sha256_bytes(raw) != expected_sha256:
+        raise EvaluationGateError("pinned artifact digest mismatch")
+    return raw
+
+
+def resolve_policy_identities(config: GateConfig,
+                             anchors: Optional[AnchorSet] = None
+                             ) -> PolicyManifestResolution:
+    """Resolve policy identities from TRUSTED artifacts for ``config``.
+
+    This is the only path by which a strict-mode record can regain current
+    authority after a restart. It is deliberately not parameterised by a record,
+    a ledger, a policy path, or an expected digest: every input it consults is
+    either the adopted config (already digest-verified against pinned registry
+    bytes) or content inside the digest-verified manifest it names.
+
+    Fail-closed at every step. Absence of a manifest binding, absence of
+    adoption, or any digest disagreement yields an explicit status and an EMPTY
+    identities tuple — never a fallback to caller-supplied identity.
+    """
+    anchors = anchors or AUTHORITATIVE_ANCHORS
+
+    if not config.policy_manifest_file or not config.policy_manifest_sha256:
+        return PolicyManifestResolution(
+            status=POLICY_MANIFEST_UNPINNED, campaign_id=config.campaign_id,
+            detail=("this configuration pins no campaign policy manifest; strict "
+                    "policy identity cannot be re-derived and cannot fall back "
+                    "to caller-supplied identity"))
+
+    # THE gate. Adoption is what makes config.policy_manifest_sha256 trusted
+    # rather than caller-chosen, so it is checked before the manifest is read.
+    adoption = resolve_config_adoption(config, anchors)
+    if not adoption.adopted:
+        return PolicyManifestResolution(
+            status=POLICY_MANIFEST_CONFIG_NOT_ADOPTED,
+            campaign_id=config.campaign_id,
+            manifest_file=config.policy_manifest_file,
+            detail=(f"policy manifest resolution requires an independently "
+                    f"adopted configuration; adoption is {adoption.status}: "
+                    f"{adoption.detail}"))
+
+    try:
+        payload = _read_pinned_json(config.policy_manifest_file,
+                                    config.policy_manifest_sha256)
+    except FileNotFoundError:
+        return PolicyManifestResolution(
+            status=POLICY_MANIFEST_ABSENT, campaign_id=config.campaign_id,
+            manifest_file=config.policy_manifest_file,
+            detail=f"pinned policy manifest is absent: "
+                   f"{config.policy_manifest_file}")
+    except EvaluationGateError as exc:
+        return PolicyManifestResolution(
+            status=POLICY_MANIFEST_TAMPERED, campaign_id=config.campaign_id,
+            manifest_file=config.policy_manifest_file, detail=str(exc))
+    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+        return PolicyManifestResolution(
+            status=POLICY_MANIFEST_MALFORMED, campaign_id=config.campaign_id,
+            manifest_file=config.policy_manifest_file, detail=str(exc))
+    except OSError as exc:
+        return PolicyManifestResolution(
+            status=POLICY_MANIFEST_ABSENT, campaign_id=config.campaign_id,
+            manifest_file=config.policy_manifest_file, detail=str(exc))
+
+    if not isinstance(payload, dict) or set(payload) != set(POLICY_MANIFEST_KEYS):
+        return PolicyManifestResolution(
+            status=POLICY_MANIFEST_MALFORMED, campaign_id=config.campaign_id,
+            manifest_file=config.policy_manifest_file,
+            detail=f"policy manifest must contain exactly "
+                   f"{sorted(POLICY_MANIFEST_KEYS)}")
+    version = payload["schema_version"]
+    if type(version) is not int or version != POLICY_MANIFEST_SCHEMA_VERSION:
+        return PolicyManifestResolution(
+            status=POLICY_MANIFEST_MALFORMED, campaign_id=config.campaign_id,
+            manifest_file=config.policy_manifest_file,
+            detail=f"policy manifest schema_version must be the int "
+                   f"{POLICY_MANIFEST_SCHEMA_VERSION}, got {version!r}")
+
+    # Campaign binding. A manifest pinned for another campaign is not evidence
+    # for this one, however well-formed it is.
+    manifest_campaign = payload["campaign_id"]
+    if not isinstance(manifest_campaign, str) or not manifest_campaign:
+        return PolicyManifestResolution(
+            status=POLICY_MANIFEST_MALFORMED, campaign_id=config.campaign_id,
+            manifest_file=config.policy_manifest_file,
+            detail="policy manifest campaign_id must be a non-empty string")
+    if manifest_campaign != config.campaign_id:
+        return PolicyManifestResolution(
+            status=POLICY_MANIFEST_CAMPAIGN_MISMATCH,
+            campaign_id=config.campaign_id,
+            manifest_file=config.policy_manifest_file,
+            detail=(f"policy manifest is pinned for campaign "
+                    f"{manifest_campaign!r} but the adopted configuration is "
+                    f"campaign {config.campaign_id!r}"))
+
+    source_revision = payload["source_revision"]
+    if not isinstance(source_revision, str) or not source_revision.strip():
+        return PolicyManifestResolution(
+            status=POLICY_MANIFEST_MALFORMED, campaign_id=config.campaign_id,
+            manifest_file=config.policy_manifest_file,
+            detail="policy manifest source_revision must be a non-empty string")
+
+    entries = payload["policies"]
+    if not isinstance(entries, list) or not entries:
+        return PolicyManifestResolution(
+            status=POLICY_MANIFEST_MALFORMED, campaign_id=config.campaign_id,
+            manifest_file=config.policy_manifest_file,
+            detail="policy manifest policies must be a non-empty list")
+
+    # Exactly one entry per role, both roles required. A missing or duplicated
+    # role is malformed, not "unverified": ambiguity is not partial evidence.
+    by_role: Dict[str, Dict[str, Any]] = {}
+    for entry in entries:
+        if not isinstance(entry, dict) or set(entry) != set(POLICY_MANIFEST_ENTRY_KEYS):
+            return PolicyManifestResolution(
+                status=POLICY_MANIFEST_MALFORMED, campaign_id=config.campaign_id,
+                manifest_file=config.policy_manifest_file,
+                detail=f"policy manifest entry keys do not match the required "
+                       f"schema {sorted(POLICY_MANIFEST_ENTRY_KEYS)}")
+        role = entry["role"]
+        if role not in POLICY_IDENTITY_ROLES:
+            return PolicyManifestResolution(
+                status=POLICY_MANIFEST_ROLE_INVALID, campaign_id=config.campaign_id,
+                manifest_file=config.policy_manifest_file,
+                detail=f"policy manifest entry role must be one of "
+                       f"{list(POLICY_IDENTITY_ROLES)}, got {role!r}")
+        if role in by_role:
+            return PolicyManifestResolution(
+                status=POLICY_MANIFEST_ROLE_INVALID, campaign_id=config.campaign_id,
+                manifest_file=config.policy_manifest_file,
+                detail=f"policy manifest declares role {role!r} more than once; "
+                       "one authorized artifact per role is required")
+        if not isinstance(entry["policy_id"], str) or not entry["policy_id"]:
+            return PolicyManifestResolution(
+                status=POLICY_MANIFEST_MALFORMED, campaign_id=config.campaign_id,
+                manifest_file=config.policy_manifest_file,
+                detail="policy manifest entry policy_id must be a non-empty string")
+        if not _is_hex_sha256(entry["sha256"]):
+            return PolicyManifestResolution(
+                status=POLICY_MANIFEST_MALFORMED, campaign_id=config.campaign_id,
+                manifest_file=config.policy_manifest_file,
+                detail=f"policy manifest entry sha256 for role {role!r} is not a "
+                       f"SHA-256")
+        policy_version = entry["policy_schema_version"]
+        if type(policy_version) is not int or policy_version < 1:
+            return PolicyManifestResolution(
+                status=POLICY_MANIFEST_MALFORMED, campaign_id=config.campaign_id,
+                manifest_file=config.policy_manifest_file,
+                detail=f"policy manifest entry policy_schema_version for role "
+                       f"{role!r} must be a positive non-boolean integer")
+        by_role[role] = entry
+    missing = [r for r in POLICY_IDENTITY_ROLES if r not in by_role]
+    if missing:
+        return PolicyManifestResolution(
+            status=POLICY_MANIFEST_ROLE_INVALID, campaign_id=config.campaign_id,
+            manifest_file=config.policy_manifest_file,
+            detail=f"policy manifest is missing required role(s) {missing}")
+
+    identities: List[PolicyIdentity] = []
+    digests: Dict[str, str] = {}
+    for role in POLICY_IDENTITY_ROLES:
+        entry = by_role[role]
+        try:
+            raw = _read_pinned_artifact_bytes(entry["artifact"], entry["sha256"])
+        except FileNotFoundError:
+            return PolicyManifestResolution(
+                status=POLICY_ARTIFACT_ABSENT, campaign_id=config.campaign_id,
+                manifest_file=config.policy_manifest_file,
+                source_revision=source_revision, artifact_digests=dict(digests),
+                detail=f"pinned policy artifact for role {role!r} is absent: "
+                       f"{entry['artifact']}")
+        except EvaluationGateError as exc:
+            status = (POLICY_ARTIFACT_UNPARSABLE
+                      if "escapes the repository" in str(exc)
+                      else POLICY_ARTIFACT_TAMPERED)
+            return PolicyManifestResolution(
+                status=status, campaign_id=config.campaign_id,
+                manifest_file=config.policy_manifest_file,
+                source_revision=source_revision, artifact_digests=dict(digests),
+                detail=f"policy artifact for role {role!r}: {exc}")
+        except OSError as exc:
+            return PolicyManifestResolution(
+                status=POLICY_ARTIFACT_ABSENT, campaign_id=config.campaign_id,
+                manifest_file=config.policy_manifest_file,
+                source_revision=source_revision, artifact_digests=dict(digests),
+                detail=f"policy artifact for role {role!r}: {exc}")
+
+        # The artifact must be parseable policy content, and must agree with its
+        # OWN declared identity. This catches a manifest that pins well-formed
+        # bytes which are not the policy they claim to be.
+        declared = None
+        try:
+            parsed = json.loads(raw.decode("utf-8"))
+            if isinstance(parsed, dict):
+                declared = parsed.get("content_hash")
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            return PolicyManifestResolution(
+                status=POLICY_ARTIFACT_UNPARSABLE, campaign_id=config.campaign_id,
+                manifest_file=config.policy_manifest_file,
+                source_revision=source_revision, artifact_digests=dict(digests),
+                detail=f"policy artifact for role {role!r} is not valid JSON: {exc}")
+        if not isinstance(parsed, dict) or parsed.get("policy_id") != entry["policy_id"]:
+            return PolicyManifestResolution(
+                status=POLICY_ARTIFACT_UNPARSABLE, campaign_id=config.campaign_id,
+                manifest_file=config.policy_manifest_file,
+                source_revision=source_revision, artifact_digests=dict(digests),
+                detail=f"policy artifact for role {role!r} declares policy_id "
+                       f"{parsed.get('policy_id') if isinstance(parsed, dict) else None!r} "
+                       f"but the manifest pins {entry['policy_id']!r}")
+        if declared is not None and declared != _sha256_bytes(raw):
+            return PolicyManifestResolution(
+                status=POLICY_ARTIFACT_UNPARSABLE, campaign_id=config.campaign_id,
+                manifest_file=config.policy_manifest_file,
+                source_revision=source_revision, artifact_digests=dict(digests),
+                detail=f"policy artifact for role {role!r} declares content_hash "
+                       f"{declared!r} which is not the digest of its own committed "
+                       "bytes; the artifact does not describe itself")
+
+        identities.append(derive_policy_identity(
+            role, entry["policy_id"], raw,
+            origin=f"{config.policy_manifest_file}#{role}"))
+        digests[role] = entry["sha256"]
+
+    return PolicyManifestResolution(
+        status=POLICY_MANIFEST_VERIFIED, identities=tuple(identities),
+        manifest_file=config.policy_manifest_file,
+        manifest_sha256=config.policy_manifest_sha256,
+        campaign_id=config.campaign_id, source_revision=source_revision,
+        artifact_digests=digests,
+        detail=(f"policy identities derived from pinned artifacts of campaign "
+                f"{config.campaign_id!r} at source revision "
+                f"{source_revision!r}"))
+
+
+def trusted_policy_identities(config: GateConfig,
+                              anchors: Optional[AnchorSet] = None
+                              ) -> PolicyManifestResolution:
+    """Alias kept for call-site readability. Same function, no extra authority."""
+    return resolve_policy_identities(config, anchors)
+
+
+def effective_policy_identities(
+            config: GateConfig,
+            supplied: Tuple[PolicyIdentity, ...]
+            ) -> Tuple[PolicyIdentity, ...]:
+    """Choose the identity observations classification will actually judge on.
+
+    Precedence, and the reason for it:
+
+    1. A TRUSTED manifest resolution (adopted config -> pinned manifest ->
+       digest-verified artifact bytes) is authoritative when it verifies. Caller
+       input cannot override it, and a caller-derived identity that CONTRADICTS
+       it is refused outright, because two derivations from trusted bytes
+       disagreeing is a contradiction, not a preference.
+    2. Otherwise the caller's DERIVED identities are used, exactly as before.
+       This is what lets an in-process admission verify content the caller
+       genuinely holds, and it is why the existing caller-supplied path stays
+       meaningful rather than being deleted.
+    3. Asserted identities never satisfy a strict gate from either path.
+
+    Note what this is NOT: a public pass-through. The trusted path is resolved
+    from the config, so a restarted process re-derives strict records with no
+    caller involvement at all. It also never reads an identity out of the ledger
+    or out of the record's declared hash.
+    """
+    if not config.require_policy_identity:
+        return supplied
+    resolution = resolve_policy_identities(config)
+    if not resolution.verified:
+        return supplied        # fail closed downstream: BLOCKED, never PASS
+    trusted_by_role = {i.role: i for i in resolution.identities}
+    for item in supplied:
+        if not isinstance(item, PolicyIdentity):
+            raise EvaluationGateError(
+                f"policy identities must be PolicyIdentity instances, got "
+                f"{type(item).__name__}")
+        if item.derived and item.role in trusted_by_role:
+            trusted = trusted_by_role[item.role]
+            if item.content_sha256 != trusted.content_sha256:
+                raise EvaluationGateError(
+                    f"policy identity for role {item.role!r} supplied by the "
+                    f"caller ({item.content_sha256!r}) contradicts the digest "
+                    f"independently derived from the pinned trusted artifact "
+                    f"({trusted.content_sha256!r}, policy_id="
+                    f"{trusted.policy_id!r}); a contradiction between two "
+                    "derivations is refused, never resolved in favour of "
+                    "the caller")
+    return resolution.identities
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -732,6 +1135,20 @@ class GateConfig:
     #: evidence/GOVERNANCE_DECISIONS_20261009.jsonl). A derived-vs-declared
     #: MISMATCH refuses unconditionally even when this flag is False.
     require_policy_identity: bool = False
+    #: Campaign-scoped POLICY MANIFEST binding (operator ruling 2026-10-09).
+    #: When non-empty, strict re-derivation resolves policy identities from this
+    #: manifest instead of from any caller. Both fields are part of
+    #: ``config_digest`` and of ``to_dict()``, so an ADOPTED registry entry
+    #: transitively pins them: adoption pins the config, the config pins the
+    #: manifest, the manifest pins the artifact bytes. That is why no
+    #: per-campaign policy anchor is added to :class:`AnchorSet` and why this is
+    #: not a second authority source — it is reached THROUGH adoption.
+    #:
+    #: Empty by default. A config that requires policy identity WITHOUT this
+    #: binding cannot be re-derived after restart and stays BLOCKED, which is the
+    #: correct fail-closed outcome rather than a silent fallback to caller input.
+    policy_manifest_file: str = ""
+    policy_manifest_sha256: str = ""
 
     def __post_init__(self) -> None:
         for name in ("min_runs_per_arm", "min_effect_size", "significance_level",
@@ -751,6 +1168,25 @@ class GateConfig:
                 raise EvaluationGateError(
                     f"{name} must be a bool, got "
                     f"{type(getattr(self, name)).__name__}")
+        # The policy-manifest binding is a PATH/DIGEST PAIR. A half-configured
+        # binding is refused rather than silently treated as absent, because a
+        # digest without a path (or the reverse) cannot be resolved and would
+        # otherwise degrade to the same BLOCKED state with no explanation.
+        for name in ("policy_manifest_file", "policy_manifest_sha256"):
+            value = getattr(self, name)
+            if not isinstance(value, str):
+                raise EvaluationGateError(f"{name} must be a string, got {value!r}")
+        if bool(self.policy_manifest_file) != bool(self.policy_manifest_sha256):
+            raise EvaluationGateError(
+                "policy_manifest_file and policy_manifest_sha256 must be set "
+                "together or both empty; a partial policy-manifest binding "
+                f"got file={self.policy_manifest_file!r} "
+                f"sha256={self.policy_manifest_sha256!r}")
+        if self.policy_manifest_sha256 and not _is_hex_sha256(
+                self.policy_manifest_sha256):
+            raise EvaluationGateError(
+                "policy_manifest_sha256 must be a 64-char lowercase hex "
+                f"SHA-256, got {self.policy_manifest_sha256!r}")
 
     @property
     def config_digest(self) -> str:
@@ -760,9 +1196,12 @@ class GateConfig:
             "max_exclusion_fraction": self.max_exclusion_fraction,
             "min_effect_size": self.min_effect_size,
             "min_runs_per_arm": self.min_runs_per_arm,
+            "policy_manifest_file": self.policy_manifest_file,
+            "policy_manifest_sha256": self.policy_manifest_sha256,
             "require_glm_contract": self.require_glm_contract,
             "require_independent_holdout": self.require_independent_holdout,
             "require_parent_lineage": self.require_parent_lineage,
+            "require_policy_identity": self.require_policy_identity,
             "require_replay_integrity": self.require_replay_integrity,
             "require_rollback_target": self.require_rollback_target,
             "require_safety_pass": self.require_safety_pass,
@@ -776,9 +1215,12 @@ class GateConfig:
                    "max_exclusion_fraction": self.max_exclusion_fraction,
                    "min_effect_size": self.min_effect_size,
                    "min_runs_per_arm": self.min_runs_per_arm,
+                   "policy_manifest_file": self.policy_manifest_file,
+                   "policy_manifest_sha256": self.policy_manifest_sha256,
                    "require_glm_contract": self.require_glm_contract,
                    "require_independent_holdout": self.require_independent_holdout,
                    "require_parent_lineage": self.require_parent_lineage,
+                   "require_policy_identity": self.require_policy_identity,
                    "require_replay_integrity": self.require_replay_integrity,
                    "require_rollback_target": self.require_rollback_target,
                    "require_safety_pass": self.require_safety_pass,
@@ -1724,7 +2166,7 @@ def _classify_with_authority(record: EvaluationDecisionRecord, config: GateConfi
     # config requires policy identity, and emits no gate otherwise
     # (historical asserted-hash behavior, preserved for experimental use).
     for pi_gate, pi_status, pi_detail in verify_policy_identity(
-            record, policy_identities,
+            record, effective_policy_identities(config, policy_identities),
             require_binding=config.require_policy_identity):
         gates.append((pi_gate, pi_status))
         if pi_status != STATUS_PASS:
@@ -2004,6 +2446,18 @@ Admission is no longer a content-hash self-consistency check. A record is
     def path(self) -> Path:
         return self._path
 
+    def _effective_policy_identities(
+            self, record: EvaluationDecisionRecord, config: GateConfig,
+            supplied: Tuple[PolicyIdentity, ...]) -> Tuple[PolicyIdentity, ...]:
+        """Ledger-side view of :func:`effective_policy_identities`.
+
+        Kept as a method so the admission path reads explicitly, but it adds no
+        behaviour of its own: the trusted resolution is applied inside
+        :func:`_classify_with_authority`, so classification and admission cannot
+        disagree about which identities govern.
+        """
+        return effective_policy_identities(config, supplied)
+
     def _derive(self, record: EvaluationDecisionRecord, config: GateConfig,
                 policy_identities: Tuple[PolicyIdentity, ...] = ()
                 ) -> Tuple[EvaluationAuthority, EligibilityAssessment]:
@@ -2031,6 +2485,16 @@ Admission is no longer a content-hash self-consistency check. A record is
         contradiction between the submitted authoritative fields and the freshly
         derived values. ``policy_identities`` (derived via
         :func:`derive_policy_identity`) is verified as part of admission.
+
+        A BLOCKED policy-identity gate is additionally an ADMISSION failure when
+        ``config.require_policy_identity`` is True. Classification and admission
+        are deliberately different questions: classification asks what a record
+        currently demonstrates (an unverified policy identity is BLOCKED, and the
+        record simply cannot reach ``PROMOTION_ELIGIBLE``), while admission asks
+        whether a config that has declared the binding mandatory will accept an
+        unverified record into its ledger at all. Without this distinction a
+        requiring config would silently accept records whose policy identity was
+        never bound, which is exactly the C1/C2 gap the flag exists to close.
         """
         authority, assessment = self._derive(record, config, policy_identities)
         refused = assessment.hard_failures()
@@ -2038,6 +2502,14 @@ Admission is no longer a content-hash self-consistency check. A record is
             raise EvaluationGateError(
                 f"decision {record.decision_id!r} refused at admission by gates "
                 f"{list(refused)}; derived state={assessment.state}")
+        if config.require_policy_identity:
+            unbound = tuple(n for n, s in assessment.gates
+                            if s == STATUS_BLOCKED and n.startswith("policy_identity_"))
+            if unbound:
+                raise EvaluationGateError(
+                    f"decision {record.decision_id!r} refused at admission by gates "
+                    f"{list(unbound)}; this configuration requires a DERIVED policy "
+                    "identity and no verified binding was supplied")
         if record.final_state not in EVALUATION_STATES:
             raise EvaluationGateError(
                 f"final_state {record.final_state!r} is not an evaluation state; "
@@ -2210,6 +2682,13 @@ Admission is no longer a content-hash self-consistency check. A record is
         derive against. A record whose fresh derivation disagrees with its
         stored claim, or that now carries a REFUSE gate, is EXCLUDED, so a
         forged or stale eligibility string can never surface here.
+
+        Under ``require_policy_identity`` with a pinned, adopted policy manifest,
+        policy identities are re-derived from the trusted artifacts inside the
+        admission step, so an honestly admitted strict-mode record IS readable
+        again after a restart with no caller input. There is deliberately no
+        parameter for supplying identities here: a pass-through would let a
+        caller assert its way back into authority.
         """
         if config is None:
             raise EvaluationGateError(
@@ -2236,6 +2715,10 @@ Admission is no longer a content-hash self-consistency check. A record is
         ``None`` means the stored record is no longer current authority
         (contradicted, refused, or unverifiable) — it is still readable through
         :meth:`get` as historical material.
+
+        Like :meth:`final_states`, this re-derives strict-mode policy identity
+        from the trusted artifacts named by the adopted config. It accepts no
+        caller-supplied identity.
         """
         record = self._index.get(decision_id)
         if record is None:

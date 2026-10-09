@@ -165,7 +165,8 @@ def fixture(tmp_path, monkeypatch):
     return root, anchors
 
 
-def _record(cfg, *, root=None, anchors=None, finalize=True, **overrides):
+def _record(cfg, *, root=None, anchors=None, finalize=True,
+            policy_identities=(), **overrides):
     """Mint a record whose claims match the DERIVED authority.
 
     ``finalize=True`` (the default) produces an ADMISSIBLE draft: the input
@@ -175,6 +176,11 @@ def _record(cfg, *, root=None, anchors=None, finalize=True, **overrides):
     ``finalize=False`` keeps the deliberately inconsistent draft shape used by
     the negative tests, so a mismatch can be introduced explicitly rather than
     by accident.
+
+    ``policy_identities`` is forwarded to the classification used for
+    finalization, so a config with ``require_policy_identity=True`` can be
+    finalized under the same identities admission will be given. It defaults to
+    () — no behavioral change for any existing caller.
     """
     identity = EvaluatorIdentity.compute_current(cfg).identity
     runs = overrides.get("runs_candidate", 40)
@@ -204,7 +210,8 @@ def _record(cfg, *, root=None, anchors=None, finalize=True, **overrides):
         return record
 
     # Derive the authoritative fields exactly as admission will.
-    derived = classify_promotion_eligibility(record, cfg)
+    derived = classify_promotion_eligibility(record, cfg,
+                                              policy_identities=policy_identities)
     payload = {k: v for k, v in record.to_dict().items() if k != "content_hash"}
     payload["gate_outcomes"] = [list(g) for g in derived.gates]
     payload["final_state"] = derived.state
