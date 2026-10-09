@@ -2,7 +2,10 @@
   "remediation_title": "RAPHAEL RSI-1 Remediation — Phase 3 Readiness",
   "date": "2026-10-09",
   "starting_commit_sha": "915a66abeaf7418387d615a5efd60095f59b3c9a",
-  "final_commit_sha": "948f97c85",
+  "remediation_commit_sha": "1fd7cda7610aa7a6cda56b5c5d9955aed771d674",
+  "remediation_tree_sha": "49237b060d78ad0d9d1f9ad33b8ea073853a3b1f",
+  "evidence_binding_type": "TREE_SHA",
+  "evidence_binding_explanation": "A commit cannot contain its own SHA, so this manifest deliberately does not claim that any field named 'final_commit_sha' is the SHA of the commit carrying the manifest. Evidence is bound to the tree SHA of the audited remediation commit, which is stable and independently verifiable with 'git rev-parse 1fd7cda76^{tree}'. See evidence/phase3_readiness/EVIDENCE_BINDING.json.",
   "branch": "governance/rsi-1-phase3-readiness",
   "python_version": "3.12.15",
   "pytest_version": "9.1.1",
@@ -10,6 +13,10 @@
     "passed": 1318,
     "failed": 0,
     "warnings": 44
+  },
+  "policy_identity_suite_result": {
+    "passed": 69,
+    "failed": 0
   },
   "focused_rsi1_suite_result": {
     "passed": 321,
@@ -20,7 +27,7 @@
     "failed": 0
   },
   "workstreams_completed": [
-    "Policy identity remediation (21/69 tests pass, mechanism verified, restart-safe)",
+    "Policy identity remediation (69/69 tests pass, mechanism verified, restart-safe)",
     "Holdout provenance classification (UNVERIFIABLE, no fabrication, fail-closed preserved)",
     "Measurement contract (OutcomeCategory, ExperimentCell, GridAccounting, adversarial tests)",
     "Production adoption registry (digest-pinned ACTIVE registry, strict-mode verified)",

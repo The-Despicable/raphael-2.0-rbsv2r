@@ -1,0 +1,7 @@
+{
+  "binding_type": "TREE_SHA",
+  "remediation_commit_sha": "1fd7cda7610aa7a6cda56b5c5d9955aed771d674",
+  "remediation_tree_sha": "49237b060d78ad0d9d1f9ad33b8ea073853a3b1f",
+  "binding_explanation": "A commit cannot contain its own SHA. Evidence is bound to the tree SHA of the audited remediation commit.",
+  "phase3_authorized": false
+}
