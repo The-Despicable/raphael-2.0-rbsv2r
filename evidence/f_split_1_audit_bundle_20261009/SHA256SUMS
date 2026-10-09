@@ -1,0 +1,3 @@
+38a26943866a13287e8f78a8571ad4bf6c614301496dd653814b801293282466  0001-F-SPLIT-1-expose-fail-closed-split-checkpoint-for-au.patch
+1da065ba147bb8e1519320963d1d525a4383174f523569af73bede321ed05400  0002-F-SPLIT-1-adjudicate-legacy-vocabulary-run-identity-.patch
+51997545e77acd58ad756e9e9d8f8ba77595288d187f0acc3cb617802d2f65e7  0003-F-SPLIT-1-remove-dead-split_of-seed-range-heuristic.patch

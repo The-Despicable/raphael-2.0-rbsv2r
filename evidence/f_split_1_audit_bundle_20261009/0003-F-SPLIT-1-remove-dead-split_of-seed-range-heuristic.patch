@@ -1,0 +1,49 @@
+From 8aebb5211a4d44aed89cbd7fd63f1dac8fe1fa8c Mon Sep 17 00:00:00 2001
+From: OMP Agent <agent@local>
+Date: Fri, 9 Oct 2026 05:40:58 +0000
+Subject: [PATCH] F-SPLIT-1: remove dead split_of() seed-range heuristic
+
+ScenarioTemplate.split_of() classified a relative seed by numeric range
+(<1000 dev, <2000 validation, else holdout). It has zero callers on any
+current generation path (verified by reference census and import sweep),
+carries relative/absolute seed semantics inconsistent with the resolve_seed
+split-offset model, and invites exactly the silent misclassification
+F-SPLIT-1 closes: a caller reading split_of(1500) would conclude VALIDATION
+while every live path resolves splits by explicit label.
+
+Removal is its own reviewed change per the adjudication rule (dead-code
+cleanup must not ride the fail-open correction). scripts/d6b_runner_fixed.py
+still defines a local method of the same name inside a standalone historical
+script class; it is unreachable from the canonical runtime and is left for
+the historical-scripts review rather than silently edited here.
+
+Known results at this commit:
+  configured suite (testpaths=tests)   1218 passed, 0 failed
+---
+ src/arena/templates/base.py | 10 +---------
+ 1 file changed, 1 insertion(+), 9 deletions(-)
+
+diff --git a/src/arena/templates/base.py b/src/arena/templates/base.py
+index 2ae68377f..415c73654 100644
+--- a/src/arena/templates/base.py
++++ b/src/arena/templates/base.py
+@@ -170,15 +170,7 @@ class ScenarioTemplate(ABC):
+             Populated ArenaScenario.
+         """
+         ...
+-    
+-    def split_of(self, seed: int) -> ScenarioSplit:
+-        """Determine which split a relative seed belongs to."""
+-        if seed < 1000:
+-            return ScenarioSplit.DEV
+-        elif seed < 2000:
+-            return ScenarioSplit.VALIDATION
+-        else:
+-            return ScenarioSplit.HOLDOUT
++
+ 
+ 
+ def create_scenario_from_template(template: ScenarioTemplate, seed: int,
+-- 
+2.53.0
+
