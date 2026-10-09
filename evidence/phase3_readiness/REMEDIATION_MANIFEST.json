@@ -35,7 +35,8 @@
   ],
   "policy_artifacts": {
     "manifest_path": "evaluations/campaign/rbs_v4_reproducibility_manifest.json",
-    "adoption_registry_path": "evaluations/adoption/production_adoption_registry.json",
+    "adoption_registry_path": null,
+    "adoption_registry_note": "REMOVED 2026-10-09 by the provenance-correction branch. The committed registry carried fabricated placeholder digests and named a test fixture campaign; no real adopted campaign exists, so UNADOPTED_CONFIG is the correct state.",
     "measurement_contract_path": "src/orchestrator/rsi/measurement_contract.py"
   },
   "holdout_classification": {
