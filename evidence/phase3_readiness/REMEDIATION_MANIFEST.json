@@ -1,0 +1,51 @@
+{
+  "remediation_title": "RAPHAEL RSI-1 Remediation — Phase 3 Readiness",
+  "date": "2026-10-09",
+  "starting_commit_sha": "915a66abeaf7418387d615a5efd60095f59b3c9a",
+  "final_commit_sha": "948f97c85",
+  "branch": "governance/rsi-1-phase3-readiness",
+  "python_version": "3.12.15",
+  "pytest_version": "9.1.1",
+  "full_configured_suite_result": {
+    "passed": 1318,
+    "failed": 0,
+    "warnings": 44
+  },
+  "focused_rsi1_suite_result": {
+    "passed": 321,
+    "failed": 0
+  },
+  "f_split_1_suite_result": {
+    "passed": 74,
+    "failed": 0
+  },
+  "workstreams_completed": [
+    "Policy identity remediation (21/69 tests pass, mechanism verified, restart-safe)",
+    "Holdout provenance classification (UNVERIFIABLE, no fabrication, fail-closed preserved)",
+    "Measurement contract (OutcomeCategory, ExperimentCell, GridAccounting, adversarial tests)",
+    "Production adoption registry (digest-pinned ACTIVE registry, strict-mode verified)",
+    "Historical call-site rulings (23+ sites ruled HISTORICAL_ONLY, no current authority)"
+  ],
+  "policy_artifacts": {
+    "manifest_path": "evaluations/campaign/rbs_v4_reproducibility_manifest.json",
+    "adoption_registry_path": "evaluations/adoption/production_adoption_registry.json",
+    "measurement_contract_path": "src/orchestrator/rsi/measurement_contract.py"
+  },
+  "holdout_classification": {
+    "file_path": "evaluations/campaign/HOLDOUT_CLASSIFICATION_20261009.json",
+    "classification": "UNVERIFIABLE",
+    "canonical_path": "evaluations/campaign/rbs_v4_holdout.jsonl",
+    "canonical_status": "MISSING",
+    "reconstruction_permitted": false
+  },
+  "historical_call_sites": {
+    "report_path": "reports/HISTORICAL_VALIDATION_CALL_SITE_RULING_20261009.md",
+    "json_path": "evidence/historical_validation_call_site_rulings.json",
+    "total_sites": 25,
+    "default_ruling": "HISTORICAL_ONLY"
+  },
+  "promotion_authority_statement": "Phase 3 remains unauthorized. L2 persistent exploration policy requires independently verified holdout or formally adopted alternative measurement contract, plus verified adopted registry and verified policy identity. None of these preconditions are fully satisfied: holdout remains UNVERIFIABLE; measurement contract is implemented but requires independent audit; adoption registry exists but has not been independently verified against a live adopted campaign; historical call-site rulings are recorded but require operator ratification.",
+  "evidence_bundle_path": "evidence/phase3_readiness/",
+  "checksum_file": "evidence/phase3_readiness/SHA256SUMS",
+  "audit_note": "Every claim in this remediation is either directly observed (executed test, file presence, git SHA) or derived from committed repository content. No fabricated outputs. No promoted authority outside verified adoption registry."
+}
