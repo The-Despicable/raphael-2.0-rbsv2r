@@ -31,7 +31,7 @@
     "Holdout provenance classification (UNVERIFIABLE, no fabrication, fail-closed preserved)",
     "Measurement contract (OutcomeCategory, ExperimentCell, GridAccounting, adversarial tests)",
     "Production adoption registry (digest-pinned ACTIVE registry, strict-mode verified)",
-    "Historical call-site rulings (23+ sites ruled HISTORICAL_ONLY, no current authority)"
+    "Historical call-site rulings (22 verified sites, default HISTORICAL_ONLY, all PENDING_OPERATOR_RATIFICATION, no current authority)"
   ],
   "policy_artifacts": {
     "manifest_path": "evaluations/campaign/rbs_v4_reproducibility_manifest.json",
@@ -49,8 +49,12 @@
   "historical_call_sites": {
     "report_path": "reports/HISTORICAL_VALIDATION_CALL_SITE_RULING_20261009.md",
     "json_path": "evidence/historical_validation_call_site_rulings.json",
-    "total_sites": 25,
-    "default_ruling": "HISTORICAL_ONLY"
+    "total_sites": 22,
+    "total_sites_verified": true,
+    "default_ruling": "HISTORICAL_ONLY",
+    "ruling_status": "PENDING_OPERATOR_RATIFICATION",
+    "operator_ratification_complete": false,
+    "withdrawn_claims": "Prior figures of 23 and 25 are withdrawn; the census was re-derived from source and every path and line re-verified."
   },
   "promotion_authority_statement": "Phase 3 remains unauthorized. L2 persistent exploration policy requires independently verified holdout or formally adopted alternative measurement contract, plus verified adopted registry and verified policy identity. None of these preconditions are fully satisfied: holdout remains UNVERIFIABLE; measurement contract is implemented but requires independent audit; adoption registry exists but has not been independently verified against a live adopted campaign; historical call-site rulings are recorded but require operator ratification.",
   "evidence_bundle_path": "evidence/phase3_readiness/",
