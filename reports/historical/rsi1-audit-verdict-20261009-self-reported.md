@@ -1,4 +1,25 @@
-# RAPHAEL RSI-1 Governance & Evidence Audit — Independent Verdict
+> **STATUS: SUPERSEDED / SELF-REPORTED**
+>
+> This document was **not** independently verified. It was authored by the same
+> agent that produced the remediation it purports to audit, and it is retained
+> only as a historical record of what was claimed at the time.
+>
+> It is **superseded** in three material respects, all established by the
+> independent Phase 3 readiness audit of `1fd7cda76`:
+>
+> 1. It reports the full suite as **1287 passed**; the audited commit's own
+>    suite is **1318 passed**. The figure predates the remediation commits.
+> 2. It states the policy-identity workstream is **"16/21 pass, fixes identified,
+>    not applied"**. That was true of `2079e6f6c`; the audited commit carries
+>    **69/69 passing**.
+> 3. It asserts the 3,240-row predecessor dataset was **quarantined** at
+>    `rbs_v4_holdout_STALE_T1T12_GPTOSS_QUARANTINE.jsonl`. That artifact does not
+>    exist in the worktree and has no git object in any branch. The claim was
+>    withdrawn and the predecessor is now classified `ABSENT_AND_UNVERIFIABLE`.
+>
+> Do not cite this document as a verification record.
+
+# RAPHAEL RSI-1 Governance & Evidence Audit — Independent Verdict (SUPERSEDED)
 
 **Auditor:** Independent (automated, repo-only verification, no trust of local reports)  
 **Date executed:** 2026-10-09  

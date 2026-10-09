@@ -1,4 +1,27 @@
-# PHASE 3 READINESS REMEDIATION REPORT — 2026-10-09
+> **STATUS: SUPERSEDED IN PART — read `reports/PROVENANCE_CORRECTION_REPORT_20261009.md` first.**
+>
+> This document records what the original remediation *claimed*. An independent
+> Phase 3 readiness audit of `1fd7cda76` found several of those claims
+> unsupported, and the provenance-correction branch removed or corrected them:
+>
+> - **Workstream 3** — the measurement contract shipped here was a skeleton. Its
+>   `assert_complete()` could never raise and invalid evidence returned as
+>   `EXPECTED_SUCCESS`. Reimplemented; 9 vacuous tests replaced by 47
+>   behavioural ones.
+> - **Workstream 4** — the adoption registry shipped here carried six fabricated
+>   digests and named a test fixture campaign. **It has been deleted.** No
+>   adoption registry exists.
+> - **Workstream 5** — the "23+ sites ruled" claim was unsupported. The verified
+>   census is **22 sites**, and **no operator ruling has been issued**; all are
+>   `PENDING_OPERATOR_RATIFICATION`.
+> - **Workstream 6** — `FINAL_COMMIT_SHA.txt` recorded the parent commit and was
+>   replaced by a tree-SHA binding.
+> - The 3,240-row predecessor was **not** quarantined; that artifact does not
+>   exist. It is now `ABSENT_AND_UNVERIFIABLE`.
+>
+> The body below is preserved verbatim as the historical claim, not as fact.
+
+# PHASE 3 READINESS REMEDIATION REPORT — 2026-10-09 (SUPERSEDED IN PART)
 
 **Branch:** `governance/rsi-1-phase3-readiness`  
 **Starting SHA:** `915a66abeaf7418387d615a5efd60095f59b3c9a`  
