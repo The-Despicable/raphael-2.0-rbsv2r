@@ -1,0 +1,1059 @@
+{
+  "package": "historical split call-site adjudication",
+  "date": "2026-10-09",
+  "branch": "governance/rsi-1-provenance-correction",
+  "commit": "9936223dc0363cc4b3f210c1c3015f20b7c379c6",
+  "tree": "d68d8e4d8fb320f2e5cfa82068facfc9efa9df9d",
+  "source_census": "evidence/historical_validation_call_site_rulings.json",
+  "total_sites": 22,
+  "live_call_sites": 19,
+  "non_live_references": 3,
+  "proposed_ruling_histogram": {
+    "DEV": 0,
+    "VAL": 0,
+    "HOLDOUT": 0,
+    "UNKNOWN": 22
+  },
+  "confidence_histogram": {
+    "HIGH": 0,
+    "MEDIUM": 0,
+    "LOW": 19,
+    "INSUFFICIENT": 3
+  },
+  "operator_ruling_status": "PENDING_OPERATOR_RATIFICATION",
+  "operator_ratification_complete": false,
+  "current_authority_granted_anywhere": false,
+  "phase3_authorized": false,
+  "deliberately_excluded": {
+    "note": "Files whose NAME suggests validation but which do not supply the legacy label, and run-data occurrences. Recorded here so they are not silently conflated with call sites.",
+    "examples": [
+      {
+        "path": "scripts/run_rbs_v4_validation_100.py:57",
+        "observation": "SPLIT_NAME = \"holdout\"",
+        "note": "Named 'validation' but runs the HOLDOUT split. Correctly absent from the call-site census."
+      },
+      {
+        "path": "arena/results/raw/**",
+        "observation": "4788 occurrences of the string in generated run data",
+        "note": "Historical run records, not intent declarations."
+      },
+      {
+        "path": "scripts/d6b_runner.py:82, d6b_runner_fixed.py:53, d6c_holdout_runner.py:89",
+        "observation": "Adapters define generate(seed, split=None, ...) but return self._factory(seed=seed) \u2014 the split argument is DISCARDED.",
+        "note": "No call site routes through these adapters, so the legacy label never reached scenario generation via them."
+      }
+    ]
+  },
+  "sites": [
+    {
+      "site_id": "scripts/run_experiment0.py:50",
+      "repository_path": "scripts/run_experiment0.py",
+      "line_or_symbol": "line 50",
+      "commit_or_evidence_reference": "7272880f7e4320f5d36ac3b645ff7fc68ea5d0e0 2026-08-14",
+      "literal_split_label": "validation",
+      "site_class": "historical_script",
+      "is_live_call_site": true,
+      "non_live_reason": "",
+      "evidence_references": [
+        {
+          "kind": "baseline_source",
+          "ref": "b6ef24bdb1bb7242613ccdcf6044121fcf3ae38f:src/arena/ablation_runner.py:810",
+          "statement": "At the frozen baseline the resolver read 'sp = split_map.get(self.split, ScenarioSplit.DEV)' so an unrecognised label such as 'validation' resolved to ScenarioSplit.DEV (offset 0).",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "fsplit1_parent",
+          "ref": "bd1fcc10946ae18cd1652af66810e2eb7c7b9191^:src/arena/ablation_runner.py:810",
+          "statement": "The fail-open fallback was still present immediately before F-SPLIT-1 and was removed by bd1fcc109.",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "run_manifest_corpus",
+          "ref": "arena/results/raw/*/manifest.json",
+          "statement": "2394 historical run manifests record split='validation'; all 2394 carry a seed in the 1000-1999 band. Because baseline resolution mapped the label to DEV (offset 0), the absolute seeds those runs actually used are the band values themselves, NOT the +1000 values a VAL resolution would produce. Ground truth was therefore inspectable under DEV semantics.",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "run_id_format",
+          "ref": "arena/results/raw/",
+          "statement": "Run-id split suffixes (_dev/_val/_holdout) exist for 1622 runs, but NONE of the 2394 validation-labelled runs carries such a suffix (legacy format), so run-id alone cannot establish the resolved split for these sites.",
+          "establishes": "limits_of_run_id_evidence"
+        }
+      ],
+      "evidence_class": "ACTUAL_BEHAVIOR_ESTABLISHED_INTENT_UNKNOWN",
+      "actual_historical_behavior": "DEV",
+      "actual_behavior_basis": "baseline split_map.get(self.split, ScenarioSplit.DEV)",
+      "proposed_ruling": "UNKNOWN",
+      "confidence": "LOW",
+      "reviewer": "stage-0-independent-verification (not an operator)",
+      "operator_ruling_status": "PENDING_OPERATOR_RATIFICATION",
+      "current_authority_granted": false
+    },
+    {
+      "site_id": "scripts/run_experiment1.py:38",
+      "repository_path": "scripts/run_experiment1.py",
+      "line_or_symbol": "line 38",
+      "commit_or_evidence_reference": "7272880f7e4320f5d36ac3b645ff7fc68ea5d0e0 2026-08-14",
+      "literal_split_label": "validation",
+      "site_class": "historical_script",
+      "is_live_call_site": true,
+      "non_live_reason": "",
+      "evidence_references": [
+        {
+          "kind": "baseline_source",
+          "ref": "b6ef24bdb1bb7242613ccdcf6044121fcf3ae38f:src/arena/ablation_runner.py:810",
+          "statement": "At the frozen baseline the resolver read 'sp = split_map.get(self.split, ScenarioSplit.DEV)' so an unrecognised label such as 'validation' resolved to ScenarioSplit.DEV (offset 0).",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "fsplit1_parent",
+          "ref": "bd1fcc10946ae18cd1652af66810e2eb7c7b9191^:src/arena/ablation_runner.py:810",
+          "statement": "The fail-open fallback was still present immediately before F-SPLIT-1 and was removed by bd1fcc109.",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "run_manifest_corpus",
+          "ref": "arena/results/raw/*/manifest.json",
+          "statement": "2394 historical run manifests record split='validation'; all 2394 carry a seed in the 1000-1999 band. Because baseline resolution mapped the label to DEV (offset 0), the absolute seeds those runs actually used are the band values themselves, NOT the +1000 values a VAL resolution would produce. Ground truth was therefore inspectable under DEV semantics.",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "run_id_format",
+          "ref": "arena/results/raw/",
+          "statement": "Run-id split suffixes (_dev/_val/_holdout) exist for 1622 runs, but NONE of the 2394 validation-labelled runs carries such a suffix (legacy format), so run-id alone cannot establish the resolved split for these sites.",
+          "establishes": "limits_of_run_id_evidence"
+        }
+      ],
+      "evidence_class": "ACTUAL_BEHAVIOR_ESTABLISHED_INTENT_UNKNOWN",
+      "actual_historical_behavior": "DEV",
+      "actual_behavior_basis": "baseline split_map.get(self.split, ScenarioSplit.DEV)",
+      "proposed_ruling": "UNKNOWN",
+      "confidence": "LOW",
+      "reviewer": "stage-0-independent-verification (not an operator)",
+      "operator_ruling_status": "PENDING_OPERATOR_RATIFICATION",
+      "current_authority_granted": false
+    },
+    {
+      "site_id": "scripts/run_experiment2.py:37",
+      "repository_path": "scripts/run_experiment2.py",
+      "line_or_symbol": "line 37",
+      "commit_or_evidence_reference": "7272880f7e4320f5d36ac3b645ff7fc68ea5d0e0 2026-08-14",
+      "literal_split_label": "validation",
+      "site_class": "historical_script",
+      "is_live_call_site": true,
+      "non_live_reason": "",
+      "evidence_references": [
+        {
+          "kind": "baseline_source",
+          "ref": "b6ef24bdb1bb7242613ccdcf6044121fcf3ae38f:src/arena/ablation_runner.py:810",
+          "statement": "At the frozen baseline the resolver read 'sp = split_map.get(self.split, ScenarioSplit.DEV)' so an unrecognised label such as 'validation' resolved to ScenarioSplit.DEV (offset 0).",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "fsplit1_parent",
+          "ref": "bd1fcc10946ae18cd1652af66810e2eb7c7b9191^:src/arena/ablation_runner.py:810",
+          "statement": "The fail-open fallback was still present immediately before F-SPLIT-1 and was removed by bd1fcc109.",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "run_manifest_corpus",
+          "ref": "arena/results/raw/*/manifest.json",
+          "statement": "2394 historical run manifests record split='validation'; all 2394 carry a seed in the 1000-1999 band. Because baseline resolution mapped the label to DEV (offset 0), the absolute seeds those runs actually used are the band values themselves, NOT the +1000 values a VAL resolution would produce. Ground truth was therefore inspectable under DEV semantics.",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "run_id_format",
+          "ref": "arena/results/raw/",
+          "statement": "Run-id split suffixes (_dev/_val/_holdout) exist for 1622 runs, but NONE of the 2394 validation-labelled runs carries such a suffix (legacy format), so run-id alone cannot establish the resolved split for these sites.",
+          "establishes": "limits_of_run_id_evidence"
+        }
+      ],
+      "evidence_class": "ACTUAL_BEHAVIOR_ESTABLISHED_INTENT_UNKNOWN",
+      "actual_historical_behavior": "DEV",
+      "actual_behavior_basis": "baseline split_map.get(self.split, ScenarioSplit.DEV)",
+      "proposed_ruling": "UNKNOWN",
+      "confidence": "LOW",
+      "reviewer": "stage-0-independent-verification (not an operator)",
+      "operator_ruling_status": "PENDING_OPERATOR_RATIFICATION",
+      "current_authority_granted": false
+    },
+    {
+      "site_id": "scripts/run_experiment3.py:47",
+      "repository_path": "scripts/run_experiment3.py",
+      "line_or_symbol": "line 47",
+      "commit_or_evidence_reference": "7272880f7e4320f5d36ac3b645ff7fc68ea5d0e0 2026-08-14",
+      "literal_split_label": "validation",
+      "site_class": "historical_script",
+      "is_live_call_site": true,
+      "non_live_reason": "",
+      "evidence_references": [
+        {
+          "kind": "baseline_source",
+          "ref": "b6ef24bdb1bb7242613ccdcf6044121fcf3ae38f:src/arena/ablation_runner.py:810",
+          "statement": "At the frozen baseline the resolver read 'sp = split_map.get(self.split, ScenarioSplit.DEV)' so an unrecognised label such as 'validation' resolved to ScenarioSplit.DEV (offset 0).",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "fsplit1_parent",
+          "ref": "bd1fcc10946ae18cd1652af66810e2eb7c7b9191^:src/arena/ablation_runner.py:810",
+          "statement": "The fail-open fallback was still present immediately before F-SPLIT-1 and was removed by bd1fcc109.",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "run_manifest_corpus",
+          "ref": "arena/results/raw/*/manifest.json",
+          "statement": "2394 historical run manifests record split='validation'; all 2394 carry a seed in the 1000-1999 band. Because baseline resolution mapped the label to DEV (offset 0), the absolute seeds those runs actually used are the band values themselves, NOT the +1000 values a VAL resolution would produce. Ground truth was therefore inspectable under DEV semantics.",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "run_id_format",
+          "ref": "arena/results/raw/",
+          "statement": "Run-id split suffixes (_dev/_val/_holdout) exist for 1622 runs, but NONE of the 2394 validation-labelled runs carries such a suffix (legacy format), so run-id alone cannot establish the resolved split for these sites.",
+          "establishes": "limits_of_run_id_evidence"
+        }
+      ],
+      "evidence_class": "ACTUAL_BEHAVIOR_ESTABLISHED_INTENT_UNKNOWN",
+      "actual_historical_behavior": "DEV",
+      "actual_behavior_basis": "baseline split_map.get(self.split, ScenarioSplit.DEV)",
+      "proposed_ruling": "UNKNOWN",
+      "confidence": "LOW",
+      "reviewer": "stage-0-independent-verification (not an operator)",
+      "operator_ruling_status": "PENDING_OPERATOR_RATIFICATION",
+      "current_authority_granted": false
+    },
+    {
+      "site_id": "scripts/run_rbs_v3_campaign.py:278",
+      "repository_path": "scripts/run_rbs_v3_campaign.py",
+      "line_or_symbol": "line 278",
+      "commit_or_evidence_reference": "7272880f7e4320f5d36ac3b645ff7fc68ea5d0e0 2026-08-14",
+      "literal_split_label": "validation",
+      "site_class": "historical_script",
+      "is_live_call_site": true,
+      "non_live_reason": "",
+      "evidence_references": [
+        {
+          "kind": "baseline_source",
+          "ref": "b6ef24bdb1bb7242613ccdcf6044121fcf3ae38f:src/arena/ablation_runner.py:810",
+          "statement": "At the frozen baseline the resolver read 'sp = split_map.get(self.split, ScenarioSplit.DEV)' so an unrecognised label such as 'validation' resolved to ScenarioSplit.DEV (offset 0).",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "fsplit1_parent",
+          "ref": "bd1fcc10946ae18cd1652af66810e2eb7c7b9191^:src/arena/ablation_runner.py:810",
+          "statement": "The fail-open fallback was still present immediately before F-SPLIT-1 and was removed by bd1fcc109.",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "run_manifest_corpus",
+          "ref": "arena/results/raw/*/manifest.json",
+          "statement": "2394 historical run manifests record split='validation'; all 2394 carry a seed in the 1000-1999 band. Because baseline resolution mapped the label to DEV (offset 0), the absolute seeds those runs actually used are the band values themselves, NOT the +1000 values a VAL resolution would produce. Ground truth was therefore inspectable under DEV semantics.",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "run_id_format",
+          "ref": "arena/results/raw/",
+          "statement": "Run-id split suffixes (_dev/_val/_holdout) exist for 1622 runs, but NONE of the 2394 validation-labelled runs carries such a suffix (legacy format), so run-id alone cannot establish the resolved split for these sites.",
+          "establishes": "limits_of_run_id_evidence"
+        }
+      ],
+      "evidence_class": "ACTUAL_BEHAVIOR_ESTABLISHED_INTENT_UNKNOWN",
+      "actual_historical_behavior": "DEV",
+      "actual_behavior_basis": "baseline split_map.get(self.split, ScenarioSplit.DEV)",
+      "proposed_ruling": "UNKNOWN",
+      "confidence": "LOW",
+      "reviewer": "stage-0-independent-verification (not an operator)",
+      "operator_ruling_status": "PENDING_OPERATOR_RATIFICATION",
+      "current_authority_granted": false
+    },
+    {
+      "site_id": "scripts/run_rbs_v4_pilot.py:165",
+      "repository_path": "scripts/run_rbs_v4_pilot.py",
+      "line_or_symbol": "line 165",
+      "commit_or_evidence_reference": "7272880f7e4320f5d36ac3b645ff7fc68ea5d0e0 2026-08-14",
+      "literal_split_label": "validation",
+      "site_class": "historical_script",
+      "is_live_call_site": true,
+      "non_live_reason": "",
+      "evidence_references": [
+        {
+          "kind": "baseline_source",
+          "ref": "b6ef24bdb1bb7242613ccdcf6044121fcf3ae38f:src/arena/ablation_runner.py:810",
+          "statement": "At the frozen baseline the resolver read 'sp = split_map.get(self.split, ScenarioSplit.DEV)' so an unrecognised label such as 'validation' resolved to ScenarioSplit.DEV (offset 0).",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "fsplit1_parent",
+          "ref": "bd1fcc10946ae18cd1652af66810e2eb7c7b9191^:src/arena/ablation_runner.py:810",
+          "statement": "The fail-open fallback was still present immediately before F-SPLIT-1 and was removed by bd1fcc109.",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "run_manifest_corpus",
+          "ref": "arena/results/raw/*/manifest.json",
+          "statement": "2394 historical run manifests record split='validation'; all 2394 carry a seed in the 1000-1999 band. Because baseline resolution mapped the label to DEV (offset 0), the absolute seeds those runs actually used are the band values themselves, NOT the +1000 values a VAL resolution would produce. Ground truth was therefore inspectable under DEV semantics.",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "run_id_format",
+          "ref": "arena/results/raw/",
+          "statement": "Run-id split suffixes (_dev/_val/_holdout) exist for 1622 runs, but NONE of the 2394 validation-labelled runs carries such a suffix (legacy format), so run-id alone cannot establish the resolved split for these sites.",
+          "establishes": "limits_of_run_id_evidence"
+        }
+      ],
+      "evidence_class": "ACTUAL_BEHAVIOR_ESTABLISHED_INTENT_UNKNOWN",
+      "actual_historical_behavior": "DEV",
+      "actual_behavior_basis": "baseline split_map.get(self.split, ScenarioSplit.DEV)",
+      "proposed_ruling": "UNKNOWN",
+      "confidence": "LOW",
+      "reviewer": "stage-0-independent-verification (not an operator)",
+      "operator_ruling_status": "PENDING_OPERATOR_RATIFICATION",
+      "current_authority_granted": false
+    },
+    {
+      "site_id": "scripts/run_rbs_v4_repair_verify.py:130",
+      "repository_path": "scripts/run_rbs_v4_repair_verify.py",
+      "line_or_symbol": "line 130",
+      "commit_or_evidence_reference": "7272880f7e4320f5d36ac3b645ff7fc68ea5d0e0 2026-08-14",
+      "literal_split_label": "validation",
+      "site_class": "historical_script",
+      "is_live_call_site": true,
+      "non_live_reason": "",
+      "evidence_references": [
+        {
+          "kind": "baseline_source",
+          "ref": "b6ef24bdb1bb7242613ccdcf6044121fcf3ae38f:src/arena/ablation_runner.py:810",
+          "statement": "At the frozen baseline the resolver read 'sp = split_map.get(self.split, ScenarioSplit.DEV)' so an unrecognised label such as 'validation' resolved to ScenarioSplit.DEV (offset 0).",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "fsplit1_parent",
+          "ref": "bd1fcc10946ae18cd1652af66810e2eb7c7b9191^:src/arena/ablation_runner.py:810",
+          "statement": "The fail-open fallback was still present immediately before F-SPLIT-1 and was removed by bd1fcc109.",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "run_manifest_corpus",
+          "ref": "arena/results/raw/*/manifest.json",
+          "statement": "2394 historical run manifests record split='validation'; all 2394 carry a seed in the 1000-1999 band. Because baseline resolution mapped the label to DEV (offset 0), the absolute seeds those runs actually used are the band values themselves, NOT the +1000 values a VAL resolution would produce. Ground truth was therefore inspectable under DEV semantics.",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "run_id_format",
+          "ref": "arena/results/raw/",
+          "statement": "Run-id split suffixes (_dev/_val/_holdout) exist for 1622 runs, but NONE of the 2394 validation-labelled runs carries such a suffix (legacy format), so run-id alone cannot establish the resolved split for these sites.",
+          "establishes": "limits_of_run_id_evidence"
+        }
+      ],
+      "evidence_class": "ACTUAL_BEHAVIOR_ESTABLISHED_INTENT_UNKNOWN",
+      "actual_historical_behavior": "DEV",
+      "actual_behavior_basis": "baseline split_map.get(self.split, ScenarioSplit.DEV)",
+      "proposed_ruling": "UNKNOWN",
+      "confidence": "LOW",
+      "reviewer": "stage-0-independent-verification (not an operator)",
+      "operator_ruling_status": "PENDING_OPERATOR_RATIFICATION",
+      "current_authority_granted": false
+    },
+    {
+      "site_id": "scripts/run_rbs_v4_validation.py:90",
+      "repository_path": "scripts/run_rbs_v4_validation.py",
+      "line_or_symbol": "line 90",
+      "commit_or_evidence_reference": "7272880f7e4320f5d36ac3b645ff7fc68ea5d0e0 2026-08-14",
+      "literal_split_label": "validation",
+      "site_class": "historical_script",
+      "is_live_call_site": true,
+      "non_live_reason": "",
+      "evidence_references": [
+        {
+          "kind": "baseline_source",
+          "ref": "b6ef24bdb1bb7242613ccdcf6044121fcf3ae38f:src/arena/ablation_runner.py:810",
+          "statement": "At the frozen baseline the resolver read 'sp = split_map.get(self.split, ScenarioSplit.DEV)' so an unrecognised label such as 'validation' resolved to ScenarioSplit.DEV (offset 0).",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "fsplit1_parent",
+          "ref": "bd1fcc10946ae18cd1652af66810e2eb7c7b9191^:src/arena/ablation_runner.py:810",
+          "statement": "The fail-open fallback was still present immediately before F-SPLIT-1 and was removed by bd1fcc109.",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "run_manifest_corpus",
+          "ref": "arena/results/raw/*/manifest.json",
+          "statement": "2394 historical run manifests record split='validation'; all 2394 carry a seed in the 1000-1999 band. Because baseline resolution mapped the label to DEV (offset 0), the absolute seeds those runs actually used are the band values themselves, NOT the +1000 values a VAL resolution would produce. Ground truth was therefore inspectable under DEV semantics.",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "run_id_format",
+          "ref": "arena/results/raw/",
+          "statement": "Run-id split suffixes (_dev/_val/_holdout) exist for 1622 runs, but NONE of the 2394 validation-labelled runs carries such a suffix (legacy format), so run-id alone cannot establish the resolved split for these sites.",
+          "establishes": "limits_of_run_id_evidence"
+        },
+        {
+          "kind": "author_docstring",
+          "ref": "scripts/run_rbs_v4_validation.py",
+          "statement": "file docstring line 3 reads 'RBS-v4 VALIDATION RUN'; author-stated, unratified",
+          "establishes": "author_stated_intent_unratified"
+        }
+      ],
+      "evidence_class": "ACTUAL_BEHAVIOR_ESTABLISHED_INTENT_UNKNOWN",
+      "actual_historical_behavior": "DEV",
+      "actual_behavior_basis": "baseline split_map.get(self.split, ScenarioSplit.DEV)",
+      "proposed_ruling": "UNKNOWN",
+      "confidence": "LOW",
+      "reviewer": "stage-0-independent-verification (not an operator)",
+      "operator_ruling_status": "PENDING_OPERATOR_RATIFICATION",
+      "current_authority_granted": false
+    },
+    {
+      "site_id": "scripts/run_rbsv2_campaign.py:314",
+      "repository_path": "scripts/run_rbsv2_campaign.py",
+      "line_or_symbol": "line 314",
+      "commit_or_evidence_reference": "7272880f7e4320f5d36ac3b645ff7fc68ea5d0e0 2026-08-14",
+      "literal_split_label": "validation",
+      "site_class": "historical_script",
+      "is_live_call_site": true,
+      "non_live_reason": "",
+      "evidence_references": [
+        {
+          "kind": "baseline_source",
+          "ref": "b6ef24bdb1bb7242613ccdcf6044121fcf3ae38f:src/arena/ablation_runner.py:810",
+          "statement": "At the frozen baseline the resolver read 'sp = split_map.get(self.split, ScenarioSplit.DEV)' so an unrecognised label such as 'validation' resolved to ScenarioSplit.DEV (offset 0).",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "fsplit1_parent",
+          "ref": "bd1fcc10946ae18cd1652af66810e2eb7c7b9191^:src/arena/ablation_runner.py:810",
+          "statement": "The fail-open fallback was still present immediately before F-SPLIT-1 and was removed by bd1fcc109.",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "run_manifest_corpus",
+          "ref": "arena/results/raw/*/manifest.json",
+          "statement": "2394 historical run manifests record split='validation'; all 2394 carry a seed in the 1000-1999 band. Because baseline resolution mapped the label to DEV (offset 0), the absolute seeds those runs actually used are the band values themselves, NOT the +1000 values a VAL resolution would produce. Ground truth was therefore inspectable under DEV semantics.",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "run_id_format",
+          "ref": "arena/results/raw/",
+          "statement": "Run-id split suffixes (_dev/_val/_holdout) exist for 1622 runs, but NONE of the 2394 validation-labelled runs carries such a suffix (legacy format), so run-id alone cannot establish the resolved split for these sites.",
+          "establishes": "limits_of_run_id_evidence"
+        }
+      ],
+      "evidence_class": "ACTUAL_BEHAVIOR_ESTABLISHED_INTENT_UNKNOWN",
+      "actual_historical_behavior": "DEV",
+      "actual_behavior_basis": "baseline split_map.get(self.split, ScenarioSplit.DEV)",
+      "proposed_ruling": "UNKNOWN",
+      "confidence": "LOW",
+      "reviewer": "stage-0-independent-verification (not an operator)",
+      "operator_ruling_status": "PENDING_OPERATOR_RATIFICATION",
+      "current_authority_granted": false
+    },
+    {
+      "site_id": "scripts/run_t10_fix_verify.py:41",
+      "repository_path": "scripts/run_t10_fix_verify.py",
+      "line_or_symbol": "line 41",
+      "commit_or_evidence_reference": "7272880f7e4320f5d36ac3b645ff7fc68ea5d0e0 2026-08-14",
+      "literal_split_label": "validation",
+      "site_class": "historical_script",
+      "is_live_call_site": true,
+      "non_live_reason": "",
+      "evidence_references": [
+        {
+          "kind": "baseline_source",
+          "ref": "b6ef24bdb1bb7242613ccdcf6044121fcf3ae38f:src/arena/ablation_runner.py:810",
+          "statement": "At the frozen baseline the resolver read 'sp = split_map.get(self.split, ScenarioSplit.DEV)' so an unrecognised label such as 'validation' resolved to ScenarioSplit.DEV (offset 0).",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "fsplit1_parent",
+          "ref": "bd1fcc10946ae18cd1652af66810e2eb7c7b9191^:src/arena/ablation_runner.py:810",
+          "statement": "The fail-open fallback was still present immediately before F-SPLIT-1 and was removed by bd1fcc109.",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "run_manifest_corpus",
+          "ref": "arena/results/raw/*/manifest.json",
+          "statement": "2394 historical run manifests record split='validation'; all 2394 carry a seed in the 1000-1999 band. Because baseline resolution mapped the label to DEV (offset 0), the absolute seeds those runs actually used are the band values themselves, NOT the +1000 values a VAL resolution would produce. Ground truth was therefore inspectable under DEV semantics.",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "run_id_format",
+          "ref": "arena/results/raw/",
+          "statement": "Run-id split suffixes (_dev/_val/_holdout) exist for 1622 runs, but NONE of the 2394 validation-labelled runs carries such a suffix (legacy format), so run-id alone cannot establish the resolved split for these sites.",
+          "establishes": "limits_of_run_id_evidence"
+        }
+      ],
+      "evidence_class": "ACTUAL_BEHAVIOR_ESTABLISHED_INTENT_UNKNOWN",
+      "actual_historical_behavior": "DEV",
+      "actual_behavior_basis": "baseline split_map.get(self.split, ScenarioSplit.DEV)",
+      "proposed_ruling": "UNKNOWN",
+      "confidence": "LOW",
+      "reviewer": "stage-0-independent-verification (not an operator)",
+      "operator_ruling_status": "PENDING_OPERATOR_RATIFICATION",
+      "current_authority_granted": false
+    },
+    {
+      "site_id": "src/arena/d10_falsification_defeater_diagnostic.py:70",
+      "repository_path": "src/arena/d10_falsification_defeater_diagnostic.py",
+      "line_or_symbol": "line 70",
+      "commit_or_evidence_reference": "7272880f7e4320f5d36ac3b645ff7fc68ea5d0e0 2026-08-14",
+      "literal_split_label": "validation",
+      "site_class": "historical_diagnostic",
+      "is_live_call_site": true,
+      "non_live_reason": "",
+      "evidence_references": [
+        {
+          "kind": "baseline_source",
+          "ref": "b6ef24bdb1bb7242613ccdcf6044121fcf3ae38f:src/arena/ablation_runner.py:810",
+          "statement": "At the frozen baseline the resolver read 'sp = split_map.get(self.split, ScenarioSplit.DEV)' so an unrecognised label such as 'validation' resolved to ScenarioSplit.DEV (offset 0).",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "fsplit1_parent",
+          "ref": "bd1fcc10946ae18cd1652af66810e2eb7c7b9191^:src/arena/ablation_runner.py:810",
+          "statement": "The fail-open fallback was still present immediately before F-SPLIT-1 and was removed by bd1fcc109.",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "run_manifest_corpus",
+          "ref": "arena/results/raw/*/manifest.json",
+          "statement": "2394 historical run manifests record split='validation'; all 2394 carry a seed in the 1000-1999 band. Because baseline resolution mapped the label to DEV (offset 0), the absolute seeds those runs actually used are the band values themselves, NOT the +1000 values a VAL resolution would produce. Ground truth was therefore inspectable under DEV semantics.",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "run_id_format",
+          "ref": "arena/results/raw/",
+          "statement": "Run-id split suffixes (_dev/_val/_holdout) exist for 1622 runs, but NONE of the 2394 validation-labelled runs carries such a suffix (legacy format), so run-id alone cannot establish the resolved split for these sites.",
+          "establishes": "limits_of_run_id_evidence"
+        }
+      ],
+      "evidence_class": "ACTUAL_BEHAVIOR_ESTABLISHED_INTENT_UNKNOWN",
+      "actual_historical_behavior": "DEV",
+      "actual_behavior_basis": "baseline split_map.get(self.split, ScenarioSplit.DEV)",
+      "proposed_ruling": "UNKNOWN",
+      "confidence": "LOW",
+      "reviewer": "stage-0-independent-verification (not an operator)",
+      "operator_ruling_status": "PENDING_OPERATOR_RATIFICATION",
+      "current_authority_granted": false
+    },
+    {
+      "site_id": "src/arena/d10_regression_test.py:144",
+      "repository_path": "src/arena/d10_regression_test.py",
+      "line_or_symbol": "line 144",
+      "commit_or_evidence_reference": "7272880f7e4320f5d36ac3b645ff7fc68ea5d0e0 2026-08-14",
+      "literal_split_label": "validation",
+      "site_class": "historical_diagnostic",
+      "is_live_call_site": true,
+      "non_live_reason": "",
+      "evidence_references": [
+        {
+          "kind": "baseline_source",
+          "ref": "b6ef24bdb1bb7242613ccdcf6044121fcf3ae38f:src/arena/ablation_runner.py:810",
+          "statement": "At the frozen baseline the resolver read 'sp = split_map.get(self.split, ScenarioSplit.DEV)' so an unrecognised label such as 'validation' resolved to ScenarioSplit.DEV (offset 0).",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "fsplit1_parent",
+          "ref": "bd1fcc10946ae18cd1652af66810e2eb7c7b9191^:src/arena/ablation_runner.py:810",
+          "statement": "The fail-open fallback was still present immediately before F-SPLIT-1 and was removed by bd1fcc109.",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "run_manifest_corpus",
+          "ref": "arena/results/raw/*/manifest.json",
+          "statement": "2394 historical run manifests record split='validation'; all 2394 carry a seed in the 1000-1999 band. Because baseline resolution mapped the label to DEV (offset 0), the absolute seeds those runs actually used are the band values themselves, NOT the +1000 values a VAL resolution would produce. Ground truth was therefore inspectable under DEV semantics.",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "run_id_format",
+          "ref": "arena/results/raw/",
+          "statement": "Run-id split suffixes (_dev/_val/_holdout) exist for 1622 runs, but NONE of the 2394 validation-labelled runs carries such a suffix (legacy format), so run-id alone cannot establish the resolved split for these sites.",
+          "establishes": "limits_of_run_id_evidence"
+        },
+        {
+          "kind": "author_constant",
+          "ref": "src/arena/d6_manifest.py:191",
+          "statement": "The file imports VALIDATION_SEEDS, a named constant whose derivation label is '{template}_val' (d6_manifest.py:191). This shows the author selected validation-family seeds; it does not ratify the split label used at the AblationRunner call site.",
+          "establishes": "author_stated_intent_unratified"
+        }
+      ],
+      "evidence_class": "ACTUAL_BEHAVIOR_ESTABLISHED_INTENT_UNKNOWN",
+      "actual_historical_behavior": "DEV",
+      "actual_behavior_basis": "baseline split_map.get(self.split, ScenarioSplit.DEV)",
+      "proposed_ruling": "UNKNOWN",
+      "confidence": "LOW",
+      "reviewer": "stage-0-independent-verification (not an operator)",
+      "operator_ruling_status": "PENDING_OPERATOR_RATIFICATION",
+      "current_authority_granted": false
+    },
+    {
+      "site_id": "src/arena/d11_regression_test.py:134",
+      "repository_path": "src/arena/d11_regression_test.py",
+      "line_or_symbol": "line 134",
+      "commit_or_evidence_reference": "7272880f7e4320f5d36ac3b645ff7fc68ea5d0e0 2026-08-14",
+      "literal_split_label": "validation",
+      "site_class": "historical_diagnostic",
+      "is_live_call_site": true,
+      "non_live_reason": "",
+      "evidence_references": [
+        {
+          "kind": "baseline_source",
+          "ref": "b6ef24bdb1bb7242613ccdcf6044121fcf3ae38f:src/arena/ablation_runner.py:810",
+          "statement": "At the frozen baseline the resolver read 'sp = split_map.get(self.split, ScenarioSplit.DEV)' so an unrecognised label such as 'validation' resolved to ScenarioSplit.DEV (offset 0).",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "fsplit1_parent",
+          "ref": "bd1fcc10946ae18cd1652af66810e2eb7c7b9191^:src/arena/ablation_runner.py:810",
+          "statement": "The fail-open fallback was still present immediately before F-SPLIT-1 and was removed by bd1fcc109.",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "run_manifest_corpus",
+          "ref": "arena/results/raw/*/manifest.json",
+          "statement": "2394 historical run manifests record split='validation'; all 2394 carry a seed in the 1000-1999 band. Because baseline resolution mapped the label to DEV (offset 0), the absolute seeds those runs actually used are the band values themselves, NOT the +1000 values a VAL resolution would produce. Ground truth was therefore inspectable under DEV semantics.",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "run_id_format",
+          "ref": "arena/results/raw/",
+          "statement": "Run-id split suffixes (_dev/_val/_holdout) exist for 1622 runs, but NONE of the 2394 validation-labelled runs carries such a suffix (legacy format), so run-id alone cannot establish the resolved split for these sites.",
+          "establishes": "limits_of_run_id_evidence"
+        },
+        {
+          "kind": "author_constant",
+          "ref": "src/arena/d6_manifest.py:191",
+          "statement": "The file imports VALIDATION_SEEDS, a named constant whose derivation label is '{template}_val' (d6_manifest.py:191). This shows the author selected validation-family seeds; it does not ratify the split label used at the AblationRunner call site.",
+          "establishes": "author_stated_intent_unratified"
+        }
+      ],
+      "evidence_class": "ACTUAL_BEHAVIOR_ESTABLISHED_INTENT_UNKNOWN",
+      "actual_historical_behavior": "DEV",
+      "actual_behavior_basis": "baseline split_map.get(self.split, ScenarioSplit.DEV)",
+      "proposed_ruling": "UNKNOWN",
+      "confidence": "LOW",
+      "reviewer": "stage-0-independent-verification (not an operator)",
+      "operator_ruling_status": "PENDING_OPERATOR_RATIFICATION",
+      "current_authority_granted": false
+    },
+    {
+      "site_id": "src/arena/d13_diagnostic_runner.py:192",
+      "repository_path": "src/arena/d13_diagnostic_runner.py",
+      "line_or_symbol": "line 192",
+      "commit_or_evidence_reference": "7272880f7e4320f5d36ac3b645ff7fc68ea5d0e0 2026-08-14",
+      "literal_split_label": "validation",
+      "site_class": "historical_diagnostic",
+      "is_live_call_site": true,
+      "non_live_reason": "",
+      "evidence_references": [
+        {
+          "kind": "baseline_source",
+          "ref": "b6ef24bdb1bb7242613ccdcf6044121fcf3ae38f:src/arena/ablation_runner.py:810",
+          "statement": "At the frozen baseline the resolver read 'sp = split_map.get(self.split, ScenarioSplit.DEV)' so an unrecognised label such as 'validation' resolved to ScenarioSplit.DEV (offset 0).",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "fsplit1_parent",
+          "ref": "bd1fcc10946ae18cd1652af66810e2eb7c7b9191^:src/arena/ablation_runner.py:810",
+          "statement": "The fail-open fallback was still present immediately before F-SPLIT-1 and was removed by bd1fcc109.",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "run_manifest_corpus",
+          "ref": "arena/results/raw/*/manifest.json",
+          "statement": "2394 historical run manifests record split='validation'; all 2394 carry a seed in the 1000-1999 band. Because baseline resolution mapped the label to DEV (offset 0), the absolute seeds those runs actually used are the band values themselves, NOT the +1000 values a VAL resolution would produce. Ground truth was therefore inspectable under DEV semantics.",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "run_id_format",
+          "ref": "arena/results/raw/",
+          "statement": "Run-id split suffixes (_dev/_val/_holdout) exist for 1622 runs, but NONE of the 2394 validation-labelled runs carries such a suffix (legacy format), so run-id alone cannot establish the resolved split for these sites.",
+          "establishes": "limits_of_run_id_evidence"
+        }
+      ],
+      "evidence_class": "ACTUAL_BEHAVIOR_ESTABLISHED_INTENT_UNKNOWN",
+      "actual_historical_behavior": "DEV",
+      "actual_behavior_basis": "baseline split_map.get(self.split, ScenarioSplit.DEV)",
+      "proposed_ruling": "UNKNOWN",
+      "confidence": "LOW",
+      "reviewer": "stage-0-independent-verification (not an operator)",
+      "operator_ruling_status": "PENDING_OPERATOR_RATIFICATION",
+      "current_authority_granted": false
+    },
+    {
+      "site_id": "src/arena/d16_holdout_runner.py:144",
+      "repository_path": "src/arena/d16_holdout_runner.py",
+      "line_or_symbol": "line 144",
+      "commit_or_evidence_reference": "7272880f7e4320f5d36ac3b645ff7fc68ea5d0e0 2026-08-14",
+      "literal_split_label": "validation",
+      "site_class": "historical_diagnostic",
+      "is_live_call_site": true,
+      "non_live_reason": "",
+      "evidence_references": [
+        {
+          "kind": "baseline_source",
+          "ref": "b6ef24bdb1bb7242613ccdcf6044121fcf3ae38f:src/arena/ablation_runner.py:810",
+          "statement": "At the frozen baseline the resolver read 'sp = split_map.get(self.split, ScenarioSplit.DEV)' so an unrecognised label such as 'validation' resolved to ScenarioSplit.DEV (offset 0).",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "fsplit1_parent",
+          "ref": "bd1fcc10946ae18cd1652af66810e2eb7c7b9191^:src/arena/ablation_runner.py:810",
+          "statement": "The fail-open fallback was still present immediately before F-SPLIT-1 and was removed by bd1fcc109.",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "run_manifest_corpus",
+          "ref": "arena/results/raw/*/manifest.json",
+          "statement": "2394 historical run manifests record split='validation'; all 2394 carry a seed in the 1000-1999 band. Because baseline resolution mapped the label to DEV (offset 0), the absolute seeds those runs actually used are the band values themselves, NOT the +1000 values a VAL resolution would produce. Ground truth was therefore inspectable under DEV semantics.",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "run_id_format",
+          "ref": "arena/results/raw/",
+          "statement": "Run-id split suffixes (_dev/_val/_holdout) exist for 1622 runs, but NONE of the 2394 validation-labelled runs carries such a suffix (legacy format), so run-id alone cannot establish the resolved split for these sites.",
+          "establishes": "limits_of_run_id_evidence"
+        }
+      ],
+      "evidence_class": "ACTUAL_BEHAVIOR_ESTABLISHED_INTENT_UNKNOWN",
+      "actual_historical_behavior": "DEV",
+      "actual_behavior_basis": "baseline split_map.get(self.split, ScenarioSplit.DEV)",
+      "proposed_ruling": "UNKNOWN",
+      "confidence": "LOW",
+      "reviewer": "stage-0-independent-verification (not an operator)",
+      "operator_ruling_status": "PENDING_OPERATOR_RATIFICATION",
+      "current_authority_granted": false
+    },
+    {
+      "site_id": "src/arena/d7_r1_gemma_retest.py:74",
+      "repository_path": "src/arena/d7_r1_gemma_retest.py",
+      "line_or_symbol": "line 74",
+      "commit_or_evidence_reference": "7272880f7e4320f5d36ac3b645ff7fc68ea5d0e0 2026-08-14",
+      "literal_split_label": "validation",
+      "site_class": "historical_diagnostic",
+      "is_live_call_site": true,
+      "non_live_reason": "",
+      "evidence_references": [
+        {
+          "kind": "baseline_source",
+          "ref": "b6ef24bdb1bb7242613ccdcf6044121fcf3ae38f:src/arena/ablation_runner.py:810",
+          "statement": "At the frozen baseline the resolver read 'sp = split_map.get(self.split, ScenarioSplit.DEV)' so an unrecognised label such as 'validation' resolved to ScenarioSplit.DEV (offset 0).",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "fsplit1_parent",
+          "ref": "bd1fcc10946ae18cd1652af66810e2eb7c7b9191^:src/arena/ablation_runner.py:810",
+          "statement": "The fail-open fallback was still present immediately before F-SPLIT-1 and was removed by bd1fcc109.",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "run_manifest_corpus",
+          "ref": "arena/results/raw/*/manifest.json",
+          "statement": "2394 historical run manifests record split='validation'; all 2394 carry a seed in the 1000-1999 band. Because baseline resolution mapped the label to DEV (offset 0), the absolute seeds those runs actually used are the band values themselves, NOT the +1000 values a VAL resolution would produce. Ground truth was therefore inspectable under DEV semantics.",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "run_id_format",
+          "ref": "arena/results/raw/",
+          "statement": "Run-id split suffixes (_dev/_val/_holdout) exist for 1622 runs, but NONE of the 2394 validation-labelled runs carries such a suffix (legacy format), so run-id alone cannot establish the resolved split for these sites.",
+          "establishes": "limits_of_run_id_evidence"
+        },
+        {
+          "kind": "author_docstring",
+          "ref": "src/arena/d7_r1_gemma_retest.py",
+          "statement": "file docstring line 8 reads 'Seeds: VALIDATION split (5 per template)'; author-stated, unratified",
+          "establishes": "author_stated_intent_unratified"
+        },
+        {
+          "kind": "author_constant",
+          "ref": "src/arena/d6_manifest.py:191",
+          "statement": "The file imports VALIDATION_SEEDS, a named constant whose derivation label is '{template}_val' (d6_manifest.py:191). This shows the author selected validation-family seeds; it does not ratify the split label used at the AblationRunner call site.",
+          "establishes": "author_stated_intent_unratified"
+        }
+      ],
+      "evidence_class": "ACTUAL_BEHAVIOR_ESTABLISHED_INTENT_UNKNOWN",
+      "actual_historical_behavior": "DEV",
+      "actual_behavior_basis": "baseline split_map.get(self.split, ScenarioSplit.DEV)",
+      "proposed_ruling": "UNKNOWN",
+      "confidence": "LOW",
+      "reviewer": "stage-0-independent-verification (not an operator)",
+      "operator_ruling_status": "PENDING_OPERATOR_RATIFICATION",
+      "current_authority_granted": false
+    },
+    {
+      "site_id": "src/arena/d8_cognitive_trace.py:47",
+      "repository_path": "src/arena/d8_cognitive_trace.py",
+      "line_or_symbol": "line 47",
+      "commit_or_evidence_reference": "7272880f7e4320f5d36ac3b645ff7fc68ea5d0e0 2026-08-14",
+      "literal_split_label": "validation",
+      "site_class": "library_code",
+      "is_live_call_site": true,
+      "non_live_reason": "",
+      "evidence_references": [
+        {
+          "kind": "baseline_source",
+          "ref": "b6ef24bdb1bb7242613ccdcf6044121fcf3ae38f:src/arena/ablation_runner.py:810",
+          "statement": "At the frozen baseline the resolver read 'sp = split_map.get(self.split, ScenarioSplit.DEV)' so an unrecognised label such as 'validation' resolved to ScenarioSplit.DEV (offset 0).",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "fsplit1_parent",
+          "ref": "bd1fcc10946ae18cd1652af66810e2eb7c7b9191^:src/arena/ablation_runner.py:810",
+          "statement": "The fail-open fallback was still present immediately before F-SPLIT-1 and was removed by bd1fcc109.",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "run_manifest_corpus",
+          "ref": "arena/results/raw/*/manifest.json",
+          "statement": "2394 historical run manifests record split='validation'; all 2394 carry a seed in the 1000-1999 band. Because baseline resolution mapped the label to DEV (offset 0), the absolute seeds those runs actually used are the band values themselves, NOT the +1000 values a VAL resolution would produce. Ground truth was therefore inspectable under DEV semantics.",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "run_id_format",
+          "ref": "arena/results/raw/",
+          "statement": "Run-id split suffixes (_dev/_val/_holdout) exist for 1622 runs, but NONE of the 2394 validation-labelled runs carries such a suffix (legacy format), so run-id alone cannot establish the resolved split for these sites.",
+          "establishes": "limits_of_run_id_evidence"
+        }
+      ],
+      "evidence_class": "ACTUAL_BEHAVIOR_ESTABLISHED_INTENT_UNKNOWN",
+      "actual_historical_behavior": "DEV",
+      "actual_behavior_basis": "baseline split_map.get(self.split, ScenarioSplit.DEV)",
+      "proposed_ruling": "UNKNOWN",
+      "confidence": "LOW",
+      "reviewer": "stage-0-independent-verification (not an operator)",
+      "operator_ruling_status": "PENDING_OPERATOR_RATIFICATION",
+      "current_authority_granted": false
+    },
+    {
+      "site_id": "src/arena/d8_regression_test.py:68",
+      "repository_path": "src/arena/d8_regression_test.py",
+      "line_or_symbol": "line 68",
+      "commit_or_evidence_reference": "7272880f7e4320f5d36ac3b645ff7fc68ea5d0e0 2026-08-14",
+      "literal_split_label": "validation",
+      "site_class": "historical_diagnostic",
+      "is_live_call_site": true,
+      "non_live_reason": "",
+      "evidence_references": [
+        {
+          "kind": "baseline_source",
+          "ref": "b6ef24bdb1bb7242613ccdcf6044121fcf3ae38f:src/arena/ablation_runner.py:810",
+          "statement": "At the frozen baseline the resolver read 'sp = split_map.get(self.split, ScenarioSplit.DEV)' so an unrecognised label such as 'validation' resolved to ScenarioSplit.DEV (offset 0).",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "fsplit1_parent",
+          "ref": "bd1fcc10946ae18cd1652af66810e2eb7c7b9191^:src/arena/ablation_runner.py:810",
+          "statement": "The fail-open fallback was still present immediately before F-SPLIT-1 and was removed by bd1fcc109.",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "run_manifest_corpus",
+          "ref": "arena/results/raw/*/manifest.json",
+          "statement": "2394 historical run manifests record split='validation'; all 2394 carry a seed in the 1000-1999 band. Because baseline resolution mapped the label to DEV (offset 0), the absolute seeds those runs actually used are the band values themselves, NOT the +1000 values a VAL resolution would produce. Ground truth was therefore inspectable under DEV semantics.",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "run_id_format",
+          "ref": "arena/results/raw/",
+          "statement": "Run-id split suffixes (_dev/_val/_holdout) exist for 1622 runs, but NONE of the 2394 validation-labelled runs carries such a suffix (legacy format), so run-id alone cannot establish the resolved split for these sites.",
+          "establishes": "limits_of_run_id_evidence"
+        },
+        {
+          "kind": "author_constant",
+          "ref": "src/arena/d6_manifest.py:191",
+          "statement": "The file imports VALIDATION_SEEDS, a named constant whose derivation label is '{template}_val' (d6_manifest.py:191). This shows the author selected validation-family seeds; it does not ratify the split label used at the AblationRunner call site.",
+          "establishes": "author_stated_intent_unratified"
+        }
+      ],
+      "evidence_class": "ACTUAL_BEHAVIOR_ESTABLISHED_INTENT_UNKNOWN",
+      "actual_historical_behavior": "DEV",
+      "actual_behavior_basis": "baseline split_map.get(self.split, ScenarioSplit.DEV)",
+      "proposed_ruling": "UNKNOWN",
+      "confidence": "LOW",
+      "reviewer": "stage-0-independent-verification (not an operator)",
+      "operator_ruling_status": "PENDING_OPERATOR_RATIFICATION",
+      "current_authority_granted": false
+    },
+    {
+      "site_id": "src/arena/d9_regression_test.py:71",
+      "repository_path": "src/arena/d9_regression_test.py",
+      "line_or_symbol": "line 71",
+      "commit_or_evidence_reference": "7272880f7e4320f5d36ac3b645ff7fc68ea5d0e0 2026-08-14",
+      "literal_split_label": "validation",
+      "site_class": "historical_diagnostic",
+      "is_live_call_site": true,
+      "non_live_reason": "",
+      "evidence_references": [
+        {
+          "kind": "baseline_source",
+          "ref": "b6ef24bdb1bb7242613ccdcf6044121fcf3ae38f:src/arena/ablation_runner.py:810",
+          "statement": "At the frozen baseline the resolver read 'sp = split_map.get(self.split, ScenarioSplit.DEV)' so an unrecognised label such as 'validation' resolved to ScenarioSplit.DEV (offset 0).",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "fsplit1_parent",
+          "ref": "bd1fcc10946ae18cd1652af66810e2eb7c7b9191^:src/arena/ablation_runner.py:810",
+          "statement": "The fail-open fallback was still present immediately before F-SPLIT-1 and was removed by bd1fcc109.",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "run_manifest_corpus",
+          "ref": "arena/results/raw/*/manifest.json",
+          "statement": "2394 historical run manifests record split='validation'; all 2394 carry a seed in the 1000-1999 band. Because baseline resolution mapped the label to DEV (offset 0), the absolute seeds those runs actually used are the band values themselves, NOT the +1000 values a VAL resolution would produce. Ground truth was therefore inspectable under DEV semantics.",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "run_id_format",
+          "ref": "arena/results/raw/",
+          "statement": "Run-id split suffixes (_dev/_val/_holdout) exist for 1622 runs, but NONE of the 2394 validation-labelled runs carries such a suffix (legacy format), so run-id alone cannot establish the resolved split for these sites.",
+          "establishes": "limits_of_run_id_evidence"
+        },
+        {
+          "kind": "author_constant",
+          "ref": "src/arena/d6_manifest.py:191",
+          "statement": "The file imports VALIDATION_SEEDS, a named constant whose derivation label is '{template}_val' (d6_manifest.py:191). This shows the author selected validation-family seeds; it does not ratify the split label used at the AblationRunner call site.",
+          "establishes": "author_stated_intent_unratified"
+        }
+      ],
+      "evidence_class": "ACTUAL_BEHAVIOR_ESTABLISHED_INTENT_UNKNOWN",
+      "actual_historical_behavior": "DEV",
+      "actual_behavior_basis": "baseline split_map.get(self.split, ScenarioSplit.DEV)",
+      "proposed_ruling": "UNKNOWN",
+      "confidence": "LOW",
+      "reviewer": "stage-0-independent-verification (not an operator)",
+      "operator_ruling_status": "PENDING_OPERATOR_RATIFICATION",
+      "current_authority_granted": false
+    },
+    {
+      "site_id": "tests/test_f_split_1_split_vocabulary.py:7",
+      "repository_path": "tests/test_f_split_1_split_vocabulary.py",
+      "line_or_symbol": "line 7",
+      "commit_or_evidence_reference": "bd1fcc10946ae18cd1652af66810e2eb7c7b9191 2026-10-08",
+      "literal_split_label": "validation",
+      "site_class": "test_code",
+      "is_live_call_site": false,
+      "non_live_reason": "module docstring describing the historical defect. Not an executable call site.",
+      "evidence_references": [
+        {
+          "kind": "baseline_source",
+          "ref": "b6ef24bdb1bb7242613ccdcf6044121fcf3ae38f:src/arena/ablation_runner.py:810",
+          "statement": "At the frozen baseline the resolver read 'sp = split_map.get(self.split, ScenarioSplit.DEV)' so an unrecognised label such as 'validation' resolved to ScenarioSplit.DEV (offset 0).",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "fsplit1_parent",
+          "ref": "bd1fcc10946ae18cd1652af66810e2eb7c7b9191^:src/arena/ablation_runner.py:810",
+          "statement": "The fail-open fallback was still present immediately before F-SPLIT-1 and was removed by bd1fcc109.",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "run_manifest_corpus",
+          "ref": "arena/results/raw/*/manifest.json",
+          "statement": "2394 historical run manifests record split='validation'; all 2394 carry a seed in the 1000-1999 band. Because baseline resolution mapped the label to DEV (offset 0), the absolute seeds those runs actually used are the band values themselves, NOT the +1000 values a VAL resolution would produce. Ground truth was therefore inspectable under DEV semantics.",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "run_id_format",
+          "ref": "arena/results/raw/",
+          "statement": "Run-id split suffixes (_dev/_val/_holdout) exist for 1622 runs, but NONE of the 2394 validation-labelled runs carries such a suffix (legacy format), so run-id alone cannot establish the resolved split for these sites.",
+          "establishes": "limits_of_run_id_evidence"
+        }
+      ],
+      "evidence_class": "ACTUAL_BEHAVIOR_ESTABLISHED_INTENT_UNKNOWN",
+      "actual_historical_behavior": "DEV",
+      "actual_behavior_basis": "baseline split_map.get(self.split, ScenarioSplit.DEV)",
+      "proposed_ruling": "UNKNOWN",
+      "confidence": "INSUFFICIENT",
+      "reviewer": "stage-0-independent-verification (not an operator)",
+      "operator_ruling_status": "PENDING_OPERATOR_RATIFICATION",
+      "current_authority_granted": false
+    },
+    {
+      "site_id": "tests/test_run_identity.py:42",
+      "repository_path": "tests/test_run_identity.py",
+      "line_or_symbol": "line 42",
+      "commit_or_evidence_reference": "7272880f7e4320f5d36ac3b645ff7fc68ea5d0e0 2026-08-14",
+      "literal_split_label": "validation",
+      "site_class": "test_code",
+      "is_live_call_site": false,
+      "non_live_reason": "comment in the _make_runner helper describing the PRE-correction default. Not an executable call site.",
+      "evidence_references": [
+        {
+          "kind": "baseline_source",
+          "ref": "b6ef24bdb1bb7242613ccdcf6044121fcf3ae38f:src/arena/ablation_runner.py:810",
+          "statement": "At the frozen baseline the resolver read 'sp = split_map.get(self.split, ScenarioSplit.DEV)' so an unrecognised label such as 'validation' resolved to ScenarioSplit.DEV (offset 0).",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "fsplit1_parent",
+          "ref": "bd1fcc10946ae18cd1652af66810e2eb7c7b9191^:src/arena/ablation_runner.py:810",
+          "statement": "The fail-open fallback was still present immediately before F-SPLIT-1 and was removed by bd1fcc109.",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "run_manifest_corpus",
+          "ref": "arena/results/raw/*/manifest.json",
+          "statement": "2394 historical run manifests record split='validation'; all 2394 carry a seed in the 1000-1999 band. Because baseline resolution mapped the label to DEV (offset 0), the absolute seeds those runs actually used are the band values themselves, NOT the +1000 values a VAL resolution would produce. Ground truth was therefore inspectable under DEV semantics.",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "run_id_format",
+          "ref": "arena/results/raw/",
+          "statement": "Run-id split suffixes (_dev/_val/_holdout) exist for 1622 runs, but NONE of the 2394 validation-labelled runs carries such a suffix (legacy format), so run-id alone cannot establish the resolved split for these sites.",
+          "establishes": "limits_of_run_id_evidence"
+        }
+      ],
+      "evidence_class": "ACTUAL_BEHAVIOR_ESTABLISHED_INTENT_UNKNOWN",
+      "actual_historical_behavior": "DEV",
+      "actual_behavior_basis": "baseline split_map.get(self.split, ScenarioSplit.DEV)",
+      "proposed_ruling": "UNKNOWN",
+      "confidence": "INSUFFICIENT",
+      "reviewer": "stage-0-independent-verification (not an operator)",
+      "operator_ruling_status": "PENDING_OPERATOR_RATIFICATION",
+      "current_authority_granted": false
+    },
+    {
+      "site_id": "tests/test_run_identity.py:92",
+      "repository_path": "tests/test_run_identity.py",
+      "line_or_symbol": "line 92",
+      "commit_or_evidence_reference": "7272880f7e4320f5d36ac3b645ff7fc68ea5d0e0 2026-08-14",
+      "literal_split_label": "validation",
+      "site_class": "test_code",
+      "is_live_call_site": false,
+      "non_live_reason": "negative test: asserts InvalidScenarioSplit is raised for the legacy label. The site intentionally supplies 'validation' to prove it is refused.",
+      "evidence_references": [
+        {
+          "kind": "baseline_source",
+          "ref": "b6ef24bdb1bb7242613ccdcf6044121fcf3ae38f:src/arena/ablation_runner.py:810",
+          "statement": "At the frozen baseline the resolver read 'sp = split_map.get(self.split, ScenarioSplit.DEV)' so an unrecognised label such as 'validation' resolved to ScenarioSplit.DEV (offset 0).",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "fsplit1_parent",
+          "ref": "bd1fcc10946ae18cd1652af66810e2eb7c7b9191^:src/arena/ablation_runner.py:810",
+          "statement": "The fail-open fallback was still present immediately before F-SPLIT-1 and was removed by bd1fcc109.",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "run_manifest_corpus",
+          "ref": "arena/results/raw/*/manifest.json",
+          "statement": "2394 historical run manifests record split='validation'; all 2394 carry a seed in the 1000-1999 band. Because baseline resolution mapped the label to DEV (offset 0), the absolute seeds those runs actually used are the band values themselves, NOT the +1000 values a VAL resolution would produce. Ground truth was therefore inspectable under DEV semantics.",
+          "establishes": "actual_historical_behavior"
+        },
+        {
+          "kind": "run_id_format",
+          "ref": "arena/results/raw/",
+          "statement": "Run-id split suffixes (_dev/_val/_holdout) exist for 1622 runs, but NONE of the 2394 validation-labelled runs carries such a suffix (legacy format), so run-id alone cannot establish the resolved split for these sites.",
+          "establishes": "limits_of_run_id_evidence"
+        }
+      ],
+      "evidence_class": "ACTUAL_BEHAVIOR_ESTABLISHED_INTENT_UNKNOWN",
+      "actual_historical_behavior": "DEV",
+      "actual_behavior_basis": "baseline split_map.get(self.split, ScenarioSplit.DEV)",
+      "proposed_ruling": "UNKNOWN",
+      "confidence": "INSUFFICIENT",
+      "reviewer": "stage-0-independent-verification (not an operator)",
+      "operator_ruling_status": "PENDING_OPERATOR_RATIFICATION",
+      "current_authority_granted": false
+    }
+  ]
+}
