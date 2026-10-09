@@ -17,6 +17,8 @@ Run: python -m pytest tests/test_run_identity.py -q
 import re
 import sys
 
+import pytest
+
 from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -35,7 +37,12 @@ class _FakeTemplate:
         raise NotImplementedError("init-time only")
 
 
-def _make_runner(seed, config_id="FULL_RAPHAEL", split="validation"):
+def _make_runner(seed, config_id="FULL_RAPHAEL", split="val"):
+    # F-SPLIT-1 adjudication: this helper previously defaulted to
+    # split="validation" — an invalid label under the corrected vocabulary
+    # ("val" is canonical). The file's intent is run-ID logical-cell identity,
+    # not the legacy label, so the canonical label is used and the refusal of
+    # the legacy label is pinned explicitly below.
     return AblationRunner(
         template=_FakeTemplate(),
         config=ABLATION_PRESETS[config_id],
@@ -48,13 +55,13 @@ def test_run_id_is_deterministic_across_instances():
     r1 = _make_runner(seed=7)
     r2 = _make_runner(seed=7)
     assert r1.run_id == r2.run_id
-    assert r1.run_id == "abl_FULL_RAPHAEL_T9_SEMANTIC_AMBIGUITY_s0007_validation"
+    assert r1.run_id == "abl_FULL_RAPHAEL_T9_SEMANTIC_AMBIGUITY_s0007_val"
 
 
 def test_run_id_has_no_uuid_suffix():
     r = _make_runner(seed=7)
     # Canonical logical-cell format: no trailing uuid hex.
-    assert re.fullmatch(r"abl_[A-Z0-9_]+_[A-Za-z0-9_]+_s\d{4}_(validation|holdout|dev)", r.run_id)
+    assert re.fullmatch(r"abl_[A-Z0-9_]+_[A-Za-z0-9_]+_s\d{4}_(val|holdout|dev)", r.run_id)
     # The old format had _<6 hex chars> at the end; verify that's gone.
     assert not re.search(r"_[0-9a-f]{6}$", r.run_id)
 
@@ -69,8 +76,20 @@ def test_run_id_changes_with_config():
 
 
 def test_run_id_changes_with_split():
-    assert (_make_runner(seed=1, split="validation").run_id
+    assert (_make_runner(seed=1, split="val").run_id
             != _make_runner(seed=1, split="holdout").run_id)
+
+
+def test_legacy_validation_label_now_fails_closed():
+    # F-SPLIT-1 adjudication: "validation" was never a canonical label; it
+    # previously fell through to a DEV scenario (run_id said validation,
+    # scenario was dev). It must now be refused at construction. The full
+    # invalid-vocabulary corpus is covered by
+    # tests/test_f_split_1_split_vocabulary.py; this pins it at the exact
+    # historical call site (this file's old default).
+    from arena.ablation_runner import InvalidScenarioSplit
+    with pytest.raises(InvalidScenarioSplit):
+        _make_runner(seed=7, split="validation")
 
 
 def test_ensure_run_dir_idempotent_same_cell():
@@ -95,6 +114,7 @@ TESTS = [
     ("seed changes run_id", test_run_id_changes_with_seed),
     ("config changes run_id", test_run_id_changes_with_config),
     ("split changes run_id", test_run_id_changes_with_split),
+    ("legacy validation label refused", test_legacy_validation_label_now_fails_closed),
     ("run_dir idempotent", test_ensure_run_dir_idempotent_same_cell),
     ("holdout row logical cell", test_holdout_row_run_id_is_logical_cell_derived),
 ]
