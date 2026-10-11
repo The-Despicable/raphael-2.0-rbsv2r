@@ -4,7 +4,7 @@
 |---|---|
 | ADR | 014 |
 | Phase | P3 (governance repair for the G3 submission workstream) |
-| Status | **Recorded — prospective, and NOT independently adopted.** Effective only for a delegation whose issuer is present in an independently-controlled trusted-issuer store — which currently contains nothing, so no delegation is effective. Revocable at any time. **The four adoptions made under it have been retracted; see §12.** |
+| Status | **Recorded — prospective, and NOT independently adopted.** Effective only for a delegation whose issuer is *listed* in `evidence/governance/TRUSTED_ISSUERS.json` — which is currently empty, so no delegation is effective. Listing an issuer is **not** authentication; see §3.1a and §7.8. Revocable at any time. **The four adoptions made under it have been retracted; see §12.** |
 | Deciders | **Unassigned.** No authority has adopted this ADR. It was authored by a machine agent and describes a mechanism, not an approval. |
 | Supersedes | Nothing. No roadmap section, ADR, freeze notice, or gate status is amended, relaxed, or superseded by this ADR. |
 | Source | `evidence/GOVERNANCE_DECISIONS_20261009.jsonl`; `RAPHAEL_MASTER_ROADMAP_v4.2_RSI.md` §1.1, §1.3, Appendix E; `evidence/provenance_correction/OPERATOR_ATTESTATION.md`; `evidence/governance/P4_RSI_FREEZE_NOTICE_20261009.md` §5; `docs/adr/ADR-013` (untracked, not adopted — cited only as the claim being examined) |
@@ -149,44 +149,72 @@ there is no warn-and-continue path.
 **If no delegation set is supplied, any `agent:`-principal decision is refused.**
 The default is fail-closed, not permissive.
 
-### 3.1a The issuer-verification boundary (added after the audit of `36329f0ab`)
+### 3.1a The issuer-list boundary (added after the audit of `36329f0ab`)
 
 Checks (1)–(10) are all satisfiable by a file the agent writes itself. The
 independent audit of `36329f0ab` demonstrated the consequence directly: a
 delegation naming an issuer that had never existed —
 `"Queen-Of-Authority-Who-Does-Not-Exist"` — was accepted, and a decision was
-adopted under it. A content hash proves only that nobody edited a record
-**after** it was written. **Naming is not authentication.**
+adopted under it. A content hash proves only that a record is consistent with
+the data used to compute that hash; it proves **nothing about who created or
+authorised that data**. **Naming is not authentication.**
 
 So authority now requires two facts from two separate artifacts:
 
-| | Artifact | Who can write it | What it establishes |
-|---|---|---|---|
-| 1 | the delegation record | the agent | *what* is proposed to be authorised |
-| 2 | **the trusted-issuer store** `evidence/governance/TRUSTED_ISSUERS.json` | a human or the architecture authority | *that the issuer was independently verified*, by a named method, with evidence |
+| | Artifact | What it establishes |
+|---|---|---|
+| 1 | the delegation record | *what* is proposed to be authorised |
+| 2 | the trusted-issuer list `evidence/governance/TRUSTED_ISSUERS.json` | *that this issuer identifier is listed* — nothing more |
 
-A delegation's `delegating_principal` must appear in the trusted-issuer store as
-a `TrustedIssuer` carrying `issuer_id`, `verification_method`, `verified_by`
-(outside the `agent:` namespace), `verified_at`, and non-empty
-`evidence_refs`. Otherwise the decision is refused.
+A delegation's `delegating_principal` must **match** an `issuer_id` in the
+trusted-issuer list. Otherwise the decision is refused.
 
-**The store ships EMPTY, and that is the point.** This repository has no
-signature substrate, no identity provider, and no trust root, so there is
-nothing that could honestly verify an issuer. Populating it would mean inventing
-a verification that did not happen. Consequently:
+**What the list is, precisely.** It is a tracked file in the same repository and
+branch. At the audited revision, **no** repository-level `CODEOWNERS` rule,
+active Git hook, pre-commit rule, CI enforcement rule, or signature-verification
+mechanism was found that independently controls admission of trusted issuers.
+The repository does **not** establish independent authorship or authentication
+for entries in this file. *This finding is limited to the repository and the
+mechanisms inspected; it does not establish the absence of external hosting
+controls.*
 
-> **No machine-agent delegation can currently confer effective authority, and
-> no machine-agent decision can be ADOPTED.**
+**What `TrustedIssuer.validate()` actually does** — verified against the
+implementation, not asserted:
 
-This is fail-closed behaviour. It is not a defect to be configured around, and
-it must not be "fixed" by an agent adding itself to the store —
-`TrustedIssuer.validate()` refuses an `agent:` `issuer_id` and refuses an agent
-as `verified_by`.
+- performs structural and format validation of the declared fields;
+- rejects an `issuer_id` or `verified_by` carrying the `agent:` prefix;
+- checks that `verified_at` parses as an ISO-8601 instant with an explicit offset;
+- requires `evidence_refs` to be non-empty.
+
+**What it does not do:**
+
+- it does **not** authenticate the person behind `issuer_id` or `verified_by`;
+- it does **not** verify any signature and does **not** establish a trusted key;
+- it does **not** establish that the targets named in `evidence_refs` exist.
+
+**The structural limitation, stated plainly:** adding a structurally valid
+`TrustedIssuer` record causes the trust check to succeed whenever its
+`issuer_id` matches the delegation's issuer and the remaining checks pass. This
+was confirmed against the running implementation. The list is therefore **not
+an authenticated trust boundary** — it is currently empty, and empty is the only
+thing holding agent authority at zero.
+
+**The store ships EMPTY.** This repository has no signature substrate, no
+identity provider, and no trust root, so there is nothing that could honestly
+verify an issuer. Populating it with an entry would record a *claim* of
+verification, and would not make one. Consequently:
+
+> **At the audited revision, with the store empty, no machine-agent delegation
+> confers effective authority and no machine-agent decision can be ADOPTED.**
+
+This is fail-closed *by configuration*, not by an enforced boundary. It must not
+be "fixed" by an agent adding itself — `TrustedIssuer.validate()` refuses an
+`agent:` `issuer_id` and an agent `verified_by` — but it would equally not be
+stopped by an agent adding a non-`agent:` identifier. See §7.8.
 
 Note the limit, stated rather than hidden: `TrustedIssuer` is a **claim of
-verification**, not the verification. The registry checks that such a claim
-exists and is well-formed; it cannot perform the verification itself. The same
-was true of a human principal's name before any of this (§2.1).
+verification**, not the verification. The same was true of a human principal's
+name before any of this (§2.1).
 
 ### 3.2 What this prevents
 
@@ -194,14 +222,22 @@ was true of a human principal's name before any of this (§2.1).
 |---|---|---|
 | An agent writes its own name into `authority_principal` and nothing else | (1)+(2): no delegation ref / no delegation | yes |
 | An agent writes a rule declaring itself authorized | §0: the rule names no grantee | yes |
-| **An agent issues itself a delegation** | `delegating_principal` must not be an `agent:` principal and must differ | **only the naming pattern.** It does NOT establish that the named issuer exists, is trusted, or actually issued anything. See §3.1a and §7.7 — a non-`agent:` string passes this check, so this row alone does not prevent an agent from authoring its own delegation. |
-| An agent widens a delegation after the fact | `scope_decision_ids` is content-hashed; changing it changes the hash and breaks the pin | yes |
+| An agent names itself in the `agent:` namespace as the delegation's issuer | `delegating_principal` must not be an `agent:` principal and must differ | **only that naming pattern.** It does not authenticate an issuer, does not prove the issuer exists, and does not prove the issuer authorised the delegation. A fabricated **non-`agent:`** string passes this specific check. See §3.1a, §7.7, §7.8. |
+| An agent widens a delegation after the fact | `scope_decision_ids` is content-hashed; changing it changes the hash and breaks the pin | yes — but a content hash shows consistency with the hashed data, **not** who created or authorised it |
 | An agent acts outside its window | (9) | yes |
 | An agent acts after revocation | (7) | yes |
 | An agent adopts a reserved-class decision (G3, ADR, invariant extension) | (6) plus the declared-class and substantive-effect checks in §2.3 | yes, and no longer id-dependent |
-| **An agent names any issuer it likes** | **§3.1a: the issuer must appear in the independently-controlled trusted-issuer store, which ships EMPTY** | **yes — this is the check that actually prevents authority minting** |
+| An agent lists a fabricated issuer in `TRUSTED_ISSUERS.json` and names it in a delegation | the issuer identifier must appear in the list — which is empty at the audited revision | **no.** This is a *membership* check, not authentication. Adding a structurally valid entry makes it pass. See §7.8. |
 | A delegated decision is presented as a GLM ruling | §2.2: `agent:` is never GLM; test-pinned | yes |
 | A delegated decision is presented as human operator attestation | §2.2 + the attestation file remains unsigned | yes |
+
+**Summary of what this section does and does not claim.** The delegation
+mechanism constrains *scope, timing, revocation, transition shape, reserved
+class, and identifier namespace* — all enforced in code. It does **not** establish
+who any named issuer is, whether they exist, or whether they authorised
+anything. The audit's finding F2 (arbitrary-issuer authority minting) is
+therefore **not fully closed**; what changed is that the empty issuer list means
+no issuer currently qualifies. See §7.8.
 
 ## 4. Evidence required to audit a delegated action
 
@@ -254,13 +290,13 @@ This ADR must not be read as stronger than it is.
 1. **It does not authenticate anyone.** The registry verifies that a delegation
    record exists, is internally consistent, is content-hash-pinned, is
    un-revoked, is in-window, is scoped to the decision, and that its issuer
-   **appears in the independently-controlled trusted-issuer store** (§3.1a).
-   It does **not** verify that the human behind that issuer was who they claim
-   to be, because it cannot: there is no signature or identity substrate here.
-   `TrustedIssuer` is a *claim of verification*. The same residual always
-   existed for human principals (§2.1) — a free-text name has never been proof
-   of anything — and §3.1a makes it explicit for agent principals instead of
-   hiding it.
+   identifier **is listed** in `evidence/governance/TRUSTED_ISSUERS.json`
+   (§3.1a). Listing is **not** authentication. It does **not** verify that the
+   human behind that issuer is who they claim to be, because it cannot: there is
+   no signature or identity substrate here. `TrustedIssuer` is a *claim of
+   verification*. The same residual always existed for human principals (§2.1) — a
+   free-text name has never been proof of anything — and §3.1a makes it explicit
+   for agent principals instead of hiding it.
 2. **A delegation record written by the agent is agent-authored.** In this
    workstream `evidence/governance/EXECUTOR_DELEGATION_20261011.json` was written
    by the same agent that used it. The record therefore carries
@@ -283,9 +319,55 @@ This ADR must not be read as stronger than it is.
 6. **The seed generator was unprotected.** See §10.1 and §12.
 7. **The naming check in (1) of §3 is not authentication.** Rejecting an `agent:`
    issuer stops one shape of self-delegation. It never established that the
-   named issuer exists. The audit proved this: any other string passed. §3.1a is
-   the check that closes it, and §3.2 states plainly which rows are complete
-   and which are not.
+   named issuer exists. The audit proved this: any other string passed. §3.1a
+   adds a *membership* check on top, which is also **not** authentication — see
+   §7.8 — and §3.2 states plainly which rows are complete and which are not.
+8. **Trusted-issuer admission is not independently authenticated.** See §7.8.
+
+### 7.8 Trusted-issuer admission is not independently authenticated
+
+Three distinct things are being claimed, and only the first is currently true.
+
+**Current configuration.** The trusted-issuer list
+`evidence/governance/TRUSTED_ISSUERS.json` is **empty** at the audited revision.
+With it empty, the existing registry configuration withholds effective agent
+authority: `GovernanceRegistry.effective_authoritative()` returns nothing for any
+machine-agent principal, and `unverified_authority_records()` reports the four
+historical adoptions as unverified.
+
+**Structural limitation.** Adding a **structurally valid** `TrustedIssuer`
+record causes the trust check to **succeed** whenever its `issuer_id` matches the
+delegation's issuer and the remaining checks pass. This was confirmed against
+the running implementation: a delegation naming an issuer that had never been
+verified, together with a `TrustedIssuer` entry naming an unresolvable evidence
+path, was sufficient for a decision to reach `ADOPTED`. The current repository
+implementation does **not** independently authenticate the issuer, does not
+verify any signature, does not establish a trusted key, and does not establish
+that a human or the architecture authority approved the entry. The list is a
+membership list, not an authenticated trust boundary. **The empty list is a
+configuration state, not an enforced boundary**, and must not be described as
+one.
+
+**Runtime limitation.** The audit that produced this finding was **static**. It
+did not execute the registry in a production context, and it did not establish
+that any production runtime currently constructs a `GovernanceRegistry` from
+these files, nor that any code path loads the trusted-issuer list at all. It is
+therefore not claimed here that this is reachable through a production entry
+point. Establishing reachability would require enumerating production consumers
+of `GovernanceRegistry` and of the JSONL ledger, which this correction does not
+attempt.
+
+**Conclusion.** The current implementation must **not** be described as
+independently authenticated, and neither the issuer list nor the delegation
+record should be cited as evidence that a decision was authorised by a human or
+by the architecture authority. Before any issuer could be considered
+independently authenticated, an **external** identity or verification mechanism
+would have to be established — for example a signature scheme with trust roots
+held outside this repository, or an identity provider whose assertions the
+registry could verify. No such mechanism exists here, and none was invented to
+close this section.
+
+---
 
 ## 8. The human attestation is not replaced by this ADR
 
@@ -385,6 +467,13 @@ query is `GovernanceRegistry.effective_authoritative()` (also reachable under
 its former name `authoritative()`), which re-runs the full delegation and trust
 check against this registry's context. `authority_problems()` reports *why* a
 record was withheld rather than silently omitting it.
+
+## 11. (intentionally unused)
+
+This heading is retained as a deliberate placeholder so that no section number
+appears to have been deleted from this document. Section 11 was reserved during
+the post-audit correction and never carried content; nothing was removed. The
+next substantive section is §12.
 
 ## 12. Retraction of the four adoptions made under this ADR
 
