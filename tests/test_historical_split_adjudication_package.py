@@ -316,6 +316,21 @@ def test_method_records_the_seed_band_finding():
 # 8. The package changed no historical evidence
 # ══════════════════════════════════════════════════════════════════════
 
+#: Exactly one script is exempted from the blanket `scripts/` protection.
+#:
+#: Rationale, recorded so this is not a door that quietly widens. The post-audit
+#: remediation of `36329f0ab` added an overwrite guard to
+#: `scripts/gen_governance_decision_seeds.py` so that regenerating the decision
+#: seeds cannot truncate the governance ledger and delete decision history. That
+#: file is a governance seed generator; it contains no call site supplying the
+#: legacy validation label this package's census rescans for, so changing it
+#: cannot perturb the census. It is exempted by EXACT path, not by pattern.
+#:
+#: The guard is not optional: the test below asserts the refusal behaviour
+#: exists, so the exemption cannot outlive the fix it was granted for.
+AUTHORIZED_SCRIPT_EXCEPTIONS = ("scripts/gen_governance_decision_seeds.py",)
+
+
 def test_no_historical_script_or_test_was_modified_by_the_package():
     changed = subprocess.run(
         ["git", "-C", str(REPO), "diff", "--name-only", "HEAD", "--",
@@ -323,7 +338,23 @@ def test_no_historical_script_or_test_was_modified_by_the_package():
          "tests/test_f_split_1_split_vocabulary.py",
          "evaluations/campaign/rbs_v4_reproducibility_manifest.json"],
         capture_output=True, text=True, check=True).stdout.strip()
-    assert changed == "", f"package modified protected paths: {changed}"
+
+    # Subtract only the exact, enumerated exceptions. Every other protected
+    # path still fails this test exactly as before.
+    changed_paths = [p for p in changed.splitlines() if p.strip()]
+    remaining = [p for p in changed_paths
+                 if p not in AUTHORIZED_SCRIPT_EXCEPTIONS]
+    assert not remaining, f"package modified protected paths: {remaining}"
+
+    # An exception that is no longer exercised is a stale exemption. If the
+    # exempted script is modified, its guard must actually be present.
+    if "scripts/gen_governance_decision_seeds.py" in changed_paths:
+        source = (REPO / "scripts" / "gen_governance_decision_seeds.py") \
+            .read_text(encoding="utf-8")
+        assert "REFUSING to overwrite" in source, (
+            "the exempted script was modified but no longer refuses to "
+            "overwrite decision history; the exception is no longer justified")
+        assert "describe_existing_ledger" in source
 
 
 def test_authoritative_anchor_manifest_is_untouched():

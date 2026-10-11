@@ -4,11 +4,11 @@
 |---|---|
 | ADR | 014 |
 | Phase | P3 (governance repair for the G3 submission workstream) |
-| Status | **Recorded — prospective. Effective only for the delegation record it validates (`DEL-2026-10-11-01`), and revocable at any time.** |
-| Deciders | The operator role, for the four decisions whose own recorded text designates them operator-ratifiable. **GLM: not consulted, not required, and not claimed.** |
+| Status | **Recorded — prospective, and NOT independently adopted.** Effective only for a delegation whose issuer is present in an independently-controlled trusted-issuer store — which currently contains nothing, so no delegation is effective. Revocable at any time. **The four adoptions made under it have been retracted; see §12.** |
+| Deciders | **Unassigned.** No authority has adopted this ADR. It was authored by a machine agent and describes a mechanism, not an approval. |
 | Supersedes | Nothing. No roadmap section, ADR, freeze notice, or gate status is amended, relaxed, or superseded by this ADR. |
-| Source | `evidence/GOVERNANCE_DECISIONS_20261009.jsonl` (the four proposals that name their own ratifying role); `RAPHAEL_MASTER_ROADMAP_v4.2_RSI.md` §1.1, §1.3, Appendix E; `evidence/provenance_correction/OPERATOR_ATTESTATION.md`; `evidence/governance/P4_RSI_FREEZE_NOTICE_20261009.md` §5; `docs/adr/ADR-013` §3.5 |
-| Authority basis | Explicit delegation in the active operator session commissioning `executor_v-2`, recorded verbatim in `evidence/governance/EXECUTOR_DELEGATION_20261011.json`. **Not cryptographically authenticated — see §7.** |
+| Source | `evidence/GOVERNANCE_DECISIONS_20261009.jsonl`; `RAPHAEL_MASTER_ROADMAP_v4.2_RSI.md` §1.1, §1.3, Appendix E; `evidence/provenance_correction/OPERATOR_ATTESTATION.md`; `evidence/governance/P4_RSI_FREEZE_NOTICE_20261009.md` §5; `docs/adr/ADR-013` (untracked, not adopted — cited only as the claim being examined) |
+| Authority basis | **None independently established.** The claimed basis is an explicit delegation in an operator session that is **not** in this repository and **not cryptographically authenticated**. See §7.2, §12.2. |
 | Date recorded | 2026-10-11 |
 
 ---
@@ -149,19 +149,59 @@ there is no warn-and-continue path.
 **If no delegation set is supplied, any `agent:`-principal decision is refused.**
 The default is fail-closed, not permissive.
 
+### 3.1a The issuer-verification boundary (added after the audit of `36329f0ab`)
+
+Checks (1)–(10) are all satisfiable by a file the agent writes itself. The
+independent audit of `36329f0ab` demonstrated the consequence directly: a
+delegation naming an issuer that had never existed —
+`"Queen-Of-Authority-Who-Does-Not-Exist"` — was accepted, and a decision was
+adopted under it. A content hash proves only that nobody edited a record
+**after** it was written. **Naming is not authentication.**
+
+So authority now requires two facts from two separate artifacts:
+
+| | Artifact | Who can write it | What it establishes |
+|---|---|---|---|
+| 1 | the delegation record | the agent | *what* is proposed to be authorised |
+| 2 | **the trusted-issuer store** `evidence/governance/TRUSTED_ISSUERS.json` | a human or the architecture authority | *that the issuer was independently verified*, by a named method, with evidence |
+
+A delegation's `delegating_principal` must appear in the trusted-issuer store as
+a `TrustedIssuer` carrying `issuer_id`, `verification_method`, `verified_by`
+(outside the `agent:` namespace), `verified_at`, and non-empty
+`evidence_refs`. Otherwise the decision is refused.
+
+**The store ships EMPTY, and that is the point.** This repository has no
+signature substrate, no identity provider, and no trust root, so there is
+nothing that could honestly verify an issuer. Populating it would mean inventing
+a verification that did not happen. Consequently:
+
+> **No machine-agent delegation can currently confer effective authority, and
+> no machine-agent decision can be ADOPTED.**
+
+This is fail-closed behaviour. It is not a defect to be configured around, and
+it must not be "fixed" by an agent adding itself to the store —
+`TrustedIssuer.validate()` refuses an `agent:` `issuer_id` and refuses an agent
+as `verified_by`.
+
+Note the limit, stated rather than hidden: `TrustedIssuer` is a **claim of
+verification**, not the verification. The registry checks that such a claim
+exists and is well-formed; it cannot perform the verification itself. The same
+was true of a human principal's name before any of this (§2.1).
+
 ### 3.2 What this prevents
 
-| Attack | Refused by |
-|---|---|
-| An agent writes its own name into `authority_principal` and nothing else | (1)+(2): no delegation ref / no delegation |
-| An agent writes a rule declaring itself authorized | §0: the rule names no grantee; only a delegation record can |
-| An agent issues itself a delegation | `delegating_principal` must not be an `agent:` principal and must differ |
-| An agent widens a delegation after the fact | `scope_decision_ids` is content-hashed; changing it changes the hash and breaks the pin |
-| An agent acts outside its window | (9) |
-| An agent acts after revocation | (7) |
-| An agent adopts a reserved-class decision (G3, ADR, invariant extension) | (6) |
-| A delegated decision is presented as a GLM ruling | §2.2: `agent:` is never GLM; test-pinned |
-| A delegated decision is presented as human operator attestation | §2.2 + the attestation file remains unsigned |
+| Attack | Refused by | What this actually stops |
+|---|---|---|
+| An agent writes its own name into `authority_principal` and nothing else | (1)+(2): no delegation ref / no delegation | yes |
+| An agent writes a rule declaring itself authorized | §0: the rule names no grantee | yes |
+| **An agent issues itself a delegation** | `delegating_principal` must not be an `agent:` principal and must differ | **only the naming pattern.** It does NOT establish that the named issuer exists, is trusted, or actually issued anything. See §3.1a and §7.7 — a non-`agent:` string passes this check, so this row alone does not prevent an agent from authoring its own delegation. |
+| An agent widens a delegation after the fact | `scope_decision_ids` is content-hashed; changing it changes the hash and breaks the pin | yes |
+| An agent acts outside its window | (9) | yes |
+| An agent acts after revocation | (7) | yes |
+| An agent adopts a reserved-class decision (G3, ADR, invariant extension) | (6) plus the declared-class and substantive-effect checks in §2.3 | yes, and no longer id-dependent |
+| **An agent names any issuer it likes** | **§3.1a: the issuer must appear in the independently-controlled trusted-issuer store, which ships EMPTY** | **yes — this is the check that actually prevents authority minting** |
+| A delegated decision is presented as a GLM ruling | §2.2: `agent:` is never GLM; test-pinned | yes |
+| A delegated decision is presented as human operator attestation | §2.2 + the attestation file remains unsigned | yes |
 
 ## 4. Evidence required to audit a delegated action
 
@@ -202,7 +242,7 @@ delegation id, and what the adoption does **not** authorise.
 | `ADOPTED -> ADOPTED`, `ADOPTED -> REJECTED` illegal | unchanged |
 | Append-only API surface; history never truncated | unchanged |
 | Content hash re-derived on every load path | unchanged, extended to delegations |
-| Seed generator emits proposals only | unchanged; generator additionally refuses to clobber decision history |
+| Seed generator emits proposals only | unchanged — it cannot emit a ruling. **It is not, however, protected from destroying one:** see §10.1 and the correction at §12. |
 | G3 **NOT ACCEPTED** | unchanged |
 | P4/RSI freeze ACTIVE | unchanged |
 | `OPERATOR_ATTESTATION.md` unsigned | unchanged — see §8 |
@@ -213,28 +253,39 @@ This ADR must not be read as stronger than it is.
 
 1. **It does not authenticate anyone.** The registry verifies that a delegation
    record exists, is internally consistent, is content-hash-pinned, is
-   un-revoked, is in-window, is scoped to the decision, and was **not**
-   self-issued. It does **not** verify that a real human exists behind
-   `delegating_principal`, and it cannot: this repository has no signature, no
-   identity substrate, and no external notarisation. That residual already
-   existed for human principals (§2.1); this ADR makes it explicit for agent
-   principals rather than hiding it.
+   un-revoked, is in-window, is scoped to the decision, and that its issuer
+   **appears in the independently-controlled trusted-issuer store** (§3.1a).
+   It does **not** verify that the human behind that issuer was who they claim
+   to be, because it cannot: there is no signature or identity substrate here.
+   `TrustedIssuer` is a *claim of verification*. The same residual always
+   existed for human principals (§2.1) — a free-text name has never been proof
+   of anything — and §3.1a makes it explicit for agent principals instead of
+   hiding it.
 2. **A delegation record written by the agent is agent-authored.** In this
    workstream `evidence/governance/EXECUTOR_DELEGATION_20261011.json` was written
-   by the same agent that uses it. The record therefore carries
+   by the same agent that used it. The record therefore carries
    `authored_by: "agent:executor_v-2"` and
    `verification_status: "UNVERIFIED_BY_THIRD_PARTY"`. An auditor must verify
    the claimed session delegation against the commissioning task packet, **which
    is not in this repository**. Until that check happens, decisions adopted
    under it are structurally valid but not third-party authenticated, and this
-   ADR says so rather than implying otherwise.
+   ADR says so rather than implying otherwise. **In the event, no such check
+   was forthcoming: the four adoptions made under it have been retracted. See
+   §12.**
 3. **This is a disclosure, not a defence.** The record can be read by anyone and
    its unverified status is stated on its face and in every decision record that
    relies on it.
 4. **A test suite is not authentication.** Passing tests show the mechanism
    behaves as specified. They show nothing about who actually delegated.
-5. **The reserved-class check is enumerated.** See §10.2.
-6. **The seed generator remains unguarded.** See §10.1.
+5. **The reserved-class check is now two-layered but one layer is a heuristic.**
+   The declared `authority_class` is structural. The substantive-effect marker
+   scan looks for phrases, not meaning. See §10.2.
+6. **The seed generator was unprotected.** See §10.1 and §12.
+7. **The naming check in (1) of §3 is not authentication.** Rejecting an `agent:`
+   issuer stops one shape of self-delegation. It never established that the
+   named issuer exists. The audit proved this: any other string passed. §3.1a is
+   the check that closes it, and §3.2 states plainly which rows are complete
+   and which are not.
 
 ## 8. The human attestation is not replaced by this ADR
 
@@ -282,49 +333,152 @@ decision; the ledger records a single status per decision id.
 
 ## 10. Known residuals (recorded, not engineered away)
 
-### 10.1 The seed generator can still truncate ratified decisions
+### 10.1 The seed generator can still truncate decision history
 
 `scripts/gen_governance_decision_seeds.py` writes the ledger from the eleven
-seeds. Now that the ledger also holds four ratified records, **re-running that
-script would overwrite the file and delete those ratifications.**
+seeds. **Re-running that script against the current ledger would overwrite the
+file and delete every record the generator did not produce** — which now
+includes not only the four retracted adoptions but their four retraction
+records.
 
 A refuse-to-overwrite guard was written for this, and then **deliberately
 removed**. `tests/test_historical_split_adjudication_package.py::test_no_historical_script_or_test_was_modified_by_the_package`
 protects the whole of `scripts/` as census input for the historical split
 adjudication package (`CODE_ROOTS` includes `scripts`), and that guardrail is
-not within this workstream's authority to change. Editing the guardrail to make
-room for a convenience fix would have been the tail wagging the dog — so the
-guard was removed and the hazard recorded instead.
+not within that workstream's authority to change.
 
-Until the owner of that guardrail acts, the minimum correct external action is
-**one** of:
+**Corrected at §12.4:** the post-audit remediation *did* obtain the narrow
+exception needed and the guard now exists. The residual above is retained to
+record that it was real, that it was found by an independent audit rather than
+by the implementer, and that the first response to it — removing the fix — was
+the wrong one.
 
-1. narrow the protected-path list to the adjudication package's own scripts, and
-   let the generator refuse to overwrite a ledger holding non-seed records; or
-2. have the generator write to a separate seeds-only path, leaving the ledger
-   append-only.
+### 10.2 The reserved-class check is two-layered, and one layer is a heuristic
 
-`tests/test_rsi1_governance_registry.py::test_committed_ledger_has_diverged_from_the_seed_set`
-pins the divergence so it cannot be lost silently. Until then: **do not re-run
-the seed generator against this ledger.**
+Reserved protection is no longer a hard-coded id list alone:
 
-### 10.2 The reserved-class check is enumerated, not general
+1. **Declared `authority_class`** — every ruled record must declare what kind of
+   authority act it is, and `GATE_ACCEPTANCE`, `INVARIANT_EXTENSION`,
+   `ADR_ADOPTION`, `FREEZE_LIFT` are refused for a machine agent regardless of
+   id. A *future* reserved decision therefore cannot slip through merely
+   because nobody registered its id. This layer is structural.
+2. **Substantive-effect marker scan** — a record that declares `OPERATIONAL`
+   while its text announces "G3 ACCEPTED", "FREEZE LIFTED", "ADR ADOPTED" or
+   similar is refused. **This layer is a heuristic**: it matches phrases, not
+   meaning, and cannot be complete. It exists to close the "alter only the
+   description" evasion, not to replace a reviewer reading the text.
 
-`RESERVED_DECISION_CLASSES` is a code-level list, not a classifier. It is
-enforced mechanically for the ids it names, and adding one is a visible,
-reviewable code edit. A future reserved decision is therefore protected only
-once someone adds it here. This is a real limit of a mechanical rule and is
-stated rather than glossed.
+`RESERVED_DECISION_CLASSES` (by id) remains as defence in depth. The limit of
+any of this: a sufficiently determined author who writes prose that avoids the
+markers *and* declares `OPERATIONAL` will pass the mechanical checks. That is
+why the marker list is documented as a backstop, and why no test result is
+evidence that a proposal's substantive effect was correctly classified.
 
-## 11. References
+### 10.3 `is_authoritative()` is structural, not contextual
+
+The audit found that `OperatorDecisionRecord.is_authoritative()` returned
+`True` for a record referencing a delegation that did not exist — it had no
+registry context and therefore could not check one. It is now explicitly a
+**structural** check (status, principal, declared class, delegation-ref
+presence) and is documented as necessary-but-never-sufficient. The **effective**
+query is `GovernanceRegistry.effective_authoritative()` (also reachable under
+its former name `authoritative()`), which re-runs the full delegation and trust
+check against this registry's context. `authority_problems()` reports *why* a
+record was withheld rather than silently omitting it.
+
+## 12. Retraction of the four adoptions made under this ADR
+
+Added after the independent audit of `36329f0ab4278106a872574c61bcf5af02789b65`.
+Everything below is read from the ledger; no identifier here is invented.
+
+### 12.1 What happened
+
+`36329f0ab` appended four `ADOPTED` records under delegation
+`DEL-2026-10-11-01`. An independent audit concluded that those adoptions' authority
+could not be established, and the four were retracted by appending four
+`INVALIDATED` records. **The adoption events were preserved, not deleted.**
+
+| Decision | adoption (ledger line, `decided_at`) | retraction (ledger line, `decided_at`) |
+|---|---|---|
+| `GD-2026-10-11-01` | 12, `2026-10-11T12:38:53Z`, hash `5664c624…` | 16, `2026-10-11T16:07:27Z`, hash `cd09d25a…` |
+| `GD-2026-10-11-02` | 13, `2026-10-11T12:38:53Z`, hash `9ad32747…` | 17, `2026-10-11T16:07:27Z`, hash `dd3dbc5b…` |
+| `GD-2026-10-11-04` | 14, `2026-10-11T12:38:53Z`, hash `8354471f…` | 18, `2026-10-11T16:07:27Z`, hash `df0997d2…` |
+| `GD-2026-10-11-05` | 15, `2026-10-11T12:38:53Z`, hash `278335c1…` | 19, `2026-10-11T16:07:27Z`, hash `92cebc61…` |
+
+Resulting ledger: **19 records — 7 `PROPOSED`, 4 `INVALIDATED`, 0
+authoritative.** The eleven origin proposals (lines 1–11) are byte-identical to
+the parent commit `0978d13d` and retain their original content hashes.
+
+### 12.2 Why the adoptions' authority could not be established
+
+1. `delegating_principal` is `operator-role:session-delegator-2026-10-11`, which
+   the delegation record itself labels *"ROLE LABEL, NOT AN IDENTITY"*.
+2. The delegation was `authored_by: "agent:executor_v-2"` — the same machine
+   agent that acted under it.
+3. It carried `verification_status: "UNVERIFIED_BY_THIRD_PARTY"` from the start.
+4. The commissioning task packet it relies on **is not in this repository**.
+5. `RAPHAEL_MASTER_ROADMAP_v4.2_RSI.md` §1.1 defines two lanes (GLM and the
+   implementation agent) and establishes **no operator governance-ratification
+   role**. The "operator is the ratifier" premise traced only to agent-authored
+   proposals and to ADR-013, which is **untracked** and self-declared
+   `Proposed — recorded, NOT adopted`, `Deciders: *Unassigned.*`
+6. `evidence/governance/TRUSTED_ISSUERS.json` is **empty**, so no delegation in
+   this repository can confer effective authority.
+
+### 12.3 What `INVALIDATED` does and does not mean
+
+It means: *an adoption event occurred, is preserved immutably, and confers
+nothing.* It is **not**:
+
+- a **rejection** — no human operator and no GLM ruled against the substance of
+  any of the four proposals, which therefore remain **open and unratified**;
+- a **supersession** — no successor decision exists;
+- a claim that the proposals were wrong.
+
+The four decisions may still be ratified later by a genuinely authorised
+principal (`INVALIDATED → ADOPTED` is a legal transition).
+
+### 12.4 Independent issuer authentication remains unavailable
+
+No issuer authentication was achieved, and none is claimed. The registry
+verifies delegation structure, scope, window, revocation, transition permission,
+reserved class, and trust-store membership. It **cannot** verify that a
+consenting human exists behind any issuer name: this repository has no signature
+substrate, no identity provider, and no trust root, so the trusted-issuer store
+ships **empty**. Populating it is a governance act reserved to a human or the
+architecture authority, and `TrustedIssuer.validate()` refuses an `agent:` issuer
+and an agent `verified_by`.
+
+### 12.5 Unchanged
+
+- `OPERATOR_ATTESTATION.md` remains **`PENDING — NOT SIGNED`**; every human
+  identity field remains `*UNSET*`. No human identity was invented.
+- **G3 remains `NOT ACCEPTED`**; the P4/RSI freeze remains `**ACTIVE**`;
+  **ADR-013 remains `PROPOSED / NOT ADOPTED`** and untracked.
+- **`GD-2026-10-11-03` remains `PROPOSED`** (ledger line 9, one version, no
+  authority), pending the GLM architecture ruling its legacy weld-perimeter
+  component requires. No GLM ruling was fabricated or inferred.
+- **No engagement grant was issued.** `GD-2026-10-11-05` had ratified a *process*,
+  never a capability — and that ratification is itself now retracted.
+- **ADR-014 is not independently adopted.** Its `Status` is *recorded —
+  prospective*. Nothing in this section, and nothing in the delegation it
+  describes, makes it an accepted governance rule.
+
+### 12.6 Referenced by
+
+The four `INVALIDATED` records (lines 16–19) each cite this section in their
+`decision_text` as the full account of the retraction.
+
+## 13. References
 
 - `RAPHAEL_MASTER_ROADMAP_v4.2_RSI.md` §1.1 (two-lane authority), §1.1
   mutual-constraint rule, §1.3 (phase lifecycle), Appendix E (precedence)
-- `src/orchestrator/rsi/governance_registry.py` (authority model; `AGENT_PRINCIPAL_PREFIX`; `RESERVED_DECISION_CLASSES`; `DelegationRecord`)
+- `src/orchestrator/rsi/governance_registry.py` (authority model; `AGENT_PRINCIPAL_PREFIX`; `RESERVED_DECISION_CLASSES`; `RESERVED_AUTHORITY_CLASSES`; `DelegationRecord`; `TrustedIssuer`; `effective_authoritative`)
 - `evidence/governance/EXECUTOR_DELEGATION_20261011.json` (the delegation record)
-- `evidence/GOVERNANCE_DECISIONS_20261009.jsonl` (ledger)
+- `evidence/governance/TRUSTED_ISSUERS.json` (the trusted-issuer store — EMPTY)
+- `evidence/GOVERNANCE_DECISIONS_20261009.jsonl` (ledger; lines 12–19 are the adoption and retraction history)
 - `evidence/governance/P4_RSI_FREEZE_NOTICE_20261009.md` §5 (freeze lift conditions)
-- `docs/adr/ADR-013` §3.5 (operator owns task packets and ratification; GLM owns architecture/gate adjudication)
+- `docs/adr/ADR-013` §3.5 — **UNTRACKED, `Proposed — NOT adopted`, no decider; cited only as the claim being examined, never as authority**
 - `docs/adr/ADR-003-broker-pdp-pep-separation.md` (INV-2, INV-3)
 - `docs/adr/ADR-006-no-second-cognitive-entry-point.md` (INV-5 single-entry doctrine)
 - `evidence/provenance_correction/OPERATOR_ATTESTATION.md`

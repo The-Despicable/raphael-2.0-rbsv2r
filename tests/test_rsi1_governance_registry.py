@@ -13,6 +13,7 @@ collapsing them is the mistake this workstream exists to prevent:
 * the **appended delegated transitions** that follow them, which are the only
   records in the file that confer authority, and only through a valid delegation.
 """
+import json
 from pathlib import Path
 
 import pytest
@@ -20,19 +21,32 @@ import pytest
 from orchestrator.rsi.governance_registry import (
     AGENT_PRINCIPAL_PREFIX,
     ALLOWED_TRANSITIONS,
+    ALL_STATUSES,
+    AUTHORITY_CLASS_ADR_ADOPTION,
+    AUTHORITY_CLASS_FREEZE_LIFT,
+    AUTHORITY_CLASS_GATE_ACCEPTANCE,
+    AUTHORITY_CLASS_INVARIANT_EXTENSION,
+    AUTHORITY_CLASS_OPERATIONAL,
+    AUTHORITY_CLASS_UNDECLARED,
+    AUTHORITY_CLASSES,
+    AUTHORITY_CLASS_MARKER,
     DELEGATION_SCHEMA_VERSION,
+    RESERVED_AUTHORITY_CLASSES,
     RESERVED_DECISION_CLASSES,
     SCHEMA_VERSION,
     SELF_ASSERTION_SOURCE,
     STATUS_ADOPTED,
+    STATUS_INVALIDATED,
     STATUS_PROPOSED,
     STATUS_REJECTED,
     STATUS_SUPERSEDED,
     STATUSES,
+    TRUSTED_ISSUER_SCHEMA_VERSION,
     DelegationRecord,
     GovernanceRegistry,
     GovernanceRegistryError,
     OperatorDecisionRecord,
+    TrustedIssuer,
     is_agent_principal,
 )
 
@@ -42,6 +56,8 @@ DELEGATION_FILE = (REPO_ROOT / "evidence" / "governance"
                    / "EXECUTOR_DELEGATION_20261011.json")
 ATTESTATION_FILE = (REPO_ROOT / "evidence" / "provenance_correction"
                     / "OPERATOR_ATTESTATION.md")
+TRUST_STORE_FILE = (REPO_ROOT / "evidence" / "governance"
+                    / "TRUSTED_ISSUERS.json")
 
 OPERATOR = "operator-principal"
 PROPOSER = "engineering-originating-session"
@@ -50,10 +66,13 @@ AGENT = "agent:executor_v-2"
 DELEGATING = "operator-role:test-delegator"
 DELEGATION_ID = "DEL-TEST-01"
 
+#: A non-agent issuer used only where a test needs one that *could* be trusted.
+VERIFIED_ISSUER = "operator-role:independently-verified"
+
 #: The committed delegation this workstream actually used.
 COMMITTED_DELEGATION_ID = "DEL-2026-10-11-01"
 
-#: The decision ids that delegation is scoped to. GD-2026-10-11-03 is absent
+#: The decision ids that delegation was scoped to. GD-2026-10-11-03 is absent
 #: **by design**: it is a reserved decision class no delegation may reach.
 DELEGATED_DECISION_IDS = (
     "GD-2026-10-11-01",
@@ -61,6 +80,10 @@ DELEGATED_DECISION_IDS = (
     "GD-2026-10-11-04",
     "GD-2026-10-11-05",
 )
+
+#: Those same ids were ADOPTED in commit 36329f0ab and subsequently retracted.
+#: The adoption events remain in history; their present effect is nil.
+RETRACTED_ADOPTION_IDS = DELEGATED_DECISION_IDS
 
 RESERVED_DECISION_ID = "GD-2026-10-11-03"
 
@@ -101,6 +124,13 @@ def _proposal(decision_id="GD-TEST-01", **overrides) -> OperatorDecisionRecord:
 
 
 def _ruled(decision_id="GD-TEST-01", status=STATUS_ADOPTED, **overrides):
+    """A ruling by a named NON-agent principal.
+
+    It declares ``OPERATIONAL`` and carries the matching prose marker, because
+    an *undeclared* ruling is deliberately not authoritative (F7): the registry
+    will not hand back a "yes this is in force" for a record that never said
+    what kind of authority act it was.
+    """
     kwargs = dict(
         decision_id=decision_id,
         topic="test-topic",
@@ -108,14 +138,24 @@ def _ruled(decision_id="GD-TEST-01", status=STATUS_ADOPTED, **overrides):
         allowed_options=("option-a", "option-b"),
         status=status,
         proposer=PROPOSER,
-        decision_text="Ruled by the named authority.",
+        decision_text="Ruled by the named authority. "
+                      "AUTHORITY CLASS: OPERATIONAL.",
         source_ref="test-source",
         affected_gate="G8",
         authority_principal=OPERATOR,
         decided_at="2026-10-09",
         evidence_refs=("evidence/example.json",),
+        authority_class=AUTHORITY_CLASS_OPERATIONAL,
     )
     kwargs.update(overrides)
+    # Keep the record self-consistent: if a caller overrode decision_text but
+    # kept the default authority_class, re-attach the prose marker the registry
+    # requires. Tests should assert on their own property, not on marker
+    # plumbing. (The marker requirement itself is tested directly, below.)
+    if kwargs["authority_class"].strip() \
+            and kwargs["authority_class"].strip() != AUTHORITY_CLASS_UNDECLARED \
+            and AUTHORITY_CLASS_MARKER not in kwargs["decision_text"]:
+        kwargs["decision_text"] += f" AUTHORITY CLASS: {kwargs['authority_class']}."
     return OperatorDecisionRecord(**kwargs)
 
 
@@ -140,6 +180,25 @@ def _delegation(**overrides) -> DelegationRecord:
     return DelegationRecord(**kwargs)
 
 
+def _trusted_issuer(issuer_id=DELEGATING, **overrides) -> TrustedIssuer:
+    """An issuer the trust store accepts.
+
+    NOTE: constructing one does NOT mean the repository trusts anyone. This is a
+    test fixture for the mechanism; the committed store is empty, and the tests
+    that assert the committed state depend on that.
+    """
+    kwargs = dict(
+        issuer_id=issuer_id,
+        verification_method="independent_identity_verification",
+        verified_by="human-authority-placeholder",
+        verified_at="2026-10-11T00:00:00Z",
+        evidence_refs=("evidence/governance/verification.json",),
+        notes="test fixture",
+    )
+    kwargs.update(overrides)
+    return TrustedIssuer(**kwargs)
+
+
 def _agent_ruled(decision_id="GD-TEST-01", **overrides):
     kwargs = dict(
         decision_id=decision_id,
@@ -148,30 +207,42 @@ def _agent_ruled(decision_id="GD-TEST-01", **overrides):
         allowed_options=("option-a", "option-b"),
         status=STATUS_ADOPTED,
         proposer=PROPOSER,
-        decision_text="Ruled by the delegated machine agent.",
+        decision_text="Ruled by the delegated machine agent. "
+                      "AUTHORITY CLASS: OPERATIONAL. Quarantine posture.",
         source_ref="test-source",
         affected_gate="G8",
         authority_principal=AGENT,
         decided_at="2026-10-11T12:00:00Z",
         evidence_refs=("evidence/example.json",),
         delegation_ref=DELEGATION_ID,
+        authority_class=AUTHORITY_CLASS_OPERATIONAL,
     )
     kwargs.update(overrides)
+    if kwargs["authority_class"].strip() \
+            and kwargs["authority_class"].strip() != AUTHORITY_CLASS_UNDECLARED \
+            and AUTHORITY_CLASS_MARKER not in kwargs["decision_text"]:
+        kwargs["decision_text"] += f" AUTHORITY CLASS: {kwargs['authority_class']}."
     return OperatorDecisionRecord(**kwargs)
 
 
 def committed_registry() -> GovernanceRegistry:
     """The committed ledger, loaded the way production must load it.
 
-    Delegations are supplied explicitly. Omitting them is not a way to skip the
-    check — it makes the import fail (see the fail-closed test).
+    Both halves of the authority context are supplied: the delegation record
+    AND the trusted-issuer store. The store is empty, so every machine-agent
+    ruling in this ledger is loaded as history and reported as unverified — it
+    is never honoured.
     """
     import json
 
     delegations = GovernanceRegistry.load_delegations(
         json.loads(DELEGATION_FILE.read_text(encoding="utf-8")))
+    trusted = GovernanceRegistry.load_trusted_issuers(
+        json.loads(TRUST_STORE_FILE.read_text(encoding="utf-8"))
+        ["trusted_issuers"])
     return GovernanceRegistry.from_jsonl(
-        SEED_FILE.read_text(encoding="utf-8"), delegations=delegations)
+        SEED_FILE.read_text(encoding="utf-8"), delegations=delegations,
+        trusted_issuers=trusted)
 
 
 # ── construction and validation ──────────────────────────────────────────
@@ -295,13 +366,16 @@ def test_transition_table_is_closed_and_correct():
     amended authorisation logic depends on exactly which transitions are legal:
     ``PROPOSED -> ADOPTED`` is the only escalation, and nothing may widen it.
     """
-    assert set(ALLOWED_TRANSITIONS) == set(STATUSES)
+    assert set(ALLOWED_TRANSITIONS) == set(ALL_STATUSES)
     assert ALLOWED_TRANSITIONS[STATUS_SUPERSEDED] == ()
     assert ALLOWED_TRANSITIONS == {
         STATUS_PROPOSED: (STATUS_ADOPTED, STATUS_REJECTED),
-        STATUS_ADOPTED: (STATUS_SUPERSEDED,),
+        STATUS_ADOPTED: (STATUS_SUPERSEDED, STATUS_INVALIDATED),
         STATUS_REJECTED: (STATUS_SUPERSEDED,),
         STATUS_SUPERSEDED: (),
+        # INVALIDATED may be re-adopted by a genuinely authorised principal,
+        # but nothing may transition back INTO PROPOSED.
+        STATUS_INVALIDATED: (STATUS_ADOPTED,),
     }
 
     # ADOPTED -> PROPOSED is NOT legal: a ruling can never be quietly relabelled
@@ -311,6 +385,25 @@ def test_transition_table_is_closed_and_correct():
     for status, targets in ALLOWED_TRANSITIONS.items():
         assert STATUS_PROPOSED not in targets, (
             f"{status} must not be able to transition to PROPOSED")
+
+    # INVALIDATED must be reachable from ADOPTED, and must not be reachable
+    # from PROPOSED — retracting an adoption presupposes an adoption.
+    assert STATUS_INVALIDATED in ALLOWED_TRANSITIONS[STATUS_ADOPTED]
+    assert STATUS_INVALIDATED not in ALLOWED_TRANSITIONS[STATUS_PROPOSED]
+
+
+def test_invalidated_is_not_a_way_to_reach_authority_from_a_proposal():
+    """A proposal may not jump straight to INVALIDATED to dodge a ruling."""
+    registry = GovernanceRegistry()
+    registry.append(_proposal("GD-J"))
+    with pytest.raises(GovernanceRegistryError, match="illegal transition"):
+        registry.append(OperatorDecisionRecord(
+            decision_id="GD-J", topic="test-topic", question="What is the answer?",
+            allowed_options=("option-a", "option-b"),
+            status=STATUS_INVALIDATED, proposer=PROPOSER,
+            decision_text="x", source_ref="test-source", affected_gate="G8",
+            authority_principal=OPERATOR, decided_at="2026-10-11",
+            evidence_refs=("evidence/example.json",)))
 
 
 @pytest.mark.parametrize("target", [STATUS_REJECTED])
@@ -435,21 +528,24 @@ def test_from_jsonl_aborts_whole_import_on_a_bad_line():
         GovernanceRegistry.from_jsonl(bad)
 
 
-# ── the committed ledger: origin proposals vs delegated transitions ──────
+# ── the committed ledger: origin proposals vs retracted adoptions ─────────
 #
 # The old test here asserted the whole file was PROPOSED. That was true when
-# the file was eleven untouched seeds and stopped being true the moment a
-# legitimate ratification was appended. The property it was really protecting —
-# *nothing in this file grants authority by itself* — is kept below and stated
-# more sharply: the origin proposals are pinned and still confer nothing, and
-# every authority that does exist is agent-delegated and traceable.
+# the file was eleven untouched seeds, stopped being true when a ratification
+# was appended, and is true again now only by a different route. The property
+# worth protecting is the one all three states share: *nothing in this file
+# grants authority by itself.*
 
 def test_committed_ledger_exists_and_loads_with_its_delegation():
     assert SEED_FILE.is_file(), "run scripts/gen_governance_decision_seeds.py"
     assert DELEGATION_FILE.is_file(), "ADR-014 requires a delegation record"
+    assert TRUST_STORE_FILE.is_file(), "ADR-014 section 3.1a requires a trust store"
     registry = committed_registry()
-    assert len(registry) == 15
+    assert len(registry) == 19
     assert len(registry.delegations()) == 1
+    assert len(registry.trusted_issuers()) == 0, (
+        "the committed trust store must be EMPTY: this repository has no trust "
+        "root, so no delegation can confer effective authority")
 
 
 def test_origin_proposals_are_immutable_and_still_confer_nothing():
@@ -471,22 +567,98 @@ def test_origin_proposals_are_immutable_and_still_confer_nothing():
         assert record.is_authoritative() is False
 
 
-def test_only_delegated_decision_ids_are_authoritative():
-    """Exactly the four delegated ids are authoritative; nothing else is."""
+def test_no_committed_decision_is_effective_authority():
+    """The headline property after the audit: the ledger grants nothing.
+
+    Four ADOPTED records exist in history. They confer nothing, for two
+    independent reasons — the trust store is empty, and the current version of
+    each decision is INVALIDATED. Either alone would suffice.
+    """
     registry = committed_registry()
-    authoritative = {r.decision_id for r in registry.authoritative()}
 
-    assert authoritative == set(DELEGATED_DECISION_IDS)
-    assert len(registry.authoritative()) == 4
-
-    for record in registry.authoritative():
-        assert record.authority_principal == AGENT
-        assert record.delegation_ref == COMMITTED_DELEGATION_ID
-        assert is_agent_principal(record.authority_principal)
-
-    # every still-open decision, including the reserved one, is not authoritative
+    assert registry.authoritative() == (), (
+        "no committed decision may be in force: no trusted issuer exists")
+    assert registry.effective_authoritative() == ()
     assert len(registry.proposed()) == 7
-    assert RESERVED_DECISION_ID in {r.decision_id for r in registry.proposed()}
+    assert len(registry.invalidated()) == 4
+    assert {r.decision_id for r in registry.invalidated()} \
+        == set(RETRACTED_ADOPTION_IDS)
+
+
+def test_retracted_adoptions_remain_discoverable_as_history():
+    """F1: the adoption events were preserved, not deleted or rewritten."""
+    registry = committed_registry()
+    events = registry.adoption_events()
+
+    assert len(events) == 4
+    assert {e.decision_id for e in events} == set(RETRACTED_ADOPTION_IDS)
+    for event in events:
+        assert event.status == STATUS_ADOPTED
+        assert event.authority_principal == AGENT
+        assert event.delegation_ref == COMMITTED_DELEGATION_ID
+        # an undeclared class is itself a reason it is not authoritative
+        assert event.declared_authority_class() == AUTHORITY_CLASS_UNDECLARED
+        assert event.is_authoritative() is False
+
+    # each decision now has three versions: proposal, adoption, retraction
+    for decision_id in RETRACTED_ADOPTION_IDS:
+        versions = registry.versions(decision_id)
+        assert [v.status for v in versions] == [
+            STATUS_PROPOSED, STATUS_ADOPTED, STATUS_INVALIDATED]
+        assert registry.get(decision_id).status == STATUS_INVALIDATED
+
+
+def test_retraction_is_not_a_rejection_and_not_a_supersession():
+    """INVALIDATED must not be mistaken for a ruling against the substance."""
+    registry = committed_registry()
+    for decision_id in RETRACTED_ADOPTION_IDS:
+        record = registry.get(decision_id)
+        assert record.status != STATUS_REJECTED
+        assert record.status != STATUS_SUPERSEDED
+        text = record.decision_text
+        assert "NOT A REJECTION" in text
+        assert "UNRATIFIED AND OPEN" in text
+        # and no successor decision is asserted to exist
+        assert "Successor decision:" not in text
+
+
+def test_retracted_adoptions_are_reported_as_unverified_authority():
+    """F2: unverified machine-agent rulings are surfaced, not silently dropped."""
+    registry = committed_registry()
+    faults = registry.unverified_authority_records()
+
+    assert len(faults) == 4
+    for decision_id, status, reason in faults:
+        assert decision_id in RETRACTED_ADOPTION_IDS
+        assert status == STATUS_ADOPTED
+        assert "trusted-issuer store" in reason
+
+    assert registry.authority_problems() == {}, (
+        "no decision is currently ADOPTED, so there are no live authority "
+        "problems — the retractions resolved them")
+
+
+def test_invalidated_can_be_re_adopted_but_never_relabelled_proposed():
+    registry = GovernanceRegistry()
+    registry.append(_proposal("GD-R"))
+    registry.append(_ruled("GD-R"))
+    registry.append(OperatorDecisionRecord(
+        decision_id="GD-R", topic="test-topic", question="What is the answer?",
+        allowed_options=("option-a", "option-b"),
+        status=STATUS_INVALIDATED, proposer=PROPOSER,
+        decision_text="Adoption retracted; authority not established.",
+        source_ref="test-source", affected_gate="G8",
+        authority_principal=OPERATOR, decided_at="2026-10-11",
+        evidence_refs=("evidence/example.json",)))
+
+    assert registry.get("GD-R").status == STATUS_INVALIDATED
+    assert registry.authoritative() == ()
+    # a genuine re-ratification remains possible
+    registry.append(_ruled("GD-R", decision_text="Re-adopted by a real authority"))
+    assert registry.get("GD-R").status == STATUS_ADOPTED
+    # but nothing may transition back INTO PROPOSED
+    with pytest.raises(GovernanceRegistryError, match="illegal transition"):
+        registry.append(_proposal("GD-R", question="a different question?"))
 
 
 def test_reserved_decision_gd_03_stays_proposed_without_glm_concurrence():
@@ -511,11 +683,13 @@ def test_each_adoption_appends_and_preserves_the_original_proposal():
     registry = committed_registry()
     for decision_id in DELEGATED_DECISION_IDS:
         versions = registry.versions(decision_id)
-        assert len(versions) == 2
-        proposed, adopted = versions
+        assert len(versions) == 3
+        proposed, adopted, invalidated = versions
 
         assert proposed.status == STATUS_PROPOSED
         assert proposed.content_hash() in dict(ORIGIN_CONTENT_HASHES).values()
+        assert adopted.status == STATUS_ADOPTED
+        assert invalidated.status == STATUS_INVALIDATED
 
         # every field that carries decision content is carried over verbatim
         for field in ("topic", "question", "allowed_options", "proposer",
@@ -533,13 +707,14 @@ def test_committed_ledger_round_trips_without_gaining_or_losing_authority():
     """Serialisation is stable: no promotion, no loss, no re-hashing."""
     registry = committed_registry()
     again = GovernanceRegistry.from_jsonl(
-        registry.to_jsonl(), delegations=registry.delegations())
+        registry.to_jsonl(), delegations=registry.delegations(),
+        trusted_issuers=registry.trusted_issuers())
 
     assert len(again) == len(registry)
     assert [r.content_hash() for r in again.history()] \
         == [r.content_hash() for r in registry.history()]
-    assert {r.decision_id for r in again.authoritative()} \
-        == set(DELEGATED_DECISION_IDS)
+    assert again.authoritative() == registry.authoritative() == ()
+    assert len(again.invalidated()) == len(registry.invalidated()) == 4
     assert len(registry.proposed()) == len(again.proposed())
 
 
@@ -571,20 +746,7 @@ def test_seed_generator_emits_proposals_only():
 
 
 def test_committed_ledger_has_diverged_from_the_seed_set():
-    """The seeds alone no longer reproduce the ledger — and that is deliberate.
-
-    Recorded residual (ADR-014 §10): ``scripts/gen_governance_decision_seeds.py``
-    rewrites the ledger from the eleven seeds, so re-running it against the
-    current 15-record ledger would truncate the four delegated rulings. A
-    refuse-to-overwrite guard was written and then **removed**, because
-    ``tests/test_historical_split_adjudication_package.py`` protects the whole
-    of ``scripts/`` as census input, and that guardrail is outside this
-    workstream's authority to change.
-
-    So the hazard is pinned here rather than engineered away: this test fails if
-    the divergence is ever lost, and a reader who runs the generator is warned
-    in ADR-014 §10 rather than discovering it the hard way.
-    """
+    """The seeds alone no longer reproduce the ledger — and that is deliberate."""
     import importlib.util
 
     spec = importlib.util.spec_from_file_location(
@@ -597,13 +759,121 @@ def test_committed_ledger_has_diverged_from_the_seed_set():
     committed = SEED_FILE.read_text(encoding="utf-8")
 
     assert generated != committed, (
-        "the committed ledger now differs from the generated seeds; "
-        "regenerating the seeds would delete ratified decisions — see ADR-014 "
-        "§10 before running gen_governance_decision_seeds.py")
+        "the committed ledger now differs from the generated seeds")
     assert committed.startswith(generated), (
         "the eleven origin proposals must still be a verbatim prefix of the "
-        "ledger; ratified transitions are appended, never spliced in")
-    assert len(committed.splitlines()) == len(generated.splitlines()) + 4
+        "ledger; later records are appended, never spliced in")
+    assert len(committed.splitlines()) > len(generated.splitlines())
+
+
+# ── seed-generator overwrite guard (F5) ──────────────────────────────────
+#
+# These never invoke the destructive path against the real ledger: the
+# generator module is loaded, OUT_PATH is redirected to tmp_path, and the real
+# committed file is only ever READ.
+
+def _load_generator():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "gen_governance_decision_seeds_guard",
+        REPO_ROOT / "scripts" / "gen_governance_decision_seeds.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_generator_refuses_to_overwrite_adopted_history(tmp_path, monkeypatch):
+    module = _load_generator()
+    target = tmp_path / "ledger.jsonl"
+    monkeypatch.setattr(module, "OUT_PATH", target)
+    monkeypatch.setattr(module, "REPO_ROOT", tmp_path)
+
+    # a ledger holding adoption + retraction history, copied verbatim
+    target.write_text(SEED_FILE.read_text(encoding="utf-8"), encoding="utf-8")
+    before = target.read_bytes()
+
+    assert module.main() == 2, "must refuse, not truncate"
+    assert target.read_bytes() == before, (
+        "a refused overwrite must leave the file byte-for-byte identical")
+    assert len(target.read_text(encoding="utf-8").splitlines()) == 19
+
+
+def test_generator_refuses_on_every_non_proposal_status(tmp_path, monkeypatch):
+    """ADOPTED, REJECTED, SUPERSEDED and INVALIDATED must all block."""
+    module = _load_generator()
+    for status in module.NON_PROPOSAL_STATUSES:
+        target = tmp_path / f"ledger-{status}.jsonl"
+        monkeypatch.setattr(module, "OUT_PATH", target)
+        monkeypatch.setattr(module, "REPO_ROOT", tmp_path)
+        payload = {
+            "affected_gate": "G8", "allowed_options": ["a"], "authority_principal": "x",
+            "content_hash": "0" * 64, "decided_at": "2026-10-11", "decision_id": "GD-X",
+            "decision_text": "t", "evidence_refs": ["e"], "proposer": "p",
+            "question": "q?", "schema_version": 1, "source_ref": "s",
+            "status": status, "topic": "t",
+        }
+        target.write_text(json.dumps(payload) + "\n", encoding="utf-8")
+        before = target.read_bytes()
+        assert module.main() == 2, f"{status} must block an overwrite"
+        assert target.read_bytes() == before
+
+
+def test_generator_refuses_when_existing_data_is_malformed(tmp_path, monkeypatch):
+    """Ambiguity is a reason to stop, not a reason to proceed."""
+    module = _load_generator()
+    for bad in ("{not json}\n", "[1,2,3]\n", '{"no":"status"}\n'):
+        target = tmp_path / "bad.jsonl"
+        monkeypatch.setattr(module, "OUT_PATH", target)
+        monkeypatch.setattr(module, "REPO_ROOT", tmp_path)
+        target.write_text(bad, encoding="utf-8")
+        before = target.read_bytes()
+        assert module.main() == 2, f"malformed data must block: {bad!r}"
+        assert target.read_bytes() == before
+
+
+def test_generator_refuses_on_a_proposal_carrying_authority_fields(
+        tmp_path, monkeypatch):
+    """A 'proposal' with authority is not an unratified seed proposal."""
+    module = _load_generator()
+    target = tmp_path / "ledger.jsonl"
+    monkeypatch.setattr(module, "OUT_PATH", target)
+    monkeypatch.setattr(module, "REPO_ROOT", tmp_path)
+    record = json.loads(module.build().to_jsonl().splitlines()[0])
+    record["authority_principal"] = "agent:sneaky"
+    record["content_hash"] = "0" * 64
+    target.write_text(json.dumps(record) + "\n", encoding="utf-8")
+    before = target.read_bytes()
+    assert module.main() == 2
+    assert target.read_bytes() == before
+
+
+def test_generator_still_writes_a_clean_seed_ledger(tmp_path, monkeypatch):
+    """Legitimate seed-only generation must keep working."""
+    module = _load_generator()
+    target = tmp_path / "ledger.jsonl"
+    monkeypatch.setattr(module, "OUT_PATH", target)
+    monkeypatch.setattr(module, "REPO_ROOT", tmp_path)
+
+    assert module.main() == 0
+    assert len(target.read_text(encoding="utf-8").splitlines()) \
+        == len(ORIGIN_CONTENT_HASHES)
+    # second run: identical content, clean no-op
+    before = target.read_bytes()
+    assert module.main() == 0
+    assert target.read_bytes() == before
+
+
+def test_generator_describe_existing_ledger_reports_blocking_ids():
+    module = _load_generator()
+    verdict, reasons, blocking = module.describe_existing_ledger(
+        SEED_FILE.read_text(encoding="utf-8"))
+    assert verdict == "refuse"
+    assert set(blocking) == set(RETRACTED_ADOPTION_IDS)
+    assert any("INVALIDATED" in r for r in reasons)
+    assert any("ADOPTED" in r for r in reasons)
+
+    verdict, _, _ = module.describe_existing_ledger("")
+    assert verdict == "empty"
 
 
 # ── delegation: structure ───────────────────────────────────────────────
@@ -675,8 +945,14 @@ def test_delegation_may_not_scope_a_reserved_decision():
 
 # ── delegation: the authorisation path works ────────────────────────────
 
-def test_agent_adoption_succeeds_under_a_valid_delegation():
-    registry = GovernanceRegistry(delegations=[_delegation()])
+def test_agent_adoption_succeeds_only_under_a_verified_delegation():
+    """The success path needs BOTH halves: delegation AND a trusted issuer.
+
+    This is the positive control for F2. Without it, "the guard always refuses"
+    would also pass every test, which proves nothing about the mechanism.
+    """
+    registry = GovernanceRegistry(delegations=[_delegation()],
+                                  trusted_issuers=[_trusted_issuer()])
     registry.append(_proposal())
     registry.append(_agent_ruled())
 
@@ -684,6 +960,67 @@ def test_agent_adoption_succeeds_under_a_valid_delegation():
     assert len(registry.authoritative()) == 1
     assert registry.get("GD-TEST-01").authority_principal == AGENT
     assert registry.get("GD-TEST-01").delegation_ref == DELEGATION_ID
+    assert registry.authority_problems() == {}
+
+
+def test_agent_adoption_fails_without_a_trusted_issuer():
+    """Identical to the positive control above, minus the trust store."""
+    registry = GovernanceRegistry(delegations=[_delegation()])
+    registry.append(_proposal())
+    with pytest.raises(GovernanceRegistryError, match="trusted-issuer store"):
+        registry.append(_agent_ruled())
+    assert registry.authoritative() == ()
+
+
+def test_agent_adoption_fails_with_a_trust_store_naming_a_different_issuer():
+    """A trusted store that does not name THIS issuer is no help."""
+    registry = GovernanceRegistry(
+        delegations=[_delegation()],
+        trusted_issuers=[_trusted_issuer(issuer_id="someone.else")])
+    registry.append(_proposal())
+    with pytest.raises(GovernanceRegistryError, match="trusted-issuer store"):
+        registry.append(_agent_ruled())
+
+
+def test_human_principal_needs_no_delegation_and_cannot_borrow_one():
+    registry = GovernanceRegistry(delegations=[_delegation()],
+                                  trusted_issuers=[_trusted_issuer()])
+    registry.append(_proposal())
+    registry.append(_ruled())
+    assert len(registry.authoritative()) == 1
+
+    with pytest.raises(GovernanceRegistryError, match="may only be carried by"):
+        _ruled(decision_id="GD-TEST-02", delegation_ref=DELEGATION_ID)
+
+
+def test_loading_a_ledger_never_grants_authority_by_itself():
+    """Loading and authorising are separate acts (F2/F6).
+
+    The earlier design aborted the import when delegation evidence could not be
+    verified. That was wrong in a subtle way: a ledger you cannot read cannot
+    be audited, and the record of an unauthorised adoption is precisely the
+    evidence that must be preserved. So the import succeeds, the record is
+    reported as unverified, and every authority query withholds it.
+    """
+    text = committed_registry().to_jsonl()
+
+    # no delegation context at all
+    bare = GovernanceRegistry.from_jsonl(text)
+    assert len(bare) == 19
+    assert bare.authoritative() == ()
+    faults = bare.unverified_authority_records()
+    assert {d for d, _, _ in faults} == set(RETRACTED_ADOPTION_IDS)
+
+    # delegation context but an empty trust store — the committed state
+    partial = GovernanceRegistry.from_jsonl(
+        text, delegations=GovernanceRegistry.load_delegations(json.loads(
+            DELEGATION_FILE.read_text(encoding="utf-8"))))
+    assert len(partial) == 19
+    assert partial.authoritative() == ()
+
+    # full context is identical, because the committed trust store is empty
+    assert len(committed_registry()) == 19
+    assert committed_registry().authoritative() == ()
 
 
 def test_agent_principal_is_not_authoritative_without_a_delegation():
@@ -706,12 +1043,19 @@ def test_human_principal_needs_no_delegation_and_cannot_borrow_one():
 
 
 def test_import_without_delegations_fails_closed_on_a_delegated_ledger():
-    """Not passing delegations must break the import, not skip the check."""
+    """Superseded: an import must not ABORT, but must grant nothing.
+
+    Kept as a regression on the underlying security property — an
+    unverifiable agent adoption contributes no authority — with the mechanism
+    updated to match the corrected design. See
+    ``test_loading_a_ledger_never_grants_authority_by_itself`` for the full
+    statement of loading-versus-authorising.
+    """
     text = committed_registry().to_jsonl()
-    with pytest.raises(GovernanceRegistryError, match="not loaded"):
-        GovernanceRegistry.from_jsonl(text)
-    # ... and the same file imports cleanly with them.
-    assert len(committed_registry()) == 15
+    registry = GovernanceRegistry.from_jsonl(text)
+    assert registry.authoritative() == ()
+    assert registry.effective_authoritative() == ()
+    assert len(registry) == 19
 
 
 def test_reserved_decision_id_is_enumerated_with_a_stated_reason():

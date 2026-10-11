@@ -22,6 +22,27 @@ What it will NOT do
   strings, which is what makes the records proposals.
 * It does not choose an outcome. ``decision_text`` records that no decision has
   been taken.
+* Since the ledger acquired decision history, it **refuses to overwrite a
+  ledger holding records it did not generate**. Rewriting from the eleven seeds
+  would delete every appended ruling, retraction, or rejection. A generator that
+  can silently destroy decision history is the opposite of the point of
+  generating those records from source in the first place.
+
+Overwrite guard
+---------------
+Added after the independent audit of ``36329f0ab`` found that re-running this
+script would truncate the ledger from 15 records to 11 and delete four decision
+events.
+
+``main()`` inspects ``OUT_PATH`` **before** writing and refuses when the
+existing file holds anything beyond unratified proposals. Each line is parsed
+with plain ``json`` rather than :class:`GovernanceRegistry`, deliberately: a
+ledger holding delegated rulings does not import without a delegation set, and
+this guard must work in precisely the case where someone is about to destroy
+such a ledger. **Malformed or unreadable existing data causes refusal, never
+overwrite** — ambiguity is a reason to stop, not a reason to proceed.
+
+Exit status: ``0`` written or already up to date; ``2`` refused, file untouched.
 
 Regenerate with::
 
@@ -29,6 +50,7 @@ Regenerate with::
 """
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
@@ -40,6 +62,11 @@ from orchestrator.rsi.governance_registry import (  # noqa: E402
     GovernanceRegistry,
     OperatorDecisionRecord,
 )
+
+#: Any status other than PROPOSED represents a decision event this generator
+#: cannot reproduce. Listed explicitly so that adding a new status to the
+#: registry does not silently become writable-over.
+NON_PROPOSAL_STATUSES = ("ADOPTED", "REJECTED", "SUPERSEDED", "INVALIDATED")
 
 OUT_PATH = REPO_ROOT / "evidence" / "GOVERNANCE_DECISIONS_20261009.jsonl"
 
@@ -533,16 +560,90 @@ def build() -> GovernanceRegistry:
     return registry
 
 
+def describe_existing_ledger(existing_text: str) -> tuple[str, list[str], list[str]]:
+    """Classify the ledger that is about to be overwritten.
+
+    Returns ``(verdict, reasons, blocking_ids)`` where ``verdict`` is one of
+    ``"empty"``, ``"refuse"``. Deliberately conservative: anything we cannot
+    confidently read as proposals-only is a refusal, never an overwrite.
+    """
+    reasons: list[str] = []
+    blocking: list[str] = []
+    lines = [ln for ln in existing_text.splitlines() if ln.strip()]
+
+    for lineno, line in enumerate(lines, start=1):
+        try:
+            payload = json.loads(line)
+        except json.JSONDecodeError as exc:
+            return ("refuse", [f"line {lineno} is not valid JSON ({exc})"], [])
+        if not isinstance(payload, dict):
+            return ("refuse", [f"line {lineno} is not a JSON object"], [])
+        status = payload.get("status")
+        decision_id = payload.get("decision_id", f"<line {lineno}>")
+        if status not in (STATUS_PROPOSED,):
+            reasons.append(
+                f"{decision_id}: status={status!r} is a decision event this "
+                f"generator cannot reproduce")
+            blocking.append(str(decision_id))
+        # A proposal carrying authority fields is not a plain seed proposal
+        # either — it is something a human or a delegation put there.
+        if str(payload.get("authority_principal", "")).strip() or \
+                str(payload.get("decided_at", "")).strip() or \
+                str(payload.get("delegation_ref", "")).strip():
+            reasons.append(
+                f"{decision_id}: carries authority/delegation fields, so it is "
+                f"not an unratified seed proposal")
+            blocking.append(str(decision_id))
+
+    return ("refuse" if reasons else "empty", reasons, sorted(set(blocking)))
+
+
 def main() -> int:
     registry = build()
-    OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    OUT_PATH.write_text(registry.to_jsonl(), encoding="utf-8")
+    text = registry.to_jsonl()
 
-    print(f"wrote {len(registry)} records to {OUT_PATH.relative_to(REPO_ROOT)}")
-    print(f"authoritative decisions: {len(registry.authoritative())} (expected 0)")
     if registry.authoritative():
-        print("ERROR: a PROPOSED seed was treated as authoritative", file=sys.stderr)
+        # Unreachable via build(), which is PROPOSED-only, but asserted rather
+        # than assumed: the invariant that matters most must not be silent.
+        print("ERROR: a PROPOSED seed was treated as authoritative",
+              file=sys.stderr)
         return 1
+
+    OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    relative = OUT_PATH.relative_to(REPO_ROOT) if OUT_PATH.is_absolute() \
+        else OUT_PATH
+
+    if OUT_PATH.exists():
+        existing = OUT_PATH.read_text(encoding="utf-8")
+        verdict, reasons, blocking = describe_existing_ledger(existing)
+        if verdict == "refuse":
+            print(f"REFUSING to overwrite {relative}: it holds decision "
+                  f"history that this generator did not produce and cannot "
+                  f"recreate.", file=sys.stderr)
+            for reason in reasons:
+                print(f"  - {reason}", file=sys.stderr)
+            print(f"  blocking decision ids: {blocking}", file=sys.stderr)
+            print("  The file has NOT been modified. Append decisions through "
+                  "the registry API under a verified delegation "
+                  "(docs/adr/ADR-014); do not regenerate seeds over them.",
+                  file=sys.stderr)
+            return 2
+        if existing == text:
+            print(f"{relative} already matches the generated seeds; nothing "
+                  "written (no decision history was present)")
+            print("authoritative decisions: 0 (expected 0)")
+            return 0
+        print(f"{relative} holds only unratified seed proposals and differs "
+              f"from the regenerated seeds; overwriting.")
+        OUT_PATH.write_text(text, encoding="utf-8")
+        print(f"wrote {len(registry)} records to {relative}")
+        print(f"authoritative decisions: {len(registry.authoritative())} "
+              "(expected 0)")
+        return 0
+
+    OUT_PATH.write_text(text, encoding="utf-8")
+    print(f"wrote {len(registry)} records to {relative}")
+    print(f"authoritative decisions: {len(registry.authoritative())} (expected 0)")
     return 0
 
 
