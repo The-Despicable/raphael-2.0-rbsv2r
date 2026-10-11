@@ -1,0 +1,38 @@
+{
+  "agent_principal": "agent:executor_v-2",
+  "authority_source": "explicit_delegation_in_active_operator_session",
+  "authority_source_detail": "The commissioning task packet issued to agent executor_v-2 in the active operator session on 2026-10-11 expressly authorises: amending repository governance rules where a rule blocks the authorised workflow; recording executor_v-2 as the deciding principal; and ratifying exactly GD-2026-10-11-01, -02, -04 and -05, while requiring GD-2026-10-11-03 to stay PROPOSED absent independent GLM architecture concurrence. The session delegation was NOT cryptographically authenticated; no signature is claimed.",
+  "authored_by": "agent:executor_v-2",
+  "completion_condition": "Each scoped decision id may be transitioned at most once under this delegation, because ADOPTED->ADOPTED is not a legal transition. The delegation is spent once its scope is exhausted, and is void thereafter regardless of the expiry instant.",
+  "decision": "Delegates the operator ratification role to the machine agent agent:executor_v-2 for exactly four enumerated decision ids and exactly one transition shape. It confers no architecture authority, no GLM ruling, no gate acceptance, and no engagement grant. It does not lift the P4/RSI freeze and does not adopt ADR-013. It does not and cannot close the unsigned human operator attestation.",
+  "delegating_principal": "operator-role:session-delegator-2026-10-11",
+  "delegating_principal_note": "ROLE LABEL, NOT AN IDENTITY. The repository contains no signature, identity substrate, or external notarisation, so the delegating human is recorded as a role label and NOT as a verified legal name, handle, or email. This is a disclosure, not a claim of verified identity. See ADR-014 section 7.",
+  "delegation_id": "DEL-2026-10-11-01",
+  "effective_from": "2026-10-11T12:33:15Z",
+  "evidence_refs": [
+    "docs/adr/ADR-014-bounded-operator-delegation-to-machine-agent.md",
+    "evidence/GOVERNANCE_DECISIONS_20261009.jsonl",
+    "evidence/provenance_correction/OPERATOR_ATTESTATION.md",
+    "evidence/governance/P4_RSI_FREEZE_NOTICE_20261009.md",
+    "docs/adr/ADR-013-am4-r3-status-and-precedence-conflict.md",
+    "evidence/g3_remediation/STATUS.md",
+    "RAPHAEL_MASTER_ROADMAP_v4.2_RSI.md"
+  ],
+  "expires_at": "2026-10-18T00:00:00Z",
+  "permitted_transitions": [
+    "PROPOSED->ADOPTED"
+  ],
+  "reserved_and_excluded": "GD-2026-10-11-03 is EXCLUDED and RESERVED. Its component 2 (extension of ADR-003 INV-2/INV-3 receipt binding into the legacy weld perimeter) is an invariant-scope change reserved to the architecture authority under roadmap section 1.1, and no GLM ruling exists (evidence/g3_remediation/STATUS.md records G3 NOT ACCEPTED, no GLM ruling yet; the GLM_GOVERNANCE_VERDICT.md cited at evidence/g3_remediation/F2_PERIMETER_RECORD.md:318 is absent from this repository). GD-2026-10-11-03 therefore remains PROPOSED. G3 acceptance, ADR adoption, and freeze lifting are likewise reserved and excluded. A delegation cannot manufacture a higher-authority decision.",
+  "revocation_procedure": "Set revoked=true on a successor record and record the revocation in this ledger's decision history. Revocation is prospective and never erases history; already-adopted records remain in history with their original content hashes and are contestable only through SUPERSEDED, never deletion.",
+  "revoked": false,
+  "scope_decision_ids": [
+    "GD-2026-10-11-01",
+    "GD-2026-10-11-02",
+    "GD-2026-10-11-04",
+    "GD-2026-10-11-05"
+  ],
+  "schema_version": 1,
+  "verification_note": "This record was written by the same machine agent that acts under it. Its structure, scope, window and non-self-issuance are enforced mechanically by governance_registry.py; its claimed session delegation is NOT verified by any third party. An auditor must check it against the commissioning task packet, which is not stored in this repository. Decisions adopted under this record are structurally valid but not third-party authenticated.",
+  "verification_status": "UNVERIFIED_BY_THIRD_PARTY",
+  "content_hash": "5dc506da0c3c457b1190d1f697d7055eaf419386047d19440f5282178e59a3ac"
+}

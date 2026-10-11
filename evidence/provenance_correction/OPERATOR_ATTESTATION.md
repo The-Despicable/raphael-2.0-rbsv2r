@@ -65,3 +65,57 @@ An operator signing this file would confirm:
 Until this file is completed and signed, **operator attribution for this
 remediation is recorded as absent**, and that absence is itself a finding for
 the fresh audit.
+
+---
+
+## Addendum (2026-10-11): delegated machine-agent authority is NOT this attestation
+
+Added by the `executor_v-2` governance-repair session. **Nothing above is
+changed by this addendum.** The status remains `PENDING — NOT SIGNED`, and every
+human field above remains `*UNSET*`.
+
+A question arose during that session: if this file is unsigned, how can any
+operator-level decision be recorded at all? The answer was not to sign this
+file, and not to reuse it for something it is not.
+
+### The two things are different
+
+| | This attestation | Delegated machine-agent authority |
+|---|---|---|
+| Who acts | A **human** operator, in person | A **software agent**, `agent:executor_v-2` |
+| What it establishes | Human identity, review, and approval | That a named agent acted, within an enumerated scope, under a delegation record |
+| Where it lives | this file | `evidence/governance/EXECUTOR_DELEGATION_20261011.json` |
+| Rule | — | `docs/adr/ADR-014-bounded-operator-delegation-to-machine-agent.md` |
+| Can it close this file? | it *is* this file | **No, never.** |
+
+### What the delegation did and did not do
+
+It permitted four ledger records
+(`GD-2026-10-11-01`, `-02`, `-04`, `-05`) to be appended as `ADOPTED`, with
+`authority_principal: "agent:executor_v-2"` and a `delegation_ref` pointing at
+the delegation record.
+
+It did **not**:
+
+- supply any human identity, or fill any `*UNSET*` field above;
+- make this file signed, reviewed, or ratified;
+- record a GLM architecture ruling, or satisfy any gate reserved to GLM;
+- accept G3 (still **NOT ACCEPTED**) or lift the P4/RSI freeze;
+- grant the `agents.engage` capability or authorise engaging any target;
+- adopt `GD-2026-10-11-03`, which remains `PROPOSED` because its legacy
+  weld-perimeter component is reserved to the architecture authority and no GLM
+  ruling exists.
+
+### The honest limit
+
+The delegation record was **written by the same agent that acts under it**, and
+it carries `verification_status: UNVERIFIED_BY_THIRD_PARTY`. The repository can
+verify that the delegation's scope, window, hash and non-self-issuance are
+internally consistent; it cannot verify that a consenting human issued it,
+because there is no signature or identity substrate here. Anyone auditing this
+work should check the claimed session delegation against the commissioning task
+packet, which is **not** stored in this repository.
+
+So: these four decisions are structurally valid and traceable, and they are
+**not** third-party authenticated. Closing the human attestation above remains
+an open, separate, and still-required operator act.
