@@ -9,8 +9,35 @@ AND the legacy branch at that call site deleted, under a named versioned policy 
 (P03/P15) and dead paths (P14/P17/P21/P22/P24/P25/P26) are NOT in this set.
 **Completeness:** every bridge method (40), API route (27), PHASE_EXECUTORS phase (13),
 and effect file (150) reconciled in `CLASSIFICATION.md`/`CENSUS.md`; this set equals the
-welded set exactly (asserted by probe + guardrail). AM-4 STATUS: ALL 15 WELDED
-(see post-weld status table below).
+welded set exactly (asserted by probe + guardrail).
+
+**AM-4 STATUS (reconciled 2026-10-09):** all 15 weld items carry a recorded `WELDED (gate…)`
+claim from the implementing agent. **This is an engineering claim, not an AM-4-R3 execution
+record and not a G3 gate acceptance.** The P9 deletion ruling for gated library code remains
+owed (D-1). See "Post-weld status" below for the state-by-state reading guide.
+
+**Open cross-document inconsistency, NOT resolved here — arithmetic reconciles, security
+classification does not.** The 150-file effect census decomposes as
+**150 = 78 + 6 + 4 + 62** (78 / 6 mediated / 4 reachable notes / 62 dead), and **the totals
+reconcile across every artifact that records them**. What does **not** reconcile is the
+*security classification of the first bucket*:
+
+- this file's `U-3` (below) records those 78 files as **welded** — "the 78 formerly
+  not-yet files now read `Pxx welded`";
+- `evidence/g3_remediation/F2_PERIMETER_RECORD.md` (001R6) still presents the same 78 files in
+  the **not-yet-mediated** column of the 150-file census;
+- `reports/product-readiness/RAPHAEL_PRODUCT_READINESS_2026-10-09.md:267,567` records the same
+  bucket as "**78 not-yet-mediated**", and `:168` lists it as an open **G9** item
+  ("≈78 not-yet-mediated files still present").
+
+**Arithmetic agreement is not Broker-mediation evidence.** The buckets sum to 150 in every
+source, but that the counts *add up* says nothing about whether those 78 files are welded.
+The same 78 files are described as welded in one artifact and as unmediated in others; only
+architecture authority can settle which is true. This reconciliation therefore
+**does not decide the 78-file question, does not execute or reconstruct AM-4-R3, does not
+accept G3, and does not authorize P4/RSI implementation.** It is referred to the architecture
+authority as part of the G3 adjudication. The claim itself is preserved unchanged at `U-3` and
+is flagged as disputed, not overwritten.
 
 ## Weld set (15)
 
@@ -32,21 +59,36 @@ welded set exactly (asserted by probe + guardrail). AM-4 STATUS: ALL 15 WELDED
 | W-14 | R3.0-P23 | Standalone service entries (31 census files: mhddos, recon-pipeline, sword/api+`phase_0`+`phase_1`+`report`+`bulk`/`dns`/`bounceback`+`smtp_tunnel`+`phase_5`, agent implant+5 modules+`modules/audit`+`egress`, phishing/main+evilginx+set+gophish, cloak×2, cai-service conduits, factory delivery+templates+vhost-enum, verifier channels+core, techniques `fast_port_scan` CLI). **Weld-or-P9-delete decision owed** (see below). |
 | W-15 | R3.0-P27 | E-CLI-LEGACY (`RAPHAEL_USE_LEGACY=1`): planner → `cortex/hypothesizer.hypothesize` → unbrokered LLM post; `Executor` → `KaliBridge.run` → unbrokered httpx attempt (fail-closed); `shutdown()` → `hippocampus.store` → episode file write. Weld-or-delete the branch with its effects (P03 keeps the welded-subprocess record). |
 
-## Post-weld status (AM-4; all 15 WELDED under Scope v0)
+## Post-weld status (AM-4)
+
+> ### Reconciliation note — 2026-10-09 (G3 remediation task, engineering)
+>
+> This section previously appeared **twice**: a superseded copy followed by the current one.
+> The superseded copy claimed `(26 tests)` and carried an **empty** status table; the current
+> copy claims `(47 tests)` and carries the populated table. The stale copy has been removed
+> here. The superseded text is not erased from the record — it remains in this file's git
+> history (`git log -p -- evidence/phases/P3_0_reinventory/WELD_SET.md`).
+>
+> **Test-inventory count, reproduced:** `tests/test_am4_weld_gates.py` contains **47** test
+> functions at this revision. `PROVEN` by static count.
+>
+> ### Reading the "WELDED" status correctly
+>
+> `WELDED` in the table below is an **engineering claim recorded by the implementing agent**.
+> It is **not** a gate acceptance. The five distinct states below must not be collapsed:
+>
+> | State | Status at this revision | Label |
+> |---|---|---|
+> | Gate/deletion **code present** at the named call sites | recorded per item below | `REPORTED` |
+> | Test **functions present** in `tests/test_am4_weld_gates.py` | 47 functions present | `PROVEN` (static count only) |
+> | Tests **executed and passing** at this revision | not reproduced by the 2026-10-09 remediation task | `UNKNOWN` |
+> | **Independent review** of the weld set (roadmap §14.12) | not performed; no GLM ruling artifact exists | `UNKNOWN` |
+> | **Roadmap gate G3** | **NOT ACCEPTED** — see `evidence/g3_remediation/STATUS.md:17,54` and roadmap Appendix D | `PROVEN` (absence of ruling) |
+>
+> A count of 47 test functions is evidence that tests *exist*. It is **not** evidence that 47
+> tests ran, that they passed, or that anyone reviewed them.
 
 Weld mechanism (uniform, ADR-012): seam fixed ON via `enforce_broker_mediation`
-(`src/orchestrator/auth.py` — propose to the canonical Broker built by the
-bootstrap-v0 factory; proceed iff AUTHORIZED; fail-closed WeldNotAuthorized
-otherwise) + legacy unconditional branches deleted. Named policy artifact:
-`policies/bootstrap-v0.json` via `make_broker_from_bootstrap` (canonical PDP
-factory, CONV-1); Scope v0 governs the canonical mission path. Under current
-policy all weld classes DENY (verified live); the canonical fixture capability
-still AUTHORIZEs (gate is not blanket-deny). Denial proofs per item in
-`tests/test_am4_weld_gates.py` (26 tests).
-
-| Item | Path | Status | Weld evidence |
-|---|---|---|---|
-## Post-weld status (AM-4; all 15 WELDED under Scope v0)
 
 Weld mechanism (uniform, ADR-012): seam fixed ON via `enforce_broker_mediation`
 (`src/orchestrator/auth.py` — propose to the canonical Broker built by the
@@ -78,7 +120,17 @@ no OFF switch; imports retained (census rows stable at 150).
 | W-14 | R3.0-P23 | WELDED (gate + deletion; P9-delete ruling still owed) | per-route matrix below: 5 named ungated routes repaired (3 gated + 2 branch-deleted); execution bodies deleted at mhddos rotate/attack, cloak helpers, agent exec/uninstall branches, recon subfinder, phishing status paths gated; W-14 libraries retained behind gates (P9 domain) |
 | W-15 | R3.0-P27 | WELDED (branch deleted) | main.py legacy branch DELETED (canonical Runtime only) + `KaliBridge.run` gated; residual effects dead-code-confined |
 
-Remaining not-yet paths: none (0). Remaining WELD_SET members: 15/15 welded.
+Remaining not-yet paths: none (0). Remaining WELD_SET members: 15/15 with a recorded
+`WELDED (gate …)` claim.
+
+**Two separate obligations must not be conflated.** *Welding* (route every governed
+primitive at these call sites through the Broker and delete the legacy unconditional
+branch) is claimed complete for all 15. *Deletion of the now-gated library code behind those
+gates* is owned by **P9** and is **still owed** — recorded as D-1 below and in the W-14 row.
+The previous single-phrase summary "ALL 15 WELDED" did not distinguish these, which is how a
+"ruling still owed" row sat under an apparently unconditional header. Both statements are
+retained above rather than reconciled away: the weld claim and the outstanding P9 deletion
+ruling are independent obligations with different owners.
 
 ### W-14 route matrix (AM-4-R2 source audit; governed primitives only)
 
@@ -157,5 +209,14 @@ No independent production entry → WELDED (covered-by-entry; P9 owns removal).
   6 mediated · 4 reachable notes · 62 dead). Bare-import files without effectful use
   (`ladon` has socket use → P06; true import-only files → P17 note/P24).
   (AM-4 note: the 78 formerly not-yet files now read `Pxx welded`.)
+  > **DISPUTED CLASSIFICATION — the arithmetic above reconciles; the "welded" label on the 78
+  > does not.** 78 + 6 + 4 + 62 = 150, and that total is consistent across artifacts. But the
+  > first bucket is labelled **welded** here and **not-yet-mediated** in
+  > `evidence/g3_remediation/F2_PERIMETER_RECORD.md` (001R6) and in
+  > `reports/product-readiness/RAPHAEL_PRODUCT_READINESS_2026-10-09.md:267` (`:168` lists it as
+  > an open G9 item). **A count that adds up is not evidence that the files are
+  > Broker-mediated.** The text above is preserved verbatim and is **not** corrected here:
+  > resolving it by inference would manufacture provenance. This note records the dispute and
+  > refers it to architecture authority; it does not decide it.
 
 > **Amendment 2026-10-04 (M0-A):** the former sibling module `src/orchestrator/sandbox.py` was permanently shadowed by the `orchestrator/sandbox/` package and broke 14 imports; its `PatchSandbox`/W-10 definition was merged into `src/orchestrator/sandbox/__init__.py` and the shadow file removed. Paths above updated accordingly; W-10 gate semantics unchanged (fail-closed stub, see tests/test_m0_clean_floor.py).
